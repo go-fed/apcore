@@ -13,8 +13,12 @@ type config struct {
 
 // Configuration section specifically for the HTTP server.
 type serverConfig struct {
-	CookieAuthKeyFile       string `ini:"cookie_auth_key_file"`
-	CookieEncryptionKeyFile string `ini:"cookie_encryption_key_file"`
+	CookieAuthKeyFile           string `ini:"cookie_auth_key_file"`
+	CookieEncryptionKeyFile     string `ini:"cookie_encryption_key_file"`
+	HttpsReadTimeoutSeconds     int    `ini:"https_read_timeout_seconds"`
+	HttpsWriteTimeoutSeconds    int    `ini:"https_write_timeout_seconds"`
+	RedirectReadTimeoutSeconds  int    `ini:"redirect_read_timeout_seconds"`
+	RedirectWriteTimeoutSeconds int    `ini:"redirect_write_timeout_seconds"`
 }
 
 // Configuration section specifically for the database.
