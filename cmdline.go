@@ -17,11 +17,12 @@ var (
 	systemLogFlag    = flag.Bool("syslog", false, "Also enable logging to system")
 	infoLogFileFlag  = flag.String("info-log-file", "", "Log file for info, defaults to os.Stdout")
 	errorLogFileFlag = flag.String("error-log-file", "", "Log file for errors, defaults to os.Stderr")
+	configFlag       = flag.String("config", "config.ini", "Path to the configuration file")
 )
 
 var (
-	// These loggers will only respect the logging flags while the Run is
-	// executing. Otherwise, they log to os.Stdout and os.Stderr.
+	// These loggers will only respect the logging flags while the call to
+	// Run is executing. Otherwise, they log to os.Stdout and os.Stderr.
 	InfoLogger  *logger.Logger = logger.Init("apcore", false, false, os.Stdout)
 	ErrorLogger *logger.Logger = logger.Init("apcore", false, false, os.Stderr)
 )
@@ -41,7 +42,7 @@ func init() {
 type cmdAction struct {
 	Name        string
 	Description string
-	Action      func() error
+	Action      func(Application) error
 }
 
 // String formats the command line action similarly to the standard library
@@ -108,43 +109,47 @@ func allActionsUsage() string {
 }
 
 // The 'serve' command line action.
-func serveFn() error {
+func serveFn(a Application) error {
+	_, err := newServer(*configFlag, a)
+	if err != nil {
+		return err
+	}
 	// TODO
 	return nil
 }
 
 // The 'new' command line action.
-func guideNewFn() error {
+func guideNewFn(a Application) error {
 	// TODO
 	return nil
 }
 
 // The 'init-db' command line action.
-func initDbFn() error {
+func initDbFn(a Application) error {
 	// TODO
 	return nil
 }
 
 // The 'init-admin' command line action.
-func initAdminFn() error {
+func initAdminFn(a Application) error {
 	// TODO
 	return nil
 }
 
 // The 'configure' command line action.
-func configureFn() error {
+func configureFn(a Application) error {
 	// TODO
 	return nil
 }
 
 // The 'version' command line action.
-func versionFn() error {
-	// TODO
+func versionFn(a Application) error {
+	fmt.Fprintf(os.Stdout, "%s; %s", a.Software(), apCoreSoftware())
 	return nil
 }
 
 // Run will launch the apcore server.
-func Run() {
+func Run(a Application) {
 	if !flag.Parsed() {
 		flag.Parse()
 	}
@@ -201,7 +206,7 @@ func Run() {
 		fmt.Fprintf(os.Stderr, "Unknown action: %s\n", flag.Arg(0))
 		fmt.Fprintf(os.Stderr, "Available actions:\n%s", allActionsUsage())
 		os.Exit(1)
-	} else if err := action.Action(); err != nil {
+	} else if err := action.Action(a); err != nil {
 		ErrorLogger.Errorf("error running %s: %s", flag.Arg(0), err)
 		os.Exit(1)
 	}
