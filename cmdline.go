@@ -13,10 +13,10 @@ import (
 
 var (
 	// Flags for apcore
-	debugFlag        = flag.Bool("debug", false, "Enable the development server on localhost")
+	debugFlag        = flag.Bool("debug", false, "Enable the development server on localhost & other developer quality of life features")
 	systemLogFlag    = flag.Bool("syslog", false, "Also enable logging to system")
-	infoLogFileFlag  = flag.String("info-log-file", "", "Log file for info, defaults to os.Stdout")
-	errorLogFileFlag = flag.String("error-log-file", "", "Log file for errors, defaults to os.Stderr")
+	infoLogFileFlag  = flag.String("info_log_file", "", "Log file for info, defaults to os.Stdout")
+	errorLogFileFlag = flag.String("error_log_file", "", "Log file for errors, defaults to os.Stderr")
 	configFlag       = flag.String("config", "config.ini", "Path to the configuration file")
 )
 
@@ -110,7 +110,7 @@ func allActionsUsage() string {
 
 // The 'serve' command line action.
 func serveFn(a Application) error {
-	_, err := newServer(*configFlag, a)
+	_, err := newServer(*configFlag, a, *debugFlag)
 	if err != nil {
 		return err
 	}
@@ -158,39 +158,50 @@ func Run(a Application) {
 		os.Exit(1)
 	}
 
-	// Prepare Logging
-	var il, el io.Writer = os.Stdout, os.Stderr
-	var err error
-	if len(*infoLogFileFlag) > 0 {
-		il, err = os.OpenFile(
-			*infoLogFileFlag,
-			os.O_CREATE|os.O_WRONLY|os.O_APPEND,
-			0660)
-		if err != nil {
-			ErrorLogger.Errorf("cannot open %s: %s", *infoLogFileFlag, err)
-			os.Exit(1)
+	// Check and prepare debug mode
+	if *debugFlag {
+		InfoLogger.Info("Debug mode enabled")
+		if len(*infoLogFileFlag) > 0 {
+			InfoLogger.Warning("info_log_file flag ignored in debug mode")
 		}
-	}
-	if len(*errorLogFileFlag) > 0 {
-		el, err = os.OpenFile(
-			*errorLogFileFlag,
-			os.O_CREATE|os.O_WRONLY|os.O_APPEND,
-			0660)
-		if err != nil {
-			ErrorLogger.Errorf("cannot open %s: %s", *infoLogFileFlag, err)
-			os.Exit(1)
+		if len(*errorLogFileFlag) > 0 {
+			InfoLogger.Warning("error_log_file flag ignored in debug mode")
 		}
+	} else {
+		// Prepare production logging
+		var il, el io.Writer = os.Stdout, os.Stderr
+		var err error
+		if len(*infoLogFileFlag) > 0 {
+			il, err = os.OpenFile(
+				*infoLogFileFlag,
+				os.O_CREATE|os.O_WRONLY|os.O_APPEND,
+				0660)
+			if err != nil {
+				ErrorLogger.Errorf("cannot open %s: %s", *infoLogFileFlag, err)
+				os.Exit(1)
+			}
+		}
+		if len(*errorLogFileFlag) > 0 {
+			el, err = os.OpenFile(
+				*errorLogFileFlag,
+				os.O_CREATE|os.O_WRONLY|os.O_APPEND,
+				0660)
+			if err != nil {
+				ErrorLogger.Errorf("cannot open %s: %s", *infoLogFileFlag, err)
+				os.Exit(1)
+			}
+		}
+		InfoLogger = logger.Init("apcore", false, *systemLogFlag, il)
+		defer func() {
+			InfoLogger.Close()
+			InfoLogger = logger.Init("apcore", false, false, os.Stdout)
+		}()
+		ErrorLogger = logger.Init("apcore", false, *systemLogFlag, el)
+		defer func() {
+			ErrorLogger.Close()
+			ErrorLogger = logger.Init("apcore", false, false, os.Stderr)
+		}()
 	}
-	InfoLogger = logger.Init("apcore", false, *systemLogFlag, il)
-	defer func() {
-		InfoLogger.Close()
-		InfoLogger = logger.Init("apcore", false, false, os.Stdout)
-	}()
-	ErrorLogger = logger.Init("apcore", false, *systemLogFlag, el)
-	defer func() {
-		ErrorLogger.Close()
-		ErrorLogger = logger.Init("apcore", false, false, os.Stderr)
-	}()
 
 	// Conduct the action
 	var action cmdAction

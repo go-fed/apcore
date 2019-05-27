@@ -6,23 +6,38 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gorilla/mux"
 	_ "github.com/gorilla/schema"
 )
 
 type server struct {
 	a           Application
-	router      *mux.Router
+	handler     *handler
+	db          *database
 	sessions    *sessions
 	config      *config
 	httpServer  *http.Server
 	httpsServer *http.Server
+	debug       bool
 }
 
-func newServer(configFileName string, a Application) (s *server, err error) {
+func newServer(configFileName string, a Application, debug bool) (s *server, err error) {
 	// Load the configuration
 	var c *config
 	c, err = loadConfigFile(configFileName, a)
+	if err != nil {
+		return
+	}
+
+	// Connect to database
+	var db *database
+	db, err = newDatabase(c, a)
+	if err != nil {
+		return
+	}
+
+	// Build application routes
+	var h *handler
+	h, err = newHandler(c, a, debug)
 	if err != nil {
 		return
 	}
@@ -34,14 +49,11 @@ func newServer(configFileName string, a Application) (s *server, err error) {
 		return
 	}
 
-	// Build application routes
-	r := mux.NewRouter()
-
 	// Prepare HTTPS server. No option to run the server as HTTP, because
 	// we're living in the future.
 	httpsServer := &http.Server{
 		Addr:         ":https",
-		Handler:      r,
+		Handler:      h.Handler(),
 		ReadTimeout:  time.Duration(c.ServerConfig.HttpsReadTimeoutSeconds) * time.Second,
 		WriteTimeout: time.Duration(c.ServerConfig.HttpsWriteTimeoutSeconds) * time.Second,
 		TLSConfig:    createTlsConfig(),
@@ -53,11 +65,13 @@ func newServer(configFileName string, a Application) (s *server, err error) {
 	// Create the apcore server
 	s = &server{
 		a:           a,
-		router:      r,
+		handler:     h,
+		db:          db,
 		sessions:    ses,
 		config:      c,
 		httpServer:  httpServer,
 		httpsServer: httpsServer,
+		debug:       debug,
 	}
 
 	// Post-creation hooks

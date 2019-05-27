@@ -1,7 +1,7 @@
 package apcore
 
 import (
-	"fmt"
+	"net/http"
 )
 
 // Application is an ActivityPub application built on top of apcore's
@@ -31,20 +31,10 @@ type Application interface {
 	// of a running application. When the command to serve, is given, this
 	// function is only called once during application initialization.
 	SetConfiguration(interface{}) error
-}
-
-type Software struct {
-	Name         string
-	MajorVersion int
-	MinorVersion int
-	PatchVersion int
-}
-
-func (s Software) String() string {
-	return fmt.Sprintf(
-		"%s (%d.%d.%d)",
-		s.Name,
-		s.MajorVersion,
-		s.MinorVersion,
-		s.PatchVersion)
+	// The handler for the application's "404 Not Found" webpage.
+	NotFoundHandler() http.Handler
+	// The handler when a request makes an unsupported HTTP method against
+	// a URI.
+	MethodNotAllowedHandler() http.Handler
+	// TODO: Function to construct HTTP routes for the application.
 }
