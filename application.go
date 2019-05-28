@@ -51,5 +51,8 @@ type Application interface {
 	// The handler when a request makes an unsupported HTTP method against
 	// a URI.
 	MethodNotAllowedHandler() http.Handler
-	// TODO: Function to construct HTTP routes for the application.
+	// Builds the HTTP and ActivityPub routes specific for this application.
+	//
+	// The bulk of the application logic goes here.
+	BuildRoutes(r *Router) error
 }

@@ -31,7 +31,14 @@ func newHandler(c *config, a Application, debug bool) (h *handler, err error) {
 	// TODO: Webfinger
 	// TODO: Node-info
 	// TODO: Host-meta
-	// TODO: Application-specific routes
+
+	// Application-specific routes
+	err = a.BuildRoutes(&Router{
+		router: r,
+	})
+	if err != nil {
+		return
+	}
 
 	if debug {
 		InfoLogger.Info("Adding request logging middleware for debugging")
