@@ -34,7 +34,7 @@ var Usage func() = func() {}
 func init() {
 	flag.Usage = func() {
 		Usage()
-		fmt.Fprintf(flag.CommandLine.Output(), "Actions are:\n%s", allActionsUsage())
+		fmt.Fprintf(flag.CommandLine.Output(), "Actions are:\n%s\n", allActionsUsage())
 		flag.PrintDefaults()
 	}
 }
@@ -62,22 +62,22 @@ var (
 	}
 	guideNew cmdAction = cmdAction{
 		Name:        "new",
-		Description: "Launch a guided application setup process.",
+		Description: "Launch the guided application setup process guided by Clarke the Cow.",
 		Action:      guideNewFn,
 	}
 	initDb cmdAction = cmdAction{
 		Name:        "init-db",
-		Description: "Initializes a new, empty database with the required tables if no existing database tables are detected.",
+		Description: "Initializes a new, empty database with the required tables if no existing database tables are detected. Requires a configuration.",
 		Action:      initDbFn,
 	}
 	initAdmin cmdAction = cmdAction{
 		Name:        "init-admin",
-		Description: "Initializes a new administrator user account.",
+		Description: "Initializes a new administrator user account. Requires a database.",
 		Action:      initAdminFn,
 	}
 	configure cmdAction = cmdAction{
 		Name:        "configure",
-		Description: "Create or modify the server configuration.",
+		Description: "Create or overwrite the server configuration in a guided flow.",
 		Action:      configureFn,
 	}
 	version cmdAction = cmdAction{
@@ -120,7 +120,38 @@ func serveFn(a Application) error {
 
 // The 'new' command line action.
 func guideNewFn(a Application) error {
-	// TODO
+	sw := a.Software()
+	fmt.Println(clarkeSays(fmt.Sprintf(`
+Hi, I'm Clarke the Cow! I am here to help you set up your ActivityPub
+software. It is called %q. This is version %d.%d.%d, but I don't know what
+that means. I'm a cow! First off, let's create a configuration file. Let's get
+mooving!`,
+		sw.Name,
+		sw.MajorVersion,
+		sw.MinorVersion,
+		sw.PatchVersion)))
+	err := configureFn(a)
+	if err != nil {
+		return err
+	}
+	fmt.Println(clarkeSays(`
+Configuration wizardry complete! It is a good idea to check that configuration
+file for additional options before serving traffic. You can always re-run the
+wizard using the "configure" action. Now let's initialize the database!`))
+	err = initDbFn(a)
+	if err != nil {
+		return err
+	}
+	fmt.Println(clarkeSays(`
+Whew! That can manually be done using the "init-db" action in the future. Next,
+let's initialize your first administrator account in the database.`))
+	err = initAdminFn(a)
+	if err != nil {
+		return err
+	}
+	fmt.Println(clarkeSays(`
+Moo~! That was the "init-admin" action. We are done, but before you run the
+"serve" action, please do double check your configuration file! Bye bye!`))
 	return nil
 }
 
@@ -138,13 +169,49 @@ func initAdminFn(a Application) error {
 
 // The 'configure' command line action.
 func configureFn(a Application) error {
-	// TODO
+	if len(*configFlag) == 0 {
+		return fmt.Errorf("config flag not set")
+	}
+	exists := false
+	if _, err := os.Stat(*configFlag); err == nil {
+		exists = true
+		cont, err := promptFileExistsContinue(*configFlag)
+		if err != nil {
+			return err
+		}
+		if !cont {
+			return nil
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("cannot modify configuration: %s", err)
+	}
+	cfg, err := promptNewConfig(*configFlag)
+	if err != nil {
+		return err
+	}
+	InfoLogger.Info("Calling application to get default config options")
+	acfg := a.NewConfiguration()
+	if exists {
+		cont, err := promptOverwriteExistingFile(*configFlag)
+		if err != nil {
+			return err
+		}
+		if !cont {
+			InfoLogger.Infof("Did not overwrite configuration file at %s", *configFlag)
+			return nil
+		}
+	}
+	err = saveConfigFile(*configFlag, cfg, acfg)
+	if err != nil {
+		return err
+	}
+	InfoLogger.Infof("Successfully wrote configuration file to %s", *configFlag)
 	return nil
 }
 
 // The 'version' command line action.
 func versionFn(a Application) error {
-	fmt.Fprintf(os.Stdout, "%s; %s", a.Software(), apCoreSoftware())
+	fmt.Fprintf(os.Stdout, "%s; %s\n", a.Software(), apCoreSoftware())
 	return nil
 }
 
