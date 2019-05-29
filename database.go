@@ -107,7 +107,7 @@ func postgresConn(pg postgresConfig) (s string, err error) {
 		s = fmt.Sprintf("%s host=%s", s, pg.Host)
 	}
 	if pg.Port > 0 {
-		s = fmt.Sprintf("%s port=%s", s, pg.Port)
+		s = fmt.Sprintf("%s port=%d", s, pg.Port)
 	}
 	if len(pg.SSLMode) > 0 {
 		s = fmt.Sprintf("%s sslmode=%s", s, pg.SSLMode)
@@ -116,7 +116,7 @@ func postgresConn(pg postgresConfig) (s string, err error) {
 		s = fmt.Sprintf("%s fallback_application_name=%s", s, pg.FallbackApplicationName)
 	}
 	if pg.ConnectTimeout > 0 {
-		s = fmt.Sprintf("%s connect_timeout=%s", s, pg.ConnectTimeout)
+		s = fmt.Sprintf("%s connect_timeout=%d", s, pg.ConnectTimeout)
 	}
 	if len(pg.SSLCert) > 0 {
 		s = fmt.Sprintf("%s sslcert=%s", s, pg.SSLCert)

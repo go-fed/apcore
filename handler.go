@@ -94,6 +94,6 @@ func timingLogger(next http.Handler) http.Handler {
 		start := time.Now()
 		next.ServeHTTP(w, r)
 		end := time.Now()
-		InfoLogger.Info("%s took %s", r.URL, end.Sub(start))
+		InfoLogger.Infof("%s took %s", r.URL, end.Sub(start))
 	})
 }

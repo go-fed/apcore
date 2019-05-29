@@ -30,9 +30,9 @@ import (
 var (
 	// Flags for apcore
 	debugFlag        = flag.Bool("debug", false, "Enable the development server on localhost & other developer quality of life features")
-	systemLogFlag    = flag.Bool("syslog", false, "Also enable logging to system")
-	infoLogFileFlag  = flag.String("info_log_file", "", "Log file for info, defaults to os.Stdout")
-	errorLogFileFlag = flag.String("error_log_file", "", "Log file for errors, defaults to os.Stderr")
+	systemLogFlag    = flag.Bool("syslog", false, "Also logs to system (stdout and stderr) if logging to a file")
+	infoLogFileFlag  = flag.String("info_log_file", "", "Log file for info, defaults to stdout")
+	errorLogFileFlag = flag.String("error_log_file", "", "Log file for errors, defaults to stderr")
 	configFlag       = flag.String("config", "config.ini", "Path to the configuration file")
 )
 
@@ -44,13 +44,48 @@ var (
 )
 
 // Usage is overridable so client applications can add custom additional
-// information on the command line.
+// help information on the command line.
+//
+// Override this instead of the flag.Usage global variable.
 var Usage func() = func() {}
+
+// CmdLineName is overridable so client applications can match the help text
+// with the correct executable name.
+var CmdLineName func() string = func() string { return "example" }
 
 func init() {
 	flag.Usage = func() {
 		Usage()
-		fmt.Fprintf(flag.CommandLine.Output(), "Actions are:\n%s\n", allActionsUsage())
+		fmt.Fprintf(
+			flag.CommandLine.Output(),
+			"Usage:\n\n    %s <action> [arguments]\n\n",
+			CmdLineName())
+		fmt.Fprintf(
+			flag.CommandLine.Output(),
+			"This executable supports different actions to facilitate easier administration,\n"+
+				"and flags to modify behavior at run-time. Each action will log its behavior, by\n"+
+				"default stderr and stdout. However, non-debug commands can specify writing logs\n"+
+				"to file for auditing and record keeping purposes.\n")
+		fmt.Fprintf(
+			flag.CommandLine.Output(),
+			clarkeSays("Hi, I'm Clarke the Cow! When you run certain commands, I will help guide you "+
+				"and ensure you have a smooooth time. Ciao!"))
+		fmt.Fprintf(
+			flag.CommandLine.Output(),
+			"\nThis application is built using apcore %d.%d.%d, which is licensed under the\n",
+			apcoreMajorVersion,
+			apcoreMinorVersion,
+			apcorePatchVersion)
+		fmt.Fprintf(
+			flag.CommandLine.Output(),
+			"GNU Affero General Public License. Thank you for choosing to use this software.\n\n")
+		fmt.Fprintf(
+			flag.CommandLine.Output(),
+			"Supported actions are:\n%s\n",
+			allActionsUsage())
+		fmt.Fprintf(
+			flag.CommandLine.Output(),
+			"Supported flags:\n")
 		flag.PrintDefaults()
 	}
 }
@@ -101,6 +136,11 @@ var (
 		Description: "List the current software and version.",
 		Action:      versionFn,
 	}
+	help cmdAction = cmdAction{
+		Name:        "help",
+		Description: "Print this help dialog",
+		Action:      helpFn,
+	}
 	allActions []cmdAction
 )
 
@@ -112,6 +152,7 @@ func init() {
 		initAdmin,
 		configure,
 		version,
+		help,
 	}
 }
 
@@ -186,7 +227,7 @@ func initAdminFn(a Application) error {
 // The 'configure' command line action.
 func configureFn(a Application) error {
 	if len(*configFlag) == 0 {
-		return fmt.Errorf("config flag not set")
+		return fmt.Errorf("config flag to new or existing file is not set")
 	}
 	exists := false
 	if _, err := os.Stat(*configFlag); err == nil {
@@ -228,6 +269,12 @@ func configureFn(a Application) error {
 // The 'version' command line action.
 func versionFn(a Application) error {
 	fmt.Fprintf(os.Stdout, "%s; %s\n", a.Software(), apCoreSoftware())
+	return nil
+}
+
+// The 'help' command line action.
+func helpFn(a Application) error {
+	flag.Usage()
 	return nil
 }
 
