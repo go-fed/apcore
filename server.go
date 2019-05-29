@@ -6,11 +6,12 @@ import (
 	"net/http"
 	"time"
 
-	_ "github.com/gorilla/schema"
+	"github.com/go-fed/activity/pub"
 )
 
 type server struct {
 	a           Application
+	actor       pub.Actor
 	handler     *handler
 	db          *database
 	sessions    *sessions
@@ -23,7 +24,7 @@ type server struct {
 func newServer(configFileName string, a Application, debug bool) (s *server, err error) {
 	// Load the configuration
 	var c *config
-	c, err = loadConfigFile(configFileName, a)
+	c, err = loadConfigFile(configFileName, a, debug)
 	if err != nil {
 		return
 	}
@@ -35,9 +36,16 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 		return
 	}
 
+	// Initialize the ActivityPub portion of the server
+	var actor pub.Actor
+	actor, err = newActor(c, a, db)
+	if err != nil {
+		return
+	}
+
 	// Build application routes
 	var h *handler
-	h, err = newHandler(c, a, debug)
+	h, err = newHandler(c, a, actor, db, debug)
 	if err != nil {
 		return
 	}
@@ -65,6 +73,7 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 	// Create the apcore server
 	s = &server{
 		a:           a,
+		actor:       actor,
 		handler:     h,
 		db:          db,
 		sessions:    ses,
@@ -104,7 +113,7 @@ func createRedirectServer(c *config) *http.Server {
 		WriteTimeout: time.Duration(c.ServerConfig.RedirectWriteTimeoutSeconds) * time.Second,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			w.Header().Set("Connection", "close")
-			http.Redirect(w, req, fmt.Sprintf("https://%s%s", req.Host, req.URL), http.StatusMovedPermanently)
+			http.Redirect(w, req, fmt.Sprintf("https://%s%s", c.ServerConfig.Host, req.URL), http.StatusMovedPermanently)
 		}),
 	}
 }

@@ -15,6 +15,12 @@ type commonBehavior struct {
 	db *database
 }
 
+func newCommonBehavior(db *database) *commonBehavior {
+	return &commonBehavior{
+		db: db,
+	}
+}
+
 func (a *commonBehavior) AuthenticateGetInbox(c context.Context, w http.ResponseWriter, r *http.Request) (authenticated bool, err error) {
 	// TODO
 	return

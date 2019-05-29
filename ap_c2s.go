@@ -13,6 +13,12 @@ type socialBehavior struct {
 	db *database
 }
 
+func newSocialBehavior(db *database) *socialBehavior {
+	return &socialBehavior{
+		db: db,
+	}
+}
+
 func (s *socialBehavior) AuthenticatePostOutbox(c context.Context, w http.ResponseWriter, r *http.Request) (authenticated bool, err error) {
 	// TODO
 	return

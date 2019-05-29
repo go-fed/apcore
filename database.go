@@ -8,6 +8,10 @@ import (
 	_ "github.com/lib/pq"
 )
 
+type Database interface{}
+
+var _ Database = &database{}
+
 type database struct {
 	db *sql.DB
 }

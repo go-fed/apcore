@@ -8,8 +8,9 @@ import (
 // infrastructure.
 type Application interface {
 	// Information about this application's software. This will be shown at
-	// the command line and used for NodeInfo.
+	// the command line and used for NodeInfo statistics.
 	Software() Software
+
 	// Returns a pointer to the configuration struct used by the specific
 	// application. It will be used to save and load from configuration
 	// files. This object will be passed to SetConfiguration after it is
@@ -46,13 +47,43 @@ type Application interface {
 	// of a running application. When the command to serve, is given, this
 	// function is only called once during application initialization.
 	SetConfiguration(interface{}) error
+
+	// Whether this application supports ActivityPub's C2S protocol, or the
+	// Social API.
+	//
+	// This and S2SEnabled may both be true. If C2SEnabled and S2SEnabled
+	// both return false, an error will arise at startup.
+	//
+	// This is only checked at startup time. Attempting to enable or disable
+	// C2S at runtime has no effect.
+	C2SEnabled() bool
+	// Whether this application supports ActivityPub's S2S protocol, or the
+	// Federating API.
+	//
+	// This and C2SEnabled may both be true. If C2SEnabled and S2SEnabled
+	// both return false, an error will arise at startup.
+	//
+	// This is only checked at startup time. Attempting to enable or disable
+	// S2S at runtime has no effect.
+	S2SEnabled() bool
+
 	// The handler for the application's "404 Not Found" webpage.
 	NotFoundHandler() http.Handler
 	// The handler when a request makes an unsupported HTTP method against
 	// a URI.
 	MethodNotAllowedHandler() http.Handler
+	// The handler for an internal server error.
+	InternalServerErrorHandler() http.Handler
+	// The handler for a bad request.
+	BadRequestHandler() http.Handler
+
 	// Builds the HTTP and ActivityPub routes specific for this application.
 	//
-	// The bulk of the application logic goes here.
-	BuildRoutes(r *Router) error
+	// The database is provided so custom handlers can access application
+	// data directly, allowing clients to create the custom Fediverse
+	// behavior their application desires.
+	//
+	// The bulk of the application logic is in the handlers created by the
+	// Router.
+	BuildRoutes(r *Router, db Database) error
 }

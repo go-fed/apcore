@@ -8,18 +8,75 @@ import (
 )
 
 type Router struct {
-	router *mux.Router
+	router            *mux.Router
+	actor             pub.Actor
+	errorHandler      http.Handler
+	badRequestHandler http.Handler
 }
 
 func (r *Router) wrap(route *mux.Route) *Route {
 	return &Route{
-		route: route,
+		route:             route,
+		actor:             r.actor,
+		errorHandler:      r.errorHandler,
+		badRequestHandler: r.badRequestHandler,
 	}
 }
 
-// TODO: Actor methods
+func (r *Router) ActorPostInbox(path string) *Route {
+	return r.wrap(r.router.HandleFunc(path,
+		func(w http.ResponseWriter, req *http.Request) {
+			isApRequest, err := r.actor.PostInbox(req.Context(), w, req)
+			if err != nil {
+				ErrorLogger.Errorf("Error in ActorPostInbox: %s", err)
+				r.errorHandler.ServeHTTP(w, req)
+			} else if !isApRequest {
+				r.badRequestHandler.ServeHTTP(w, req)
+			}
+		}))
+}
+
+func (r *Router) ActorPostOutbox(path string) *Route {
+	return r.wrap(r.router.HandleFunc(path,
+		func(w http.ResponseWriter, req *http.Request) {
+			isApRequest, err := r.actor.PostOutbox(req.Context(), w, req)
+			if err != nil {
+				ErrorLogger.Errorf("Error in ActorPostOutbox: %s", err)
+				r.errorHandler.ServeHTTP(w, req)
+			} else if !isApRequest {
+				r.badRequestHandler.ServeHTTP(w, req)
+			}
+		}))
+}
+
+func (r *Router) ActorGetInbox(path string, web func(http.ResponseWriter, *http.Request)) *Route {
+	return r.wrap(r.router.HandleFunc(path,
+		func(w http.ResponseWriter, req *http.Request) {
+			isApRequest, err := r.actor.GetInbox(req.Context(), w, req)
+			if err != nil {
+				ErrorLogger.Errorf("Error in ActorGetInbox: %s", err)
+				r.errorHandler.ServeHTTP(w, req)
+			} else if !isApRequest {
+				web(w, req)
+			}
+		}))
+}
+
+func (r *Router) ActorGetOutbox(path string, web func(http.ResponseWriter, *http.Request)) *Route {
+	return r.wrap(r.router.HandleFunc(path,
+		func(w http.ResponseWriter, req *http.Request) {
+			isApRequest, err := r.actor.GetOutbox(req.Context(), w, req)
+			if err != nil {
+				ErrorLogger.Errorf("Error in ActorGetOutbox: %s", err)
+				r.errorHandler.ServeHTTP(w, req)
+			} else if !isApRequest {
+				web(w, req)
+			}
+		}))
+}
 
 func (r *Router) ActivityPubOnlyHandleFunc(path string, apHandler pub.HandlerFunc) *Route {
+	// TODO: construct pub.HandlerFunc in here instead
 	return r.wrap(r.router.HandleFunc(path,
 		func(w http.ResponseWriter, req *http.Request) {
 			isASRequest, err := apHandler(req.Context(), w, req)
@@ -33,6 +90,7 @@ func (r *Router) ActivityPubOnlyHandleFunc(path string, apHandler pub.HandlerFun
 }
 
 func (r *Router) ActivityPubAndWebHandleFunc(path string, apHandler pub.HandlerFunc, f func(http.ResponseWriter, *http.Request)) *Route {
+	// TODO: construct pub.HandlerFunc in here instead
 	return r.wrap(r.router.HandleFunc(path,
 		func(w http.ResponseWriter, req *http.Request) {
 			isASRequest, err := apHandler(req.Context(), w, req)
@@ -102,7 +160,10 @@ func (r *Router) Walk(walkFn mux.WalkFunc) error {
 }
 
 type Route struct {
-	route *mux.Route
+	route             *mux.Route
+	actor             pub.Actor
+	errorHandler      http.Handler
+	badRequestHandler http.Handler
 }
 
-// TODO: Corresponding Route methods.
+// TODO: move Router methods to Route, have Router delegate to Route. No code dupe

@@ -15,6 +15,12 @@ type federatingBehavior struct {
 	db *database
 }
 
+func newFederatingBehavior(db *database) *federatingBehavior {
+	return &federatingBehavior{
+		db: db,
+	}
+}
+
 func (f *federatingBehavior) AuthenticatePostInbox(c context.Context, w http.ResponseWriter, r *http.Request) (authenticated bool, err error) {
 	// TODO
 	return

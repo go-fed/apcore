@@ -72,10 +72,14 @@ func defaultDatabaseConfig(dbkind string) (d databaseConfig, err error) {
 }
 
 // Configuration section specifically for ActivityPub.
-type activityPubConfig struct{}
+type activityPubConfig struct {
+	ClockTimezone string `ini:"clock_timezone" comment:"(default: UTC) Timezone for ActivityPub related operations: unset and \"UTC\" are UTC, \"Local\" is local server time, otherwise use IANA Time Zone database values"`
+}
 
 func defaultActivityPubConfig() activityPubConfig {
-	return activityPubConfig{}
+	return activityPubConfig{
+		ClockTimezone: "UTC",
+	}
 }
 
 // Configuration section specifically for Postgres databases.
@@ -96,7 +100,7 @@ func defaultPostgresConfig() postgresConfig {
 	return postgresConfig{}
 }
 
-func loadConfigFile(filename string, a Application) (c *config, err error) {
+func loadConfigFile(filename string, a Application, debug bool) (c *config, err error) {
 	InfoLogger.Infof("Loading config file: %s", filename)
 	var cfg *ini.File
 	cfg, err = ini.Load(filename)
@@ -113,6 +117,12 @@ func loadConfigFile(filename string, a Application) (c *config, err error) {
 		return
 	}
 	err = a.SetConfiguration(appCfg)
+	if err != nil {
+		return
+	}
+	if debug {
+		c.ServerConfig.Host = "localhost"
+	}
 	return
 }
 
