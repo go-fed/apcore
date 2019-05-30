@@ -30,7 +30,7 @@ func newActor(c *config, a Application, db *database) (actor pub.Actor, err erro
 	}
 
 	common := newCommonBehavior(db)
-	apdb := newApdb(db)
+	apdb := newApdb(db, a)
 
 	if cs, ss := a.C2SEnabled(), a.S2SEnabled(); !cs && !ss {
 		err = fmt.Errorf("neither C2S nor S2S are enabled by the Application")

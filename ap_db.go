@@ -18,7 +18,9 @@ package apcore
 
 import (
 	"context"
+	"fmt"
 	"net/url"
+	"sync"
 
 	"github.com/go-fed/activity/pub"
 	"github.com/go-fed/activity/streams/vocab"
@@ -27,111 +29,59 @@ import (
 var _ pub.Database = &apdb{}
 
 type apdb struct {
-	db *database
+	*database
+	// Use sync.Map, which is specially optimized:
+	//
+	// "The Map type is optimized [...] when the entry for a given key is
+	// only ever written once but read many times, as in caches that only
+	// grow"
+	//
+	// This means we only ever append to the map during the lifetime of the
+	// running application. This may become a scaling bottleneck in the
+	// future, but unsure how the performance will look in practice.
+	//
+	// This map will only store *sync.Mutex, each is 4 bytes. Assuming that
+	// conservatively the average key is a string of 124 bytes, this means
+	// each entry is 128 bytes of memory.
+	//
+	// If this map holds 2,000,000 entries then it would take 256 MB of
+	// memory. To take up 1 GB, 7,812,500 entries are needed. If one entry
+	// is added per second, then in 90 days it will take up 1 GB of memory.
+	//
+	// TODO: Address this unbounded growth for memory-constrained or very
+	// long running applications.
+	locks *sync.Map
+	app Application
 }
 
-func newApdb(db *database) *apdb {
+func newApdb(db *database, a Application) *apdb {
 	return &apdb{
-		db: db,
+		database: db,
+		locks:    &sync.Map{},
+		app: a,
 	}
 }
 
 func (a *apdb) Lock(c context.Context, id *url.URL) error {
-	// TODO
-	return nil
+	mui, _ := a.locks.LoadOrStore(id.String(), &sync.Mutex{})
+	if mu, ok := mui.(*sync.Mutex); !ok {
+		return fmt.Errorf("lock for Lock is not a *sync.Mutex")
+	} else {
+		mu.Lock()
+		return nil
+	}
 }
 
 func (a *apdb) Unlock(c context.Context, id *url.URL) error {
-	// TODO
-	return nil
-}
-
-func (a *apdb) InboxContains(c context.Context, inbox, id *url.URL) (contains bool, err error) {
-	// TODO
-	return
-}
-
-func (a *apdb) GetInbox(c context.Context, inboxIRI *url.URL) (inbox vocab.ActivityStreamsOrderedCollectionPage, err error) {
-	// TODO
-	return
-}
-
-func (a *apdb) SetInbox(c context.Context, inbox vocab.ActivityStreamsOrderedCollectionPage) error {
-	// TODO
-	return nil
-}
-
-func (a *apdb) Owns(c context.Context, id *url.URL) (owns bool, err error) {
-	// TODO
-	return
-}
-
-func (a *apdb) ActorForOutbox(c context.Context, outboxIRI *url.URL) (actorIRI *url.URL, err error) {
-	// TODO
-	return
-}
-
-func (a *apdb) ActorForInbox(c context.Context, inboxIRI *url.URL) (actorIRI *url.URL, err error) {
-	// TODO
-	return
-}
-
-func (a *apdb) OutboxForInbox(c context.Context, inboxIRI *url.URL) (outboxIRI *url.URL, err error) {
-	// TODO
-	return
-}
-
-func (a *apdb) Exists(c context.Context, id *url.URL) (exists bool, err error) {
-	// TODO
-	return
-}
-
-func (a *apdb) Get(c context.Context, id *url.URL) (value vocab.Type, err error) {
-	// TODO
-	return
-}
-
-func (a *apdb) Create(c context.Context, asType vocab.Type) error {
-	// TODO
-	return nil
-}
-
-func (a *apdb) Update(c context.Context, asType vocab.Type) error {
-	// TODO
-	return nil
-}
-
-func (a *apdb) Delete(c context.Context, id *url.URL) error {
-	// TODO
-	return nil
-}
-
-func (a *apdb) GetOutbox(c context.Context, inboxIRI *url.URL) (inbox vocab.ActivityStreamsOrderedCollectionPage, err error) {
-	// TODO
-	return
-}
-
-func (a *apdb) SetOutbox(c context.Context, inbox vocab.ActivityStreamsOrderedCollectionPage) error {
-	// TODO
-	return nil
+	mui, _ := a.locks.Load(id.String())
+	if mu, ok := mui.(*sync.Mutex); !ok {
+		return fmt.Errorf("lock for Unlock is not a *sync.Mutex")
+	} else {
+		mu.Unlock()
+		return nil
+	}
 }
 
 func (a *apdb) NewId(c context.Context, t vocab.Type) (id *url.URL, err error) {
-	// TODO
-	return
-}
-
-func (a *apdb) Followers(c context.Context, actorIRI *url.URL) (followers vocab.ActivityStreamsCollection, err error) {
-	// TODO
-	return
-}
-
-func (a *apdb) Following(c context.Context, actorIRI *url.URL) (followers vocab.ActivityStreamsCollection, err error) {
-	// TODO
-	return
-}
-
-func (a *apdb) Liked(c context.Context, actorIRI *url.URL) (followers vocab.ActivityStreamsCollection, err error) {
-	// TODO
-	return
+	return a.app.NewId(c, t)
 }

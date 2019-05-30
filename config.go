@@ -110,6 +110,7 @@ type postgresConfig struct {
 	SSLCert                 string `ini:"pg_ssl_cert" comment:"PEM-encoded certificate file location"`
 	SSLKey                  string `ini:"pg_ssl_key" comment:"PEM-encoded private key file location"`
 	SSLRootCert             string `ini:"pg_ssl_root_cert" comment:"PEM-encoded root certificate file location"`
+	Schema                  string `ini:"pg_schema" comment:"Postgres schema prefix to use"`
 }
 
 func defaultPostgresConfig() postgresConfig {

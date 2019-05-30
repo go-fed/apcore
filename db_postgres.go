@@ -21,20 +21,55 @@ import (
 	"fmt"
 )
 
-type sqlCreateTables interface {
+type sqlManager interface {
 	CreateTables(t *sql.Tx) (err error)
 	UpgradeTables(t *sql.Tx) (err error)
 }
 
-var _ sqlCreateTables = &pgCreateTablesV0{}
+type sqlGenerator interface {
+	InboxContains() string
+	GetInbox() string
+	SetInbox() string
+	Owns() string
+	ActorForOutbox() string
+	ActorForInbox() string
+	OutboxForInbox() string
+	Exists() string
+	Get() string
+	Create() string
+	Update() string
+	Delete() string
+	GetOutbox() string
+	SetOutbox() string
+	Followers() string
+	Following() string
+	Liked() string
+}
 
-type pgCreateTablesV0 struct {
+var _ sqlManager = &pgV0{}
+var _ sqlGenerator = &pgV0{}
+
+type pgV0 struct {
 	schema string
 	log    bool
 }
 
-func (p *pgCreateTablesV0) CreateTables(t *sql.Tx) (err error) {
+func newPgV0(schema string, log bool) *pgV0 {
+	p := &pgV0{
+		schema: schema,
+		log:    log,
+	}
+	if p.schema == "" {
+		p.schema = "public"
+	}
+	p.schema += "."
+	return p
+}
+
+func (p *pgV0) CreateTables(t *sql.Tx) (err error) {
 	InfoLogger.Info("Running Postgres create tables v0")
+
+	// Create tables
 	err = p.maybeLogExecute(t, p.fedDataTable())
 	if err != nil {
 		return
@@ -71,15 +106,25 @@ func (p *pgCreateTablesV0) CreateTables(t *sql.Tx) (err error) {
 	if err != nil {
 		return
 	}
+
+	// Create indexes
+	err = p.maybeLogExecute(t, p.indexFedDataTable())
+	if err != nil {
+		return
+	}
+	err = p.maybeLogExecute(t, p.indexLocalDataTable())
+	if err != nil {
+		return
+	}
 	return
 }
 
-func (p *pgCreateTablesV0) UpgradeTables(t *sql.Tx) (err error) {
+func (p *pgV0) UpgradeTables(t *sql.Tx) (err error) {
 	err = fmt.Errorf("cannot upgrade Postgres tables to first version v0")
 	return
 }
 
-func (p *pgCreateTablesV0) maybeLogExecute(t *sql.Tx, s string) (err error) {
+func (p *pgV0) maybeLogExecute(t *sql.Tx, s string) (err error) {
 	if p.log {
 		InfoLogger.Info("SQL exec: %s", s)
 	}
@@ -87,7 +132,7 @@ func (p *pgCreateTablesV0) maybeLogExecute(t *sql.Tx, s string) (err error) {
 	return
 }
 
-func (p *pgCreateTablesV0) fedDataTable() string {
+func (p *pgV0) fedDataTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `fed_data
 (
@@ -96,7 +141,11 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `fed_data
 );`
 }
 
-func (p *pgCreateTablesV0) localDataTable() string {
+func (p *pgV0) indexFedDataTable() string {
+	return `CREATE INDEX IF NOT EXISTS fed_data_jsonb_index ON ` + p.schema + `fed_data USING GIN (payload);`
+}
+
+func (p *pgV0) localDataTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `local_data
 (
@@ -105,7 +154,11 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `local_data
 );`
 }
 
-func (p *pgCreateTablesV0) usersTable() string {
+func (p *pgV0) indexLocalDataTable() string {
+	return `CREATE INDEX IF NOT EXISTS local_data_jsonb_index ON ` + p.schema + `local_data USING GIN (payload);`
+}
+
+func (p *pgV0) usersTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `users
 (
@@ -113,34 +166,34 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `users
 );`
 }
 
-func (p *pgCreateTablesV0) userPrivilegesTable() string {
+func (p *pgV0) userPrivilegesTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `user_privileges
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES users (id)
+  user_id uuid REFERENCES users (id) NOT NULL ON DELETE CASCADE
 );`
 }
 
-func (p *pgCreateTablesV0) userPreferencesTable() string {
+func (p *pgV0) userPreferencesTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `user_preferences
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES users (id)
+  user_id uuid REFERENCES users (id) NOT NULL ON DELETE CASCADE
 );`
 }
 
-func (p *pgCreateTablesV0) userFedRules() string {
+func (p *pgV0) userFedRules() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `user_fed_rules
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES users (id)
+  user_id uuid REFERENCES users (id) NOT NULL ON DELETE CASCADE
 );`
 }
 
-func (p *pgCreateTablesV0) serverFedRules() string {
+func (p *pgV0) serverFedRules() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `server_fed_rules
 (
@@ -148,20 +201,105 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `server_fed_rules
 );`
 }
 
-func (p *pgCreateTablesV0) fedDataRuleAnnotationsTable() string {
+func (p *pgV0) fedDataRuleAnnotationsTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `fed_data_rule_annotations
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  fed_data_id uuid REFERENCES fed_data (id)
+  fed_data_id uuid REFERENCES fed_data (id) NOT NULL ON DELETE CASCADE
 );`
 }
 
-func (p *pgCreateTablesV0) localDataRuleAnnotationsTable() string {
+func (p *pgV0) localDataRuleAnnotationsTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `local_data_rule_annotations
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  local_data_id uuid REFERENCES local_data (id)
+  local_data_id uuid REFERENCES local_data (id) NOT NULL ON DELETE CASCADE
 );`
+}
+
+func (p *pgV0) InboxContains() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) GetInbox() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) SetInbox() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) Owns() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) ActorForOutbox() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) ActorForInbox() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) OutboxForInbox() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) Exists() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) Get() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) Create() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) Update() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) Delete() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) GetOutbox() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) SetOutbox() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) Followers() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) Following() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) Liked() string {
+	// TODO
+	return ""
 }

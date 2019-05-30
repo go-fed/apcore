@@ -17,10 +17,13 @@
 package apcore
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"time"
 
+	"github.com/go-fed/activity/streams/vocab"
 	_ "github.com/lib/pq"
 )
 
@@ -30,13 +33,33 @@ var _ Database = &database{}
 
 type database struct {
 	db *sql.DB
+	// Prepared statements for the database
+	inboxContains  *sql.Stmt
+	getInbox       *sql.Stmt
+	setInbox       *sql.Stmt
+	owns           *sql.Stmt
+	actorForOutbox *sql.Stmt
+	actorForInbox  *sql.Stmt
+	outboxForInbox *sql.Stmt
+	exists         *sql.Stmt
+	get            *sql.Stmt
+	create         *sql.Stmt
+	update         *sql.Stmt
+	deleteStmt     *sql.Stmt
+	getOutbox      *sql.Stmt
+	setOutbox      *sql.Stmt
+	followers      *sql.Stmt
+	following      *sql.Stmt
+	liked          *sql.Stmt
 }
 
-func newDatabase(c *config, a Application) (db *database, err error) {
+func newDatabase(c *config, a Application, debug bool) (db *database, err error) {
 	kind := c.DatabaseConfig.DatabaseKind
 	var conn string
+	var sqlgen sqlGenerator
 	switch kind {
 	case "postgres":
+		sqlgen = newPgV0(c.DatabaseConfig.PostgresConfig.Schema, debug)
 		conn, err = postgresConn(c.DatabaseConfig.PostgresConfig)
 	default:
 		err = fmt.Errorf("unhandled database_kind in config: %s", kind)
@@ -68,6 +91,74 @@ func newDatabase(c *config, a Application) (db *database, err error) {
 
 	db = &database{
 		db: sqldb,
+	}
+	db.inboxContains, err = db.db.Prepare(sqlgen.InboxContains())
+	if err != nil {
+		return
+	}
+	db.getInbox, err = db.db.Prepare(sqlgen.GetInbox())
+	if err != nil {
+		return
+	}
+	db.setInbox, err = db.db.Prepare(sqlgen.SetInbox())
+	if err != nil {
+		return
+	}
+	db.owns, err = db.db.Prepare(sqlgen.Owns())
+	if err != nil {
+		return
+	}
+	db.actorForOutbox, err = db.db.Prepare(sqlgen.ActorForOutbox())
+	if err != nil {
+		return
+	}
+	db.actorForInbox, err = db.db.Prepare(sqlgen.ActorForInbox())
+	if err != nil {
+		return
+	}
+	db.outboxForInbox, err = db.db.Prepare(sqlgen.OutboxForInbox())
+	if err != nil {
+		return
+	}
+	db.exists, err = db.db.Prepare(sqlgen.Exists())
+	if err != nil {
+		return
+	}
+	db.get, err = db.db.Prepare(sqlgen.Get())
+	if err != nil {
+		return
+	}
+	db.create, err = db.db.Prepare(sqlgen.Create())
+	if err != nil {
+		return
+	}
+	db.update, err = db.db.Prepare(sqlgen.Update())
+	if err != nil {
+		return
+	}
+	db.deleteStmt, err = db.db.Prepare(sqlgen.Delete())
+	if err != nil {
+		return
+	}
+	db.getOutbox, err = db.db.Prepare(sqlgen.GetOutbox())
+	if err != nil {
+		return
+	}
+	db.setOutbox, err = db.db.Prepare(sqlgen.SetOutbox())
+	if err != nil {
+		return
+	}
+	db.followers, err = db.db.Prepare(sqlgen.Followers())
+	if err != nil {
+		return
+	}
+	db.following, err = db.db.Prepare(sqlgen.Following())
+	if err != nil {
+		return
+	}
+	db.liked, err = db.db.Prepare(sqlgen.Liked())
+	if err != nil {
+		return
 	}
 	return
 }
@@ -127,5 +218,108 @@ func postgresConn(pg postgresConfig) (s string, err error) {
 	if len(pg.SSLRootCert) > 0 {
 		s = fmt.Sprintf("%s sslrootcert=%s", s, pg.SSLRootCert)
 	}
+	return
+}
+
+func (d *database) InboxContains(c context.Context, inbox, id *url.URL) (contains bool, err error) {
+	var r *sql.Rows
+	r, err = d.inboxContains.QueryContext(c, inbox.String(), id.String())
+	if err != nil {
+		return
+	}
+	var n int
+	for r.Next() {
+		if n > 0 {
+			err = fmt.Errorf("multiple rows when checking inbox containment")
+			return
+		}
+		if err = r.Scan(&contains); err != nil {
+			return
+		}
+		n++
+	}
+	if err = r.Err(); err != nil {
+		return
+	}
+	return
+}
+
+func (d *database) GetInbox(c context.Context, inboxIRI *url.URL) (inbox vocab.ActivityStreamsOrderedCollectionPage, err error) {
+	// TODO
+	return
+}
+
+func (d *database) SetInbox(c context.Context, inbox vocab.ActivityStreamsOrderedCollectionPage) error {
+	// TODO
+	return nil
+}
+
+func (d *database) Owns(c context.Context, id *url.URL) (owns bool, err error) {
+	// TODO
+	return
+}
+
+func (d *database) ActorForOutbox(c context.Context, outboxIRI *url.URL) (actorIRI *url.URL, err error) {
+	// TODO
+	return
+}
+
+func (d *database) ActorForInbox(c context.Context, inboxIRI *url.URL) (actorIRI *url.URL, err error) {
+	// TODO
+	return
+}
+
+func (d *database) OutboxForInbox(c context.Context, inboxIRI *url.URL) (outboxIRI *url.URL, err error) {
+	// TODO
+	return
+}
+
+func (d *database) Exists(c context.Context, id *url.URL) (exists bool, err error) {
+	// TODO
+	return
+}
+
+func (d *database) Get(c context.Context, id *url.URL) (value vocab.Type, err error) {
+	// TODO
+	return
+}
+
+func (d *database) Create(c context.Context, asType vocab.Type) error {
+	// TODO
+	return nil
+}
+
+func (d *database) Update(c context.Context, asType vocab.Type) error {
+	// TODO
+	return nil
+}
+
+func (d *database) Delete(c context.Context, id *url.URL) error {
+	// TODO
+	return nil
+}
+
+func (d *database) GetOutbox(c context.Context, inboxIRI *url.URL) (inbox vocab.ActivityStreamsOrderedCollectionPage, err error) {
+	// TODO
+	return
+}
+
+func (d *database) SetOutbox(c context.Context, inbox vocab.ActivityStreamsOrderedCollectionPage) error {
+	// TODO
+	return nil
+}
+
+func (d *database) Followers(c context.Context, actorIRI *url.URL) (followers vocab.ActivityStreamsCollection, err error) {
+	// TODO
+	return
+}
+
+func (d *database) Following(c context.Context, actorIRI *url.URL) (followers vocab.ActivityStreamsCollection, err error) {
+	// TODO
+	return
+}
+
+func (d *database) Liked(c context.Context, actorIRI *url.URL) (followers vocab.ActivityStreamsCollection, err error) {
+	// TODO
 	return
 }

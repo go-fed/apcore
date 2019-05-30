@@ -47,7 +47,7 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 
 	// Connect to database
 	var db *database
-	db, err = newDatabase(c, a)
+	db, err = newDatabase(c, a, debug)
 	if err != nil {
 		return
 	}

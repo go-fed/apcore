@@ -17,7 +17,11 @@
 package apcore
 
 import (
+	"context"
 	"net/http"
+	"net/url"
+
+	"github.com/go-fed/activity/streams/vocab"
 )
 
 // Application is an ActivityPub application built on top of apcore's
@@ -102,4 +106,12 @@ type Application interface {
 	// The bulk of the application logic is in the handlers created by the
 	// Router.
 	BuildRoutes(r *Router, db Database) error
+
+	// Calls made at serving time
+
+	// NewId creates a new id IRI for the content being created.
+	//
+	// A peer making a GET request to this IRI on this server should then
+	// serve the ActivityPub value provided in this call.
+	NewId(c context.Context, t vocab.Type) (id *url.URL, err error)
 }
