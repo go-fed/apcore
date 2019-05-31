@@ -30,7 +30,6 @@ type sqlGenerator interface {
 	InboxContains() string
 	GetInbox() string
 	SetInbox() string
-	Owns() string
 	ActorForOutbox() string
 	ActorForInbox() string
 	OutboxForInbox() string
@@ -82,6 +81,14 @@ func (p *pgV0) CreateTables(t *sql.Tx) (err error) {
 	if err != nil {
 		return
 	}
+	err = p.maybeLogExecute(t, p.usersInboxTable())
+	if err != nil {
+		return
+	}
+	err = p.maybeLogExecute(t, p.usersOutboxTable())
+	if err != nil {
+		return
+	}
 	err = p.maybeLogExecute(t, p.userPrivilegesTable())
 	if err != nil {
 		return
@@ -113,6 +120,10 @@ func (p *pgV0) CreateTables(t *sql.Tx) (err error) {
 		return
 	}
 	err = p.maybeLogExecute(t, p.indexLocalDataTable())
+	if err != nil {
+		return
+	}
+	err = p.maybeLogExecute(t, p.indexUsersTable())
 	if err != nil {
 		return
 	}
@@ -162,7 +173,32 @@ func (p *pgV0) usersTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `users
 (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid()
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  actor jsonb NOT NULL
+);`
+}
+
+func (p *pgV0) indexUsersTable() string {
+	return `CREATE INDEX IF NOT EXISTS users_jsonb_index ON ` + p.schema + `users USING GIN (actor);`
+}
+
+func (p *pgV0) usersInboxTable() string {
+	return `
+CREATE TABLE IF NOT EXISTS ` + p.schema + `users_inbox
+(
+  user_id uuid REFERENCES users (id) NOT NULL ON DELETE RESTRICT,
+  federated_id uuid REFERENCES fed_data (id) NOT NULL ON DELETE CASCADE,
+  index integer NOT NULL
+);`
+}
+
+func (p *pgV0) usersOutboxTable() string {
+	return `
+CREATE TABLE IF NOT EXISTS ` + p.schema + `users_inbox
+(
+  user_id uuid REFERENCES users (id) NOT NULL ON DELETE RESTRICT,
+  local_id uuid REFERENCES local_data (id) NOT NULL ON DELETE CASCADE,
+  index integer NOT NULL
 );`
 }
 
@@ -230,11 +266,6 @@ func (p *pgV0) GetInbox() string {
 }
 
 func (p *pgV0) SetInbox() string {
-	// TODO
-	return ""
-}
-
-func (p *pgV0) Owns() string {
 	// TODO
 	return ""
 }

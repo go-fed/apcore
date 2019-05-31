@@ -33,11 +33,12 @@ var _ Database = &database{}
 
 type database struct {
 	db *sql.DB
+	// url.URL.Host name for this server
+	hostname string
 	// Prepared statements for the database
 	inboxContains  *sql.Stmt
 	getInbox       *sql.Stmt
 	setInbox       *sql.Stmt
-	owns           *sql.Stmt
 	actorForOutbox *sql.Stmt
 	actorForInbox  *sql.Stmt
 	outboxForInbox *sql.Stmt
@@ -91,6 +92,7 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 
 	db = &database{
 		db: sqldb,
+		// TODO: hostname
 	}
 	db.inboxContains, err = db.db.Prepare(sqlgen.InboxContains())
 	if err != nil {
@@ -101,10 +103,6 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 		return
 	}
 	db.setInbox, err = db.db.Prepare(sqlgen.SetInbox())
-	if err != nil {
-		return
-	}
-	db.owns, err = db.db.Prepare(sqlgen.Owns())
 	if err != nil {
 		return
 	}
@@ -245,7 +243,32 @@ func (d *database) InboxContains(c context.Context, inbox, id *url.URL) (contain
 }
 
 func (d *database) GetInbox(c context.Context, inboxIRI *url.URL) (inbox vocab.ActivityStreamsOrderedCollectionPage, err error) {
-	// TODO
+	// TODO: Default length
+	defaultLength := 10
+	start := collectionPageStartIndex(inboxIRI)
+	length := collectionPageLength(inboxIRI, defaultLength)
+	var r *sql.Rows
+	r, err = d.getInbox.QueryContext(c, inboxIRI.String(), start, length)
+	if err != nil {
+		return
+	}
+	var ids []string
+	for r.Next() {
+		var id string
+		if err = r.Scan(&id); err != nil {
+			return
+		}
+		ids = append(ids, id)
+	}
+	if err = r.Err(); err != nil {
+		return
+	}
+	var id *url.URL
+	id, err = collectionPageId(inboxIRI, start, length, defaultLength)
+	if err != nil {
+		return
+	}
+	inbox = toOrderedCollectionPage(id, ids, start, length)
 	return
 }
 
@@ -255,17 +278,57 @@ func (d *database) SetInbox(c context.Context, inbox vocab.ActivityStreamsOrdere
 }
 
 func (d *database) Owns(c context.Context, id *url.URL) (owns bool, err error) {
-	// TODO
+	owns = id.Host == d.hostname
 	return
 }
 
 func (d *database) ActorForOutbox(c context.Context, outboxIRI *url.URL) (actorIRI *url.URL, err error) {
-	// TODO
+	var r *sql.Rows
+	r, err = d.actorForOutbox.QueryContext(c, outboxIRI.String())
+	if err != nil {
+		return
+	}
+	var n int
+	var iri string
+	for r.Next() {
+		if n > 0 {
+			err = fmt.Errorf("multiple rows when checking actor for outbox")
+			return
+		}
+		if err = r.Scan(&iri); err != nil {
+			return
+		}
+		n++
+	}
+	if err = r.Err(); err != nil {
+		return
+	}
+	actorIRI, err = url.Parse(iri)
 	return
 }
 
 func (d *database) ActorForInbox(c context.Context, inboxIRI *url.URL) (actorIRI *url.URL, err error) {
-	// TODO
+	var r *sql.Rows
+	r, err = d.actorForInbox.QueryContext(c, inboxIRI.String())
+	if err != nil {
+		return
+	}
+	var n int
+	var iri string
+	for r.Next() {
+		if n > 0 {
+			err = fmt.Errorf("multiple rows when checking actor for inbox")
+			return
+		}
+		if err = r.Scan(&iri); err != nil {
+			return
+		}
+		n++
+	}
+	if err = r.Err(); err != nil {
+		return
+	}
+	actorIRI, err = url.Parse(iri)
 	return
 }
 
@@ -275,7 +338,25 @@ func (d *database) OutboxForInbox(c context.Context, inboxIRI *url.URL) (outboxI
 }
 
 func (d *database) Exists(c context.Context, id *url.URL) (exists bool, err error) {
-	// TODO
+	var r *sql.Rows
+	r, err = d.exists.QueryContext(c, id.String())
+	if err != nil {
+		return
+	}
+	var n int
+	for r.Next() {
+		if n > 0 {
+			err = fmt.Errorf("multiple rows when checking exists")
+			return
+		}
+		if err = r.Scan(&exists); err != nil {
+			return
+		}
+		n++
+	}
+	if err = r.Err(); err != nil {
+		return
+	}
 	return
 }
 
