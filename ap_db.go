@@ -51,14 +51,14 @@ type apdb struct {
 	// TODO: Address this unbounded growth for memory-constrained or very
 	// long running applications.
 	locks *sync.Map
-	app Application
+	app   Application
 }
 
 func newApdb(db *database, a Application) *apdb {
 	return &apdb{
 		database: db,
 		locks:    &sync.Map{},
-		app: a,
+		app:      a,
 	}
 }
 

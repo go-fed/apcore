@@ -29,7 +29,8 @@ type sqlManager interface {
 type sqlGenerator interface {
 	InboxContains() string
 	GetInbox() string
-	SetInbox() string
+	SetInboxUpsert() string
+	SetInboxDelete() string
 	ActorForOutbox() string
 	ActorForInbox() string
 	OutboxForInbox() string
@@ -39,7 +40,8 @@ type sqlGenerator interface {
 	Update() string
 	Delete() string
 	GetOutbox() string
-	SetOutbox() string
+	SetOutboxUpsert() string
+	SetOutboxDelete() string
 	Followers() string
 	Following() string
 	Liked() string
@@ -186,9 +188,9 @@ func (p *pgV0) usersInboxTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `users_inbox
 (
+  id bigserial PRIMARY KEY,
   user_id uuid REFERENCES users (id) NOT NULL ON DELETE RESTRICT,
   federated_id uuid REFERENCES fed_data (id) NOT NULL ON DELETE CASCADE,
-  index integer NOT NULL
 );`
 }
 
@@ -196,9 +198,9 @@ func (p *pgV0) usersOutboxTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `users_inbox
 (
+  id bigserial PRIMARY KEY,
   user_id uuid REFERENCES users (id) NOT NULL ON DELETE RESTRICT,
   local_id uuid REFERENCES local_data (id) NOT NULL ON DELETE CASCADE,
-  index integer NOT NULL
 );`
 }
 
@@ -265,7 +267,12 @@ func (p *pgV0) GetInbox() string {
 	return ""
 }
 
-func (p *pgV0) SetInbox() string {
+func (p *pgV0) SetInboxUpsert() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) SetInboxDelete() string {
 	// TODO
 	return ""
 }
@@ -315,7 +322,12 @@ func (p *pgV0) GetOutbox() string {
 	return ""
 }
 
-func (p *pgV0) SetOutbox() string {
+func (p *pgV0) SetOutboxUpsert() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) SetOutboxDelete() string {
 	// TODO
 	return ""
 }

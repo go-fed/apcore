@@ -17,16 +17,17 @@
 package apcore
 
 import (
+	"encoding/json"
 	"net/url"
 	"strconv"
 
-	"github.com/go-fed/activity/streams/vocab"
 	"github.com/go-fed/activity/streams"
+	"github.com/go-fed/activity/streams/vocab"
 )
 
 const (
 	collectionStartQuery = "start"
-	collectionLenQuery = "len"
+	collectionLenQuery   = "len"
 )
 
 func collectionPageStartIndex(id *url.URL) int {
@@ -66,5 +67,18 @@ func toOrderedCollectionPage(id *url.URL, ids []string, current, length int) (oc
 	// id
 	// items
 	// total len
+	return
+}
+
+// TODO: Use the serialize utility in pub -- which needs to be migrated to streams
+// TODO: Delete -- unused?
+func serialize(v vocab.Type) (b []byte, err error) {
+	var m map[string]interface{}
+	m, err = v.Serialize()
+	if err != nil {
+		return
+	}
+	m["@context"] = v.JSONLDContext()
+	b, err = json.Marshal(m)
 	return
 }

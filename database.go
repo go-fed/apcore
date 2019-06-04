@@ -32,13 +32,13 @@ type Database interface{}
 var _ Database = &database{}
 
 type database struct {
-	db *sql.DB
+	db     *sql.DB
+	sqlgen sqlGenerator
 	// url.URL.Host name for this server
 	hostname string
 	// Prepared statements for the database
 	inboxContains  *sql.Stmt
 	getInbox       *sql.Stmt
-	setInbox       *sql.Stmt
 	actorForOutbox *sql.Stmt
 	actorForInbox  *sql.Stmt
 	outboxForInbox *sql.Stmt
@@ -48,7 +48,6 @@ type database struct {
 	update         *sql.Stmt
 	deleteStmt     *sql.Stmt
 	getOutbox      *sql.Stmt
-	setOutbox      *sql.Stmt
 	followers      *sql.Stmt
 	following      *sql.Stmt
 	liked          *sql.Stmt
@@ -75,7 +74,7 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 	if err != nil {
 		return
 	}
-	InfoLogger.Infof("Open complete (note connection may not yet be attempted until first SQL command issued)")
+	InfoLogger.Infof("DB Open complete")
 
 	// Apply general database configurations
 	if c.DatabaseConfig.ConnMaxLifetimeSeconds > 0 {
@@ -90,8 +89,19 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 		sqldb.SetMaxIdleConns(c.DatabaseConfig.MaxIdleConns)
 	}
 
+	InfoLogger.Infof("Pinging database to force-check an initial connection...")
+	start := time.Now()
+	err = sqldb.Ping()
+	if err != nil {
+		InfoLogger.Infof("Unsuccessfully pinged database")
+		return
+	}
+	end := time.Now()
+	InfoLogger.Infof("Successfully pinged database with latency: %s", end.Sub(start))
+
 	db = &database{
-		db: sqldb,
+		db:     sqldb,
+		sqlgen: sqlgen,
 		// TODO: hostname
 	}
 	db.inboxContains, err = db.db.Prepare(sqlgen.InboxContains())
@@ -99,10 +109,6 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 		return
 	}
 	db.getInbox, err = db.db.Prepare(sqlgen.GetInbox())
-	if err != nil {
-		return
-	}
-	db.setInbox, err = db.db.Prepare(sqlgen.SetInbox())
 	if err != nil {
 		return
 	}
@@ -139,10 +145,6 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 		return
 	}
 	db.getOutbox, err = db.db.Prepare(sqlgen.GetOutbox())
-	if err != nil {
-		return
-	}
-	db.setOutbox, err = db.db.Prepare(sqlgen.SetOutbox())
 	if err != nil {
 		return
 	}
@@ -219,12 +221,37 @@ func postgresConn(pg postgresConfig) (s string, err error) {
 	return
 }
 
+func (d *database) Close() error {
+	d.inboxContains.Close()
+	d.getInbox.Close()
+	d.actorForOutbox.Close()
+	d.actorForInbox.Close()
+	d.outboxForInbox.Close()
+	d.exists.Close()
+	d.get.Close()
+	d.create.Close()
+	d.update.Close()
+	d.deleteStmt.Close()
+	d.getOutbox.Close()
+	d.followers.Close()
+	d.following.Close()
+	d.liked.Close()
+	return d.db.Close()
+}
+
+func (d *database) Ping() error {
+	return d.db.Ping()
+}
+
+// go-fed ActivityPub implementation
+
 func (d *database) InboxContains(c context.Context, inbox, id *url.URL) (contains bool, err error) {
 	var r *sql.Rows
 	r, err = d.inboxContains.QueryContext(c, inbox.String(), id.String())
 	if err != nil {
 		return
 	}
+	defer r.Close()
 	var n int
 	for r.Next() {
 		if n > 0 {
@@ -252,13 +279,18 @@ func (d *database) GetInbox(c context.Context, inboxIRI *url.URL) (inbox vocab.A
 	if err != nil {
 		return
 	}
-	var ids []string
+	defer r.Close()
+	var iris []string
 	for r.Next() {
-		var id string
-		if err = r.Scan(&id); err != nil {
+		var iri string
+		// unused
+		var id int64
+		var userId string
+		var fedId string
+		if err = r.Scan(&id, &userId, &fedId, &iri); err != nil {
 			return
 		}
-		ids = append(ids, id)
+		iris = append(iris, iri)
 	}
 	if err = r.Err(); err != nil {
 		return
@@ -268,13 +300,78 @@ func (d *database) GetInbox(c context.Context, inboxIRI *url.URL) (inbox vocab.A
 	if err != nil {
 		return
 	}
-	inbox = toOrderedCollectionPage(id, ids, start, length)
+	inbox = toOrderedCollectionPage(id, iris, start, length)
 	return
 }
 
 func (d *database) SetInbox(c context.Context, inbox vocab.ActivityStreamsOrderedCollectionPage) error {
-	// TODO
-	return nil
+	// Step 1: Fetch existing data in the database
+	id := inbox.GetActivityStreamsId()
+	iri := id.Get()
+	// TODO: Default length
+	defaultLength := 10
+	start := collectionPageStartIndex(iri)
+	length := collectionPageLength(iri, defaultLength)
+	tx, err := d.db.BeginTx(c, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	r, err := tx.QueryContext(c, d.sqlgen.GetInbox(), iri.String(), start, length)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	var fetched []struct {
+		id     int64
+		userId string
+		fedId  string
+		iri    string
+	}
+	for r.Next() {
+		var elem struct {
+			id     int64
+			userId string
+			fedId  string
+			iri    string
+		}
+		if err = r.Scan(&elem.id, &elem.userId, &elem.fedId, &elem.iri); err != nil {
+			return err
+		}
+		fetched = append(fetched, elem)
+	}
+	if err = r.Err(); err != nil {
+		return err
+	}
+	r.Close() // Go ahead and close it
+
+	// Step 2: Issue diff commands for the set
+	oi := inbox.GetActivityStreamsOrderedItems()
+	pos := start
+	if oi != nil {
+		// Add/Update all items being set
+		for iter := oi.Begin(); iter != oi.End(); iter = iter.Next() {
+			iriProp := iter.GetType().GetActivityStreamsId()
+			fedIri := iriProp.Get()
+			idx := pos - start
+			_, err := tx.ExecContext(c, d.sqlgen.SetInboxUpsert(), fetched[idx].id, fetched[idx].userId, fedIri)
+			if err != nil {
+				return err
+			}
+			pos++
+		}
+	}
+	// Remove those in excess
+	for pos < start+length && pos < start+len(fetched) {
+		idx := pos - start
+		_, err := tx.ExecContext(c, d.sqlgen.SetInboxDelete(), fetched[idx].id)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Step 3: Commit the transaction
+	return tx.Commit()
 }
 
 func (d *database) Owns(c context.Context, id *url.URL) (owns bool, err error) {
@@ -381,13 +478,108 @@ func (d *database) Delete(c context.Context, id *url.URL) error {
 }
 
 func (d *database) GetOutbox(c context.Context, inboxIRI *url.URL) (inbox vocab.ActivityStreamsOrderedCollectionPage, err error) {
-	// TODO
+	// TODO: Default length
+	defaultLength := 10
+	start := collectionPageStartIndex(inboxIRI)
+	length := collectionPageLength(inboxIRI, defaultLength)
+	var r *sql.Rows
+	r, err = d.getOutbox.QueryContext(c, inboxIRI.String(), start, length)
+	if err != nil {
+		return
+	}
+	defer r.Close()
+	var iris []string
+	for r.Next() {
+		var iri string
+		// unused
+		var id int64
+		var userId string
+		var fedId string
+		if err = r.Scan(&id, &userId, &fedId, &iri); err != nil {
+			return
+		}
+		iris = append(iris, iri)
+	}
+	if err = r.Err(); err != nil {
+		return
+	}
+	var id *url.URL
+	id, err = collectionPageId(inboxIRI, start, length, defaultLength)
+	if err != nil {
+		return
+	}
+	inbox = toOrderedCollectionPage(id, iris, start, length)
 	return
 }
 
-func (d *database) SetOutbox(c context.Context, inbox vocab.ActivityStreamsOrderedCollectionPage) error {
-	// TODO
-	return nil
+func (d *database) SetOutbox(c context.Context, outbox vocab.ActivityStreamsOrderedCollectionPage) error {
+	// Step 1: Fetch existing data in the database
+	id := outbox.GetActivityStreamsId()
+	iri := id.Get()
+	// TODO: Default length
+	defaultLength := 10
+	start := collectionPageStartIndex(iri)
+	length := collectionPageLength(iri, defaultLength)
+	tx, err := d.db.BeginTx(c, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	r, err := tx.QueryContext(c, d.sqlgen.GetOutbox(), iri.String(), start, length)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	var fetched []struct {
+		id     int64
+		userId string
+		fedId  string
+		iri    string
+	}
+	for r.Next() {
+		var elem struct {
+			id     int64
+			userId string
+			fedId  string
+			iri    string
+		}
+		if err = r.Scan(&elem.id, &elem.userId, &elem.fedId, &elem.iri); err != nil {
+			return err
+		}
+		fetched = append(fetched, elem)
+	}
+	if err = r.Err(); err != nil {
+		return err
+	}
+	r.Close() // Go ahead and close it
+
+	// Step 2: Issue diff commands for the set
+	oi := outbox.GetActivityStreamsOrderedItems()
+	pos := start
+	if oi != nil {
+		// Add/Update all items being set
+		for iter := oi.Begin(); iter != oi.End(); iter = iter.Next() {
+			iriProp := iter.GetType().GetActivityStreamsId()
+			fedIri := iriProp.Get()
+			idx := pos - start
+			_, err := tx.ExecContext(c, d.sqlgen.SetOutboxUpsert(), fetched[idx].id, fetched[idx].userId, fedIri)
+			if err != nil {
+				return err
+			}
+			pos++
+		}
+	}
+	// Remove those in excess
+	for pos < start+length && pos < start+len(fetched) {
+		idx := pos - start
+		_, err := tx.ExecContext(c, d.sqlgen.SetOutboxDelete(), fetched[idx].id)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Step 3: Commit the transaction
+	return tx.Commit()
 }
 
 func (d *database) Followers(c context.Context, actorIRI *url.URL) (followers vocab.ActivityStreamsCollection, err error) {
