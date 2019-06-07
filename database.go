@@ -47,10 +47,12 @@ type database struct {
 	outboxForInbox *sql.Stmt
 	exists         *sql.Stmt
 	get            *sql.Stmt
-	fedCreate      *sql.Stmt
 	localCreate    *sql.Stmt
-	update         *sql.Stmt
-	deleteStmt     *sql.Stmt
+	fedCreate      *sql.Stmt
+	localUpdate    *sql.Stmt
+	fedUpdate      *sql.Stmt
+	localDelete    *sql.Stmt
+	fedDelete      *sql.Stmt
 	getOutbox      *sql.Stmt
 	followers      *sql.Stmt
 	following      *sql.Stmt
@@ -144,11 +146,19 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 	if err != nil {
 		return
 	}
-	db.update, err = db.db.Prepare(sqlgen.Update())
+	db.localUpdate, err = db.db.Prepare(sqlgen.LocalUpdate())
 	if err != nil {
 		return
 	}
-	db.deleteStmt, err = db.db.Prepare(sqlgen.Delete())
+	db.fedUpdate, err = db.db.Prepare(sqlgen.FedUpdate())
+	if err != nil {
+		return
+	}
+	db.localDelete, err = db.db.Prepare(sqlgen.LocalDelete())
+	if err != nil {
+		return
+	}
+	db.fedDelete, err = db.db.Prepare(sqlgen.FedDelete())
 	if err != nil {
 		return
 	}
@@ -239,8 +249,10 @@ func (d *database) Close() error {
 	d.get.Close()
 	d.localCreate.Close()
 	d.fedCreate.Close()
-	d.update.Close()
-	d.deleteStmt.Close()
+	d.localUpdate.Close()
+	d.fedUpdate.Close()
+	d.localDelete.Close()
+	d.fedDelete.Close()
 	d.getOutbox.Close()
 	d.followers.Close()
 	d.following.Close()
@@ -558,14 +570,40 @@ func (d *database) Create(c context.Context, asType vocab.Type) (err error) {
 	}
 }
 
-func (d *database) Update(c context.Context, asType vocab.Type) error {
-	// TODO
-	return nil
+func (d *database) Update(c context.Context, asType vocab.Type) (err error) {
+	var b []byte
+	b, err = serialize(asType)
+	if err != nil {
+		return
+	}
+	var id *url.URL
+	id, err = pub.GetId(asType)
+	if err != nil {
+		return
+	}
+	var owns bool
+	if owns, err = d.Owns(c, id); err != nil {
+		return
+	} else if owns {
+		_, err = d.localUpdate.ExecContext(c, string(b))
+		return
+	} else {
+		_, err = d.fedUpdate.ExecContext(c, string(b))
+		return
+	}
 }
 
-func (d *database) Delete(c context.Context, id *url.URL) error {
-	// TODO
-	return nil
+func (d *database) Delete(c context.Context, id *url.URL) (err error) {
+	var owns bool
+	if owns, err = d.Owns(c, id); err != nil {
+		return
+	} else if owns {
+		_, err = d.localDelete.ExecContext(c, id.String())
+		return
+	} else {
+		_, err = d.fedDelete.ExecContext(c, id.String())
+		return
+	}
 }
 
 func (d *database) GetOutbox(c context.Context, outboxIRI *url.URL) (outbox vocab.ActivityStreamsOrderedCollectionPage, err error) {

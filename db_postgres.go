@@ -39,8 +39,10 @@ type sqlGenerator interface {
 	Get() string
 	LocalCreate() string
 	FedCreate() string
-	Update() string
-	Delete() string
+	LocalUpdate() string
+	FedUpdate() string
+	LocalDelete() string
+	FedDelete() string
 	GetOutbox() string
 	SetOutboxUpdate() string
 	SetOutboxInsert() string
@@ -320,12 +322,22 @@ func (p *pgV0) FedCreate() string {
 	return ""
 }
 
-func (p *pgV0) Update() string {
+func (p *pgV0) LocalUpdate() string {
 	// TODO
 	return ""
 }
 
-func (p *pgV0) Delete() string {
+func (p *pgV0) FedUpdate() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) LocalDelete() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) FedDelete() string {
 	// TODO
 	return ""
 }
