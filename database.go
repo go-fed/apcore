@@ -19,10 +19,13 @@ package apcore
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"time"
 
+	"github.com/go-fed/activity/pub"
+	"github.com/go-fed/activity/streams"
 	"github.com/go-fed/activity/streams/vocab"
 	_ "github.com/lib/pq"
 )
@@ -44,7 +47,8 @@ type database struct {
 	outboxForInbox *sql.Stmt
 	exists         *sql.Stmt
 	get            *sql.Stmt
-	create         *sql.Stmt
+	fedCreate      *sql.Stmt
+	localCreate    *sql.Stmt
 	update         *sql.Stmt
 	deleteStmt     *sql.Stmt
 	getOutbox      *sql.Stmt
@@ -132,7 +136,11 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 	if err != nil {
 		return
 	}
-	db.create, err = db.db.Prepare(sqlgen.Create())
+	db.localCreate, err = db.db.Prepare(sqlgen.LocalCreate())
+	if err != nil {
+		return
+	}
+	db.fedCreate, err = db.db.Prepare(sqlgen.FedCreate())
 	if err != nil {
 		return
 	}
@@ -229,7 +237,8 @@ func (d *database) Close() error {
 	d.outboxForInbox.Close()
 	d.exists.Close()
 	d.get.Close()
-	d.create.Close()
+	d.localCreate.Close()
+	d.fedCreate.Close()
 	d.update.Close()
 	d.deleteStmt.Close()
 	d.getOutbox.Close()
@@ -306,8 +315,10 @@ func (d *database) GetInbox(c context.Context, inboxIRI *url.URL) (inbox vocab.A
 
 func (d *database) SetInbox(c context.Context, inbox vocab.ActivityStreamsOrderedCollectionPage) error {
 	// Step 1: Fetch existing data in the database
-	id := inbox.GetActivityStreamsId()
-	iri := id.Get()
+	iri, err := pub.GetId(inbox)
+	if err != nil {
+		return err
+	}
 	// TODO: Default length
 	defaultLength := 10
 	start := collectionPageStartIndex(iri)
@@ -352,10 +363,12 @@ func (d *database) SetInbox(c context.Context, inbox vocab.ActivityStreamsOrdere
 		// Update all items
 		iter := oi.Begin()
 		for iter != oi.End() && pos < start+len(fetched) {
-			iriProp := iter.GetType().GetActivityStreamsId()
-			fedIri := iriProp.Get()
+			fedIri, err := pub.GetId(iter.GetType())
+			if err != nil {
+				return err
+			}
 			idx := pos - start
-			_, err := tx.ExecContext(c, d.sqlgen.SetInboxUpdate(), fetched[idx].id, fetched[idx].userId, fedIri)
+			_, err = tx.ExecContext(c, d.sqlgen.SetInboxUpdate(), fetched[idx].id, fetched[idx].userId, fedIri)
 			if err != nil {
 				return err
 			}
@@ -364,9 +377,11 @@ func (d *database) SetInbox(c context.Context, inbox vocab.ActivityStreamsOrdere
 		}
 		// Add new items
 		for iter != oi.End() {
-			iriProp := iter.GetType().GetActivityStreamsId()
-			fedIri := iriProp.Get()
-			_, err := tx.ExecContext(c, d.sqlgen.SetInboxInsert(), iri.String(), fedIri)
+			fedIri, err := pub.GetId(iter.GetType())
+			if err != nil {
+				return err
+			}
+			_, err = tx.ExecContext(c, d.sqlgen.SetInboxInsert(), iri.String(), fedIri)
 			if err != nil {
 				return err
 			}
@@ -491,13 +506,56 @@ func (d *database) Exists(c context.Context, id *url.URL) (exists bool, err erro
 }
 
 func (d *database) Get(c context.Context, id *url.URL) (value vocab.Type, err error) {
-	// TODO
+	var r *sql.Rows
+	r, err = d.get.QueryContext(c, id.String())
+	if err != nil {
+		return
+	}
+	var n int
+	var jsonb []byte
+	for r.Next() {
+		if n > 0 {
+			err = fmt.Errorf("multiple rows when getting from db for IRI")
+			return
+		}
+		if err = r.Scan(&jsonb); err != nil {
+			return
+		}
+		n++
+	}
+	if err = r.Err(); err != nil {
+		return
+	}
+	m := make(map[string]interface{}, 0)
+	err = json.Unmarshal(jsonb, &m)
+	if err != nil {
+		return
+	}
+	value, err = streams.ToType(c, m)
 	return
 }
 
-func (d *database) Create(c context.Context, asType vocab.Type) error {
-	// TODO
-	return nil
+func (d *database) Create(c context.Context, asType vocab.Type) (err error) {
+	var b []byte
+	b, err = serialize(asType)
+	if err != nil {
+		return
+	}
+	var id *url.URL
+	id, err = pub.GetId(asType)
+	if err != nil {
+		return
+	}
+	var owns bool
+	if owns, err = d.Owns(c, id); err != nil {
+		return
+	} else if owns {
+		_, err = d.localCreate.ExecContext(c, string(b))
+		return
+	} else {
+		_, err = d.fedCreate.ExecContext(c, string(b))
+		return
+	}
 }
 
 func (d *database) Update(c context.Context, asType vocab.Type) error {
@@ -547,8 +605,10 @@ func (d *database) GetOutbox(c context.Context, outboxIRI *url.URL) (outbox voca
 
 func (d *database) SetOutbox(c context.Context, outbox vocab.ActivityStreamsOrderedCollectionPage) error {
 	// Step 1: Fetch existing data in the database
-	id := outbox.GetActivityStreamsId()
-	iri := id.Get()
+	iri, err := pub.GetId(outbox)
+	if err != nil {
+		return err
+	}
 	// TODO: Default length
 	defaultLength := 10
 	start := collectionPageStartIndex(iri)
@@ -593,10 +653,12 @@ func (d *database) SetOutbox(c context.Context, outbox vocab.ActivityStreamsOrde
 		// Update all items
 		iter := oi.Begin()
 		for iter != oi.End() && pos < start+len(fetched) {
-			iriProp := iter.GetType().GetActivityStreamsId()
-			fedIri := iriProp.Get()
+			localIri, err := pub.GetId(iter.GetType())
+			if err != nil {
+				return err
+			}
 			idx := pos - start
-			_, err := tx.ExecContext(c, d.sqlgen.SetOutboxUpdate(), fetched[idx].id, fetched[idx].userId, fedIri)
+			_, err = tx.ExecContext(c, d.sqlgen.SetOutboxUpdate(), fetched[idx].id, fetched[idx].userId, localIri)
 			if err != nil {
 				return err
 			}
@@ -605,9 +667,11 @@ func (d *database) SetOutbox(c context.Context, outbox vocab.ActivityStreamsOrde
 		}
 		// Add new items
 		for iter != oi.End() {
-			iriProp := iter.GetType().GetActivityStreamsId()
-			fedIri := iriProp.Get()
-			_, err := tx.ExecContext(c, d.sqlgen.SetOutboxInsert(), iri.String(), fedIri)
+			localIri, err := pub.GetId(iter.GetType())
+			if err != nil {
+				return err
+			}
+			_, err = tx.ExecContext(c, d.sqlgen.SetOutboxInsert(), iri.String(), localIri)
 			if err != nil {
 				return err
 			}

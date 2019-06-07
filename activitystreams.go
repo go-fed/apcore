@@ -71,7 +71,6 @@ func toOrderedCollectionPage(id *url.URL, ids []string, current, length int) (oc
 }
 
 // TODO: Use the serialize utility in pub -- which needs to be migrated to streams
-// TODO: Delete -- unused?
 func serialize(v vocab.Type) (b []byte, err error) {
 	var m map[string]interface{}
 	m, err = v.Serialize()

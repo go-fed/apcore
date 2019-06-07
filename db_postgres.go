@@ -37,7 +37,8 @@ type sqlGenerator interface {
 	OutboxForInbox() string
 	Exists() string
 	Get() string
-	Create() string
+	LocalCreate() string
+	FedCreate() string
 	Update() string
 	Delete() string
 	GetOutbox() string
@@ -309,7 +310,12 @@ func (p *pgV0) Get() string {
 	return ""
 }
 
-func (p *pgV0) Create() string {
+func (p *pgV0) LocalCreate() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) FedCreate() string {
 	// TODO
 	return ""
 }
