@@ -349,16 +349,29 @@ func (d *database) SetInbox(c context.Context, inbox vocab.ActivityStreamsOrdere
 	oi := inbox.GetActivityStreamsOrderedItems()
 	pos := start
 	if oi != nil {
-		// Add/Update all items being set
-		for iter := oi.Begin(); iter != oi.End(); iter = iter.Next() {
+		// Update all items
+		iter := oi.Begin()
+		for iter != oi.End() && pos < start+len(fetched) {
 			iriProp := iter.GetType().GetActivityStreamsId()
 			fedIri := iriProp.Get()
 			idx := pos - start
-			_, err := tx.ExecContext(c, d.sqlgen.SetInboxUpsert(), fetched[idx].id, fetched[idx].userId, fedIri)
+			_, err := tx.ExecContext(c, d.sqlgen.SetInboxUpdate(), fetched[idx].id, fetched[idx].userId, fedIri)
 			if err != nil {
 				return err
 			}
 			pos++
+			iter = iter.Next()
+		}
+		// Add new items
+		for iter != oi.End() {
+			iriProp := iter.GetType().GetActivityStreamsId()
+			fedIri := iriProp.Get()
+			_, err := tx.ExecContext(c, d.sqlgen.SetInboxInsert(), iri.String(), fedIri)
+			if err != nil {
+				return err
+			}
+			pos++
+			iter = iter.Next()
 		}
 	}
 	// Remove those in excess
@@ -430,7 +443,27 @@ func (d *database) ActorForInbox(c context.Context, inboxIRI *url.URL) (actorIRI
 }
 
 func (d *database) OutboxForInbox(c context.Context, inboxIRI *url.URL) (outboxIRI *url.URL, err error) {
-	// TODO
+	var r *sql.Rows
+	r, err = d.outboxForInbox.QueryContext(c, inboxIRI.String())
+	if err != nil {
+		return
+	}
+	var n int
+	var iri string
+	for r.Next() {
+		if n > 0 {
+			err = fmt.Errorf("multiple rows when checking outbox for inbox")
+			return
+		}
+		if err = r.Scan(&iri); err != nil {
+			return
+		}
+		n++
+	}
+	if err = r.Err(); err != nil {
+		return
+	}
+	outboxIRI, err = url.Parse(iri)
 	return
 }
 
@@ -477,13 +510,13 @@ func (d *database) Delete(c context.Context, id *url.URL) error {
 	return nil
 }
 
-func (d *database) GetOutbox(c context.Context, inboxIRI *url.URL) (inbox vocab.ActivityStreamsOrderedCollectionPage, err error) {
+func (d *database) GetOutbox(c context.Context, outboxIRI *url.URL) (outbox vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	// TODO: Default length
 	defaultLength := 10
-	start := collectionPageStartIndex(inboxIRI)
-	length := collectionPageLength(inboxIRI, defaultLength)
+	start := collectionPageStartIndex(outboxIRI)
+	length := collectionPageLength(outboxIRI, defaultLength)
 	var r *sql.Rows
-	r, err = d.getOutbox.QueryContext(c, inboxIRI.String(), start, length)
+	r, err = d.getOutbox.QueryContext(c, outboxIRI.String(), start, length)
 	if err != nil {
 		return
 	}
@@ -504,11 +537,11 @@ func (d *database) GetOutbox(c context.Context, inboxIRI *url.URL) (inbox vocab.
 		return
 	}
 	var id *url.URL
-	id, err = collectionPageId(inboxIRI, start, length, defaultLength)
+	id, err = collectionPageId(outboxIRI, start, length, defaultLength)
 	if err != nil {
 		return
 	}
-	inbox = toOrderedCollectionPage(id, iris, start, length)
+	outbox = toOrderedCollectionPage(id, iris, start, length)
 	return
 }
 
@@ -557,16 +590,29 @@ func (d *database) SetOutbox(c context.Context, outbox vocab.ActivityStreamsOrde
 	oi := outbox.GetActivityStreamsOrderedItems()
 	pos := start
 	if oi != nil {
-		// Add/Update all items being set
-		for iter := oi.Begin(); iter != oi.End(); iter = iter.Next() {
+		// Update all items
+		iter := oi.Begin()
+		for iter != oi.End() && pos < start+len(fetched) {
 			iriProp := iter.GetType().GetActivityStreamsId()
 			fedIri := iriProp.Get()
 			idx := pos - start
-			_, err := tx.ExecContext(c, d.sqlgen.SetOutboxUpsert(), fetched[idx].id, fetched[idx].userId, fedIri)
+			_, err := tx.ExecContext(c, d.sqlgen.SetOutboxUpdate(), fetched[idx].id, fetched[idx].userId, fedIri)
 			if err != nil {
 				return err
 			}
 			pos++
+			iter = iter.Next()
+		}
+		// Add new items
+		for iter != oi.End() {
+			iriProp := iter.GetType().GetActivityStreamsId()
+			fedIri := iriProp.Get()
+			_, err := tx.ExecContext(c, d.sqlgen.SetOutboxInsert(), iri.String(), fedIri)
+			if err != nil {
+				return err
+			}
+			pos++
+			iter = iter.Next()
 		}
 	}
 	// Remove those in excess

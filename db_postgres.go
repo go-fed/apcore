@@ -29,7 +29,8 @@ type sqlManager interface {
 type sqlGenerator interface {
 	InboxContains() string
 	GetInbox() string
-	SetInboxUpsert() string
+	SetInboxUpdate() string
+	SetInboxInsert() string
 	SetInboxDelete() string
 	ActorForOutbox() string
 	ActorForInbox() string
@@ -40,7 +41,8 @@ type sqlGenerator interface {
 	Update() string
 	Delete() string
 	GetOutbox() string
-	SetOutboxUpsert() string
+	SetOutboxUpdate() string
+	SetOutboxInsert() string
 	SetOutboxDelete() string
 	Followers() string
 	Following() string
@@ -139,7 +141,7 @@ func (p *pgV0) UpgradeTables(t *sql.Tx) (err error) {
 
 func (p *pgV0) maybeLogExecute(t *sql.Tx, s string) (err error) {
 	if p.log {
-		InfoLogger.Info("SQL exec: %s", s)
+		InfoLogger.Infof("SQL exec: %s", s)
 	}
 	_, err = t.Exec(s)
 	return
@@ -267,7 +269,12 @@ func (p *pgV0) GetInbox() string {
 	return ""
 }
 
-func (p *pgV0) SetInboxUpsert() string {
+func (p *pgV0) SetInboxUpdate() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) SetInboxInsert() string {
 	// TODO
 	return ""
 }
@@ -322,7 +329,12 @@ func (p *pgV0) GetOutbox() string {
 	return ""
 }
 
-func (p *pgV0) SetOutboxUpsert() string {
+func (p *pgV0) SetOutboxUpdate() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) SetOutboxInsert() string {
 	// TODO
 	return ""
 }
