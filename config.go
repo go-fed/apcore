@@ -49,7 +49,7 @@ func defaultConfig(dbkind string) (c *config, err error) {
 
 // Configuration section specifically for the HTTP server.
 type serverConfig struct {
-	Host                        string `ini:"sr_host" comment:"(required) Host for this instance; ignored in debug mode"`
+	Host                        string `ini:"sr_host" comment:"(required) Host with TLD for this instance; ignored in debug mode"`
 	CookieAuthKeyFile           string `ini:"sr_cookie_auth_key_file" comment:"(required) Path to private key file used for cookie authentication"`
 	CookieEncryptionKeyFile     string `ini:"sr_cookie_encryption_key_file" comment:"Path to private key file used for cookie encryption"`
 	HttpsReadTimeoutSeconds     int    `ini:"sr_https_read_timeout_seconds" comment:"Timeout in seconds for incoming HTTPS requests; a zero or unset value does not timeout"`
@@ -65,11 +65,12 @@ func defaultServerConfig() serverConfig {
 
 // Configuration section specifically for the database.
 type databaseConfig struct {
-	DatabaseKind           string         `ini:"db_database_kind" comment:"(required) Only \"postgres\" supported"`
-	ConnMaxLifetimeSeconds int            `ini:"db_conn_max_lifetime_seconds" comment:"(default: indefinite) Maximum lifetime of a connection in seconds; a value of zero or unset value means indefinite"`
-	MaxOpenConns           int            `ini:"db_max_open_conns" comment:"(default: infinite) Maximum number of open connections to the database; a value of zero or unset value means infinite"`
-	MaxIdleConns           int            `ini:"db_max_idle_conns" comment:"(default: 2) Maximum number of idle connections in the connection pool to the database; a value of zero maintains no idle connections; a value greater than max_open_conns is reduced to be equal to max_open_conns"`
-	PostgresConfig         postgresConfig `ini:"db_postgres,omitempty" comment:"Only needed if database_kind is postgres, and values are based on the github.com/lib/pq driver"`
+	DatabaseKind              string         `ini:"db_database_kind" comment:"(required) Only \"postgres\" supported"`
+	ConnMaxLifetimeSeconds    int            `ini:"db_conn_max_lifetime_seconds" comment:"(default: indefinite) Maximum lifetime of a connection in seconds; a value of zero or unset value means indefinite"`
+	MaxOpenConns              int            `ini:"db_max_open_conns" comment:"(default: infinite) Maximum number of open connections to the database; a value of zero or unset value means infinite"`
+	MaxIdleConns              int            `ini:"db_max_idle_conns" comment:"(default: 2) Maximum number of idle connections in the connection pool to the database; a value of zero maintains no idle connections; a value greater than max_open_conns is reduced to be equal to max_open_conns"`
+	DefaultCollectionPageSize int            `ini:"db_default_collection_page_size" comment:"(default: 10) The default collection page size when fetching a page of an ActivityStreams collection"`
+	PostgresConfig            postgresConfig `ini:"db_postgres,omitempty" comment:"Only needed if database_kind is postgres, and values are based on the github.com/lib/pq driver"`
 }
 
 func defaultDatabaseConfig(dbkind string) (d databaseConfig, err error) {
@@ -78,6 +79,8 @@ func defaultDatabaseConfig(dbkind string) (d databaseConfig, err error) {
 		// This default is implicit in Go but could change, so here we
 		// make it explicit instead
 		MaxIdleConns: 2,
+		// This default is arbitrarily chosen
+		DefaultCollectionPageSize: 10,
 	}
 	if dbkind != postgresDB {
 		err = fmt.Errorf("unsupported database kind: %s", dbkind)
@@ -238,6 +241,7 @@ func promptNewConfig(file string) (c *config, err error) {
 	c.ServerConfig.RedirectWriteTimeoutSeconds = c.ServerConfig.HttpsReadTimeoutSeconds
 
 	// Prompt for ActivityPubConfig
+	// TODO
 
 	// Prompt for DatabaseConfig
 	c.DatabaseConfig.ConnMaxLifetimeSeconds, err = promptIntWithDefault(

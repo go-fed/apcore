@@ -39,6 +39,8 @@ type database struct {
 	sqlgen sqlGenerator
 	// url.URL.Host name for this server
 	hostname string
+	// default size of fetching pages of inbox, outboxes, etc
+	defaultCollectionSize int
 	// Prepared statements for the database
 	inboxContains  *sql.Stmt
 	getInbox       *sql.Stmt
@@ -106,9 +108,10 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 	InfoLogger.Infof("Successfully pinged database with latency: %s", end.Sub(start))
 
 	db = &database{
-		db:     sqldb,
-		sqlgen: sqlgen,
-		// TODO: hostname
+		db:                    sqldb,
+		sqlgen:                sqlgen,
+		hostname:              c.ServerConfig.Host,
+		defaultCollectionSize: c.DatabaseConfig.DefaultCollectionPageSize,
 	}
 	db.inboxContains, err = db.db.Prepare(sqlgen.InboxContains())
 	if err != nil {
@@ -291,10 +294,8 @@ func (d *database) InboxContains(c context.Context, inbox, id *url.URL) (contain
 }
 
 func (d *database) GetInbox(c context.Context, inboxIRI *url.URL) (inbox vocab.ActivityStreamsOrderedCollectionPage, err error) {
-	// TODO: Default length
-	defaultLength := 10
 	start := collectionPageStartIndex(inboxIRI)
-	length := collectionPageLength(inboxIRI, defaultLength)
+	length := collectionPageLength(inboxIRI, d.defaultCollectionSize)
 	var r *sql.Rows
 	r, err = d.getInbox.QueryContext(c, inboxIRI.String(), start, length)
 	if err != nil {
@@ -317,7 +318,7 @@ func (d *database) GetInbox(c context.Context, inboxIRI *url.URL) (inbox vocab.A
 		return
 	}
 	var id *url.URL
-	id, err = collectionPageId(inboxIRI, start, length, defaultLength)
+	id, err = collectionPageId(inboxIRI, start, length, d.defaultCollectionSize)
 	if err != nil {
 		return
 	}
@@ -331,10 +332,8 @@ func (d *database) SetInbox(c context.Context, inbox vocab.ActivityStreamsOrdere
 	if err != nil {
 		return err
 	}
-	// TODO: Default length
-	defaultLength := 10
 	start := collectionPageStartIndex(iri)
-	length := collectionPageLength(iri, defaultLength)
+	length := collectionPageLength(iri, d.defaultCollectionSize)
 	tx, err := d.db.BeginTx(c, nil)
 	if err != nil {
 		return err
@@ -607,10 +606,8 @@ func (d *database) Delete(c context.Context, id *url.URL) (err error) {
 }
 
 func (d *database) GetOutbox(c context.Context, outboxIRI *url.URL) (outbox vocab.ActivityStreamsOrderedCollectionPage, err error) {
-	// TODO: Default length
-	defaultLength := 10
 	start := collectionPageStartIndex(outboxIRI)
-	length := collectionPageLength(outboxIRI, defaultLength)
+	length := collectionPageLength(outboxIRI, d.defaultCollectionSize)
 	var r *sql.Rows
 	r, err = d.getOutbox.QueryContext(c, outboxIRI.String(), start, length)
 	if err != nil {
@@ -633,7 +630,7 @@ func (d *database) GetOutbox(c context.Context, outboxIRI *url.URL) (outbox voca
 		return
 	}
 	var id *url.URL
-	id, err = collectionPageId(outboxIRI, start, length, defaultLength)
+	id, err = collectionPageId(outboxIRI, start, length, d.defaultCollectionSize)
 	if err != nil {
 		return
 	}
@@ -647,10 +644,8 @@ func (d *database) SetOutbox(c context.Context, outbox vocab.ActivityStreamsOrde
 	if err != nil {
 		return err
 	}
-	// TODO: Default length
-	defaultLength := 10
 	start := collectionPageStartIndex(iri)
-	length := collectionPageLength(iri, defaultLength)
+	length := collectionPageLength(iri, d.defaultCollectionSize)
 	tx, err := d.db.BeginTx(c, nil)
 	if err != nil {
 		return err
