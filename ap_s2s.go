@@ -39,11 +39,16 @@ func newFederatingBehavior(db *database) *federatingBehavior {
 
 func (f *federatingBehavior) AuthenticatePostInbox(c context.Context, w http.ResponseWriter, r *http.Request) (authenticated bool, err error) {
 	// TODO
+	// 1. Validate HTTP Signatures
 	return
 }
 
 func (f *federatingBehavior) Blocked(c context.Context, actorIRIs []*url.URL) (blocked bool, err error) {
 	// TODO
+	// 1. Get Policies For Instance
+	// 2. Apply Instance  Policies
+	// 3. Get This Actor's Policies
+	// 4. Apply Actor Policies
 	return
 }
 
