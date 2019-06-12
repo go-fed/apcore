@@ -726,7 +726,40 @@ func (d *database) SetOutbox(c context.Context, outbox vocab.ActivityStreamsOrde
 }
 
 func (d *database) Followers(c context.Context, actorIRI *url.URL) (followers vocab.ActivityStreamsCollection, err error) {
-	// TODO
+	var r *sql.Rows
+	r, err = d.followers.QueryContext(c, actorIRI.String())
+	if err != nil {
+		return
+	}
+	var n int
+	var jsonb []byte
+	for r.Next() {
+		if n > 0 {
+			err = fmt.Errorf("multiple rows when fetching followers for IRI")
+			return
+		}
+		if err = r.Scan(&jsonb); err != nil {
+			return
+		}
+		n++
+	}
+	if err = r.Err(); err != nil {
+		return
+	}
+	m := make(map[string]interface{}, 0)
+	err = json.Unmarshal(jsonb, &m)
+	if err != nil {
+		return
+	}
+	var res *streams.JSONResolver
+	res, err = streams.NewJSONResolver(func(ctx context.Context, i vocab.ActivityStreamsCollection) error {
+		followers = i
+		return nil
+	})
+	if err != nil {
+		return
+	}
+	err = res.Resolve(c, m)
 	return
 }
 
