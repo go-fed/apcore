@@ -27,6 +27,14 @@ type sqlManager interface {
 }
 
 type sqlGenerator interface {
+	UpdateUserPolicy() string
+	UpdateInstancePolicy() string
+	InsertUserPolicy() string
+	InsertInstancePolicy() string
+	InstancePolicies() string
+	UserPolicies() string
+	InsertResolutions() string
+	UserResolutions() string
 	InboxContains() string
 	GetInbox() string
 	SetInboxUpdate() string
@@ -104,19 +112,23 @@ func (p *pgV0) CreateTables(t *sql.Tx) (err error) {
 	if err != nil {
 		return
 	}
-	err = p.maybeLogExecute(t, p.userFedRules())
+	err = p.maybeLogExecute(t, p.instancePolicyTable())
 	if err != nil {
 		return
 	}
-	err = p.maybeLogExecute(t, p.serverFedRules())
+	err = p.maybeLogExecute(t, p.userPolicyTable())
 	if err != nil {
 		return
 	}
-	err = p.maybeLogExecute(t, p.fedDataRuleAnnotationsTable())
+	err = p.maybeLogExecute(t, p.resolutionTable())
 	if err != nil {
 		return
 	}
-	err = p.maybeLogExecute(t, p.localDataRuleAnnotationsTable())
+	err = p.maybeLogExecute(t, p.resolutionUserPolicyJoinTable())
+	if err != nil {
+		return
+	}
+	err = p.maybeLogExecute(t, p.resolutionInstancePolicyJoinTable())
 	if err != nil {
 		return
 	}
@@ -155,6 +167,7 @@ func (p *pgV0) fedDataTable() string {
 CREATE TABLE IF NOT EXISTS ` + p.schema + `fed_data
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  create_time timestamp with time zone DEFAULT current_timestamp,
   payload jsonb NOT NULL
 );`
 }
@@ -168,6 +181,7 @@ func (p *pgV0) localDataTable() string {
 CREATE TABLE IF NOT EXISTS ` + p.schema + `local_data
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  create_time timestamp with time zone DEFAULT current_timestamp,
   payload jsonb NOT NULL
 );`
 }
@@ -181,6 +195,7 @@ func (p *pgV0) usersTable() string {
 CREATE TABLE IF NOT EXISTS ` + p.schema + `users
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  create_time timestamp with time zone DEFAULT current_timestamp,
   actor jsonb NOT NULL
 );`
 }
@@ -194,8 +209,8 @@ func (p *pgV0) usersInboxTable() string {
 CREATE TABLE IF NOT EXISTS ` + p.schema + `users_inbox
 (
   id bigserial PRIMARY KEY,
-  user_id uuid REFERENCES users (id) NOT NULL ON DELETE RESTRICT,
-  federated_id uuid REFERENCES fed_data (id) NOT NULL ON DELETE CASCADE,
+  user_id uuid REFERENCES ` + p.schema + `users (id) NOT NULL ON DELETE RESTRICT,
+  federated_id uuid REFERENCES ` + p.schema + `fed_data (id) NOT NULL ON DELETE CASCADE,
 );`
 }
 
@@ -204,8 +219,8 @@ func (p *pgV0) usersOutboxTable() string {
 CREATE TABLE IF NOT EXISTS ` + p.schema + `users_inbox
 (
   id bigserial PRIMARY KEY,
-  user_id uuid REFERENCES users (id) NOT NULL ON DELETE RESTRICT,
-  local_id uuid REFERENCES local_data (id) NOT NULL ON DELETE CASCADE,
+  user_id uuid REFERENCES ` + p.schema + `users (id) NOT NULL ON DELETE RESTRICT,
+  local_id uuid REFERENCES ` + p.schema + `local_data (id) NOT NULL ON DELETE CASCADE,
 );`
 }
 
@@ -214,7 +229,7 @@ func (p *pgV0) userPrivilegesTable() string {
 CREATE TABLE IF NOT EXISTS ` + p.schema + `user_privileges
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES users (id) NOT NULL ON DELETE CASCADE
+  user_id uuid REFERENCES ` + p.schema + `users (id) NOT NULL ON DELETE CASCADE
 );`
 }
 
@@ -223,43 +238,108 @@ func (p *pgV0) userPreferencesTable() string {
 CREATE TABLE IF NOT EXISTS ` + p.schema + `user_preferences
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES users (id) NOT NULL ON DELETE CASCADE
+  user_id uuid REFERENCES ` + p.schema + `users (id) NOT NULL ON DELETE CASCADE
 );`
 }
 
-func (p *pgV0) userFedRules() string {
+func (p *pgV0) instancePolicyTable() string {
 	return `
-CREATE TABLE IF NOT EXISTS ` + p.schema + `user_fed_rules
+CREATE TABLE IF NOT EXISTS ` + p.schema + `instance_policies
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES users (id) NOT NULL ON DELETE CASCADE
+  create_time timestamp with time zone DEFAULT current_timestamp,
+  order integer NOT NULL CONSTRAINT unique_order UNIQUE DEFERRABLE INITIALLY DEFERRED,
+  description text NOT NULL,
+  subject text NOT NULL,
+  kind text NOT NULL
 );`
 }
 
-func (p *pgV0) serverFedRules() string {
+func (p *pgV0) userPolicyTable() string {
 	return `
-CREATE TABLE IF NOT EXISTS ` + p.schema + `server_fed_rules
-(
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid()
-);`
-}
-
-func (p *pgV0) fedDataRuleAnnotationsTable() string {
-	return `
-CREATE TABLE IF NOT EXISTS ` + p.schema + `fed_data_rule_annotations
+CREATE TABLE IF NOT EXISTS ` + p.schema + `user_policies
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  fed_data_id uuid REFERENCES fed_data (id) NOT NULL ON DELETE CASCADE
+  create_time timestamp with time zone DEFAULT current_timestamp,
+  user_id uuid REFERENCES ` + p.schema + `users (id) NOT NULL ON DELETE CASCADE,
+  order integer NOT NULL,
+  description text NOT NULL,
+  subject text NOT NULL,
+  kind text NOT NULL,
+  CONSTRAINT user_unique_order UNIQUE (user_id, order) DEFERRABLE INITIALLY DEFERRED
 );`
 }
 
-func (p *pgV0) localDataRuleAnnotationsTable() string {
+func (p *pgV0) resolutionTable() string {
 	return `
-CREATE TABLE IF NOT EXISTS ` + p.schema + `local_data_rule_annotations
+CREATE TABLE IF NOT EXISTS ` + p.schema + `resolutions
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  local_data_id uuid REFERENCES local_data (id) NOT NULL ON DELETE CASCADE
+  create_time timestamp with time zone DEFAULT current_timestamp,
+  user_id uuid REFERENCES ` + p.schema + `users (id) NOT NULL ON DELETE CASCADE,
+  permitted integer NOT NULL,
+  activity_iri text NOT NULL,
+  is_public boolean NOT NULL,
+  reason text NOT NULL
 );`
+}
+
+func (p *pgV0) resolutionInstancePolicyJoinTable() string {
+	return `
+CREATE TABLE IF NOT EXISTS ` + p.schema + `resolutions_instance_policies
+(
+  resolution_id uuid REFERENCES ` + p.schema + `resolutions (id) NOT NULL ON DELETE CASCADE,
+  instance_policy_id uuid REFERENCES ` + p.schema + `instance_policies (id) NOT NULL ON DELETE CASCADE
+);`
+}
+
+func (p *pgV0) resolutionUserPolicyJoinTable() string {
+	return `
+CREATE TABLE IF NOT EXISTS ` + p.schema + `resolutions_user_policies
+(
+  resolution_id uuid REFERENCES ` + p.schema + `resolutions (id) NOT NULL ON DELETE CASCADE,
+  user_policy_id uuid REFERENCES ` + p.schema + `user_policies (id) NOT NULL ON DELETE CASCADE
+);`
+}
+
+func (p *pgV0) UpdateUserPolicy() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) UpdateInstancePolicy() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) InsertUserPolicy() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) InsertInstancePolicy() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) InstancePolicies() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) UserPolicies() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) InsertResolutions() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) UserResolutions() string {
+	// TODO
+	return ""
 }
 
 func (p *pgV0) InboxContains() string {

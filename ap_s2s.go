@@ -44,11 +44,32 @@ func (f *federatingBehavior) AuthenticatePostInbox(c context.Context, w http.Res
 }
 
 func (f *federatingBehavior) Blocked(c context.Context, actorIRIs []*url.URL) (blocked bool, err error) {
-	// TODO
+	ctx := ctx{c}
+	var targetUserId string
+	if targetUserId, err = ctx.TargetUserUUID(); err != nil {
+		return
+	}
+	var activityId *url.URL
+	if activityId, err = ctx.ActivityId(); err != nil {
+		return
+	}
+	var activityType string
+	if activityType, err = ctx.ActivityType(); err != nil {
+		return
+	}
 	// 1. Get Policies For Instance
-	// 2. Apply Instance  Policies
-	// 3. Get This Actor's Policies
-	// 4. Apply Actor Policies
+	var ip policies
+	if ip, err = f.db.InstancePolicies(c); err != nil {
+		return
+	}
+	// 2. Get This Actor's Policies
+	var ap policies
+	if ap, err = f.db.UserPolicies(c, targetUserId); err != nil {
+		return
+	}
+	// 3. Apply policies -- instance first
+	p := append(ip, ap...)
+	blocked, err = p.Apply(c, f.db, targetUserId, actorIRIs, activityId, activityType)
 	return
 }
 

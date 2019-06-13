@@ -17,7 +17,7 @@
 package apcore
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"net/url"
 )
@@ -39,8 +39,13 @@ func (p permit) and(o permit) permit {
 	return unknown
 }
 
+type scanner interface {
+	Scan(...interface{}) error
+}
+
 // resolution is the decision of one or more policies.
 type resolution struct {
+	Id           string
 	Permit       permit
 	ActivityId   *url.URL
 	TargetUserId string
@@ -49,44 +54,139 @@ type resolution struct {
 	Reason       string
 }
 
-func (r *resolution) Load(row *sql.Row) (err error) {
+func (r *resolution) Load(row scanner) (err error) {
 	// TODO
 	return
 }
+
+const (
+	alwaysGrant   = "always_grant"
+	alwaysDeny    = "always_deny"
+	instanceGrant = "instance_grant"
+	instanceDeny  = "instance_deny"
+	actorGrant    = "actor_grant"
+	actorDeny     = "actor_deny"
+)
 
 // policy determines what kind of resolution is appropriate.
 //
 // Used to determine interaction blocks.
 type policy struct {
 	Id               string
+	Order            int
 	IsInstancePolicy bool
 	UserId           string
 	Description      string
 	Public           bool
+	Subject          string
+	Kind             string
 	Resolve          func(from []*url.URL, activityType string) (p permit, reason string)
 }
 
-func (p *policy) Load(r *sql.Row) (err error) {
-	// TODO
-	return
-}
-
-func instancePolicies(db *database) (p policies, err error) {
-	// TODO
-	return
-}
-
-func userPolicies(db *database, targetUserId string) (p policies, err error) {
-	// TODO
+func (p *policy) Load(r scanner, isInstance bool) (err error) {
+	p.IsInstancePolicy = isInstance
+	if p.IsInstancePolicy {
+		p.Public = true
+		if err = r.Scan(
+			&p.Id,
+			&p.Order,
+			&p.Description,
+			&p.Subject,
+			&p.Kind); err != nil {
+			return
+		}
+	} else {
+		p.Public = false
+		if err = r.Scan(
+			&p.Id,
+			&p.UserId,
+			&p.Description,
+			&p.Subject,
+			&p.Kind); err != nil {
+			return
+		}
+	}
+	switch p.Kind {
+	case alwaysGrant:
+		p.Resolve = func(from []*url.URL, activityType string) (perm permit, reason string) {
+			perm = grant
+			reason = "always permit"
+			return
+		}
+	case alwaysDeny:
+		p.Resolve = func(from []*url.URL, activityType string) (perm permit, reason string) {
+			perm = deny
+			reason = "always deny"
+			return
+		}
+	case instanceGrant:
+		p.Resolve = func(from []*url.URL, activityType string) (perm permit, reason string) {
+			perm = unknown
+			reason = fmt.Sprintf("could not match host %q for instance grant", p.Subject)
+			for _, f := range from {
+				if f.Host == p.Subject {
+					perm = grant
+					reason = fmt.Sprintf("%q matched host %q for instance grant", f, p.Subject)
+					return
+				}
+			}
+			return
+		}
+	case instanceDeny:
+		p.Resolve = func(from []*url.URL, activityType string) (perm permit, reason string) {
+			perm = unknown
+			reason = fmt.Sprintf("could not match host %q for instance deny", p.Subject)
+			for _, f := range from {
+				if f.Host == p.Subject {
+					perm = deny
+					reason = fmt.Sprintf("%q matched host %q for instance deny", f, p.Subject)
+					return
+				}
+			}
+			return
+		}
+	case actorGrant:
+		p.Resolve = func(from []*url.URL, activityType string) (perm permit, reason string) {
+			perm = unknown
+			reason = fmt.Sprintf("could not match actor %q for actor grant", p.Subject)
+			for _, f := range from {
+				if f.String() == p.Subject {
+					perm = grant
+					reason = fmt.Sprintf("%q matched actor for grant", f)
+					return
+				}
+			}
+			return
+		}
+	case actorDeny:
+		p.Resolve = func(from []*url.URL, activityType string) (perm permit, reason string) {
+			perm = unknown
+			reason = fmt.Sprintf("could not match actor %q for actor deny", p.Subject)
+			for _, f := range from {
+				if f.String() == p.Subject {
+					perm = deny
+					reason = fmt.Sprintf("%q matched actor for deny", f)
+					return
+				}
+			}
+			return
+		}
+	default:
+		err = fmt.Errorf("unknown kind of policy: %s", p.Kind)
+	}
 	return
 }
 
 type policies []policy
 
 // Apply uses a number of policies to determine and record a resolution.
-func (p policies) Apply(db *database, targetUserId string, from []*url.URL, activityId *url.URL, activityType string) (blocked bool, err error) {
+func (p policies) Apply(c context.Context, db *database, targetUserId string, from []*url.URL, activityId *url.URL, activityType string) (blocked bool, err error) {
 	var r []resolution
-	// TODO: defer saving the resolutions
+	defer func() {
+		if err == nil {
+			err = db.InsertResolutions(c, r)
+		}
+	}()
 	if len(p) == 0 {
 		err = fmt.Errorf("no policies to evaluate")
 		return

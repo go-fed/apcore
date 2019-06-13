@@ -41,7 +41,15 @@ type database struct {
 	hostname string
 	// default size of fetching pages of inbox, outboxes, etc
 	defaultCollectionSize int
-	// Prepared statements for the database
+	// Prepared statements for apcore
+	insertUserPolicy     *sql.Stmt
+	insertInstancePolicy *sql.Stmt
+	updateUserPolicy     *sql.Stmt
+	updateInstancePolicy *sql.Stmt
+	instancePolicies     *sql.Stmt
+	userPolicies         *sql.Stmt
+	userResolutions      *sql.Stmt
+	// Prepared statements for the database required by go-fed
 	inboxContains  *sql.Stmt
 	getInbox       *sql.Stmt
 	actorForOutbox *sql.Stmt
@@ -113,6 +121,37 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 		hostname:              c.ServerConfig.Host,
 		defaultCollectionSize: c.DatabaseConfig.DefaultCollectionPageSize,
 	}
+	// apcore statement preparations
+	db.updateUserPolicy, err = db.db.Prepare(sqlgen.UpdateUserPolicy())
+	if err != nil {
+		return
+	}
+	db.updateInstancePolicy, err = db.db.Prepare(sqlgen.UpdateInstancePolicy())
+	if err != nil {
+		return
+	}
+	db.insertUserPolicy, err = db.db.Prepare(sqlgen.InsertUserPolicy())
+	if err != nil {
+		return
+	}
+	db.insertInstancePolicy, err = db.db.Prepare(sqlgen.InsertInstancePolicy())
+	if err != nil {
+		return
+	}
+	db.instancePolicies, err = db.db.Prepare(sqlgen.InstancePolicies())
+	if err != nil {
+		return
+	}
+	db.userPolicies, err = db.db.Prepare(sqlgen.UserPolicies())
+	if err != nil {
+		return
+	}
+	db.userResolutions, err = db.db.Prepare(sqlgen.UserResolutions())
+	if err != nil {
+		return
+	}
+
+	// go-fed statement preparations
 	db.inboxContains, err = db.db.Prepare(sqlgen.InboxContains())
 	if err != nil {
 		return
@@ -265,6 +304,128 @@ func (d *database) Close() error {
 
 func (d *database) Ping() error {
 	return d.db.Ping()
+}
+
+func (d *database) InsertPolicy(c context.Context, p policy) (err error) {
+	if p.IsInstancePolicy {
+		_, err = d.insertInstancePolicy.ExecContext(c,
+			p.Order,
+			p.Description,
+			p.Subject,
+			p.Kind)
+	} else {
+		_, err = d.insertUserPolicy.ExecContext(c,
+			p.Order,
+			p.UserId,
+			p.Description,
+			p.Subject,
+			p.Kind)
+	}
+	return
+}
+
+func (d *database) UpdatePolicy(c context.Context, p policy) (err error) {
+	if p.IsInstancePolicy {
+		_, err = d.updateInstancePolicy.ExecContext(c,
+			p.Id,
+			p.Order,
+			p.Description,
+			p.Subject,
+			p.Kind)
+	} else {
+		_, err = d.updateUserPolicy.ExecContext(c,
+			p.Id,
+			p.Order,
+			p.UserId,
+			p.Description,
+			p.Subject,
+			p.Kind)
+	}
+	return
+}
+
+func (d *database) InstancePolicies(c context.Context) (p policies, err error) {
+	var r *sql.Rows
+	r, err = d.instancePolicies.QueryContext(c)
+	if err != nil {
+		return
+	}
+	defer r.Close()
+	for r.Next() {
+		var pol policy
+		if err = pol.Load(r, true); err != nil {
+			return
+		}
+		p = append(p, pol)
+	}
+	if err = r.Err(); err != nil {
+		return
+	}
+	return
+}
+
+func (d *database) UserPolicies(c context.Context, userId string) (p policies, err error) {
+	var r *sql.Rows
+	r, err = d.userPolicies.QueryContext(c, userId)
+	if err != nil {
+		return
+	}
+	defer r.Close()
+	for r.Next() {
+		var pol policy
+		if err = pol.Load(r, false); err != nil {
+			return
+		}
+		p = append(p, pol)
+	}
+	if err = r.Err(); err != nil {
+		return
+	}
+	return
+}
+
+func (d *database) InsertResolutions(c context.Context, r []resolution) (err error) {
+	var tx *sql.Tx
+	tx, err = d.db.BeginTx(c, nil)
+	if err != nil {
+		return
+	}
+	defer tx.Rollback()
+
+	for _, res := range r {
+		_, err = tx.ExecContext(c,
+			d.sqlgen.InsertResolutions(),
+			res.TargetUserId,
+			res.Permit,
+			res.ActivityId.String(),
+			res.Public,
+			res.Reason)
+		if err != nil {
+			return
+		}
+	}
+	err = tx.Commit()
+	return
+}
+
+func (d *database) UserResolutions(c context.Context, userId string) (r []resolution, err error) {
+	var rw *sql.Rows
+	rw, err = d.userResolutions.QueryContext(c, userId)
+	if err != nil {
+		return
+	}
+	defer rw.Close()
+	for rw.Next() {
+		var res resolution
+		if err = res.Load(rw); err != nil {
+			return
+		}
+		r = append(r, res)
+	}
+	if err = rw.Err(); err != nil {
+		return
+	}
+	return
 }
 
 // go-fed ActivityPub implementation
