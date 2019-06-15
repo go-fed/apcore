@@ -84,6 +84,7 @@ func (f *federatingBehavior) Callbacks(c context.Context) (wrapped pub.Federatin
 	wrapped = pub.FederatingWrappedCallbacks{
 		OnFollow: u.OnFollow(),
 	}
+	// TODO: Others from Application.
 	return
 }
 

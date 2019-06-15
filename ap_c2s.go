@@ -18,6 +18,7 @@ package apcore
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/go-fed/activity/pub"
@@ -41,11 +42,16 @@ func (s *socialBehavior) AuthenticatePostOutbox(c context.Context, w http.Respon
 }
 
 func (s *socialBehavior) Callbacks(c context.Context) (wrapped pub.SocialWrappedCallbacks, other []interface{}, err error) {
-	// TODO
+	wrapped = pub.SocialWrappedCallbacks{}
+	// TODO: Others from Application
 	return
 }
 
 func (s *socialBehavior) DefaultCallback(c context.Context, activity pub.Activity) error {
-	// TODO
-	return nil
+	ctx := ctx{c}
+	t, err := ctx.ActivityType()
+	if err != nil {
+		return err
+	}
+	return fmt.Errorf("Unhandled client Activity of type: %s", t)
 }

@@ -48,7 +48,12 @@ func (a *commonBehavior) AuthenticateGetOutbox(c context.Context, w http.Respons
 }
 
 func (a *commonBehavior) GetOutbox(c context.Context, r *http.Request) (ocp vocab.ActivityStreamsOrderedCollectionPage, err error) {
-	// TODO
+	ctx := ctx{c}
+	var outboxIRI *url.URL
+	if outboxIRI, err = ctx.CompleteRequestURL(); err != nil {
+		return
+	}
+	ocp, err = a.db.GetOutbox(c, outboxIRI)
 	return
 }
 
