@@ -24,6 +24,7 @@ import (
 )
 
 const (
+	userPreferencesContextKey    = "userPreferences"
 	targetUserUUIDContextKey     = "targetUserUUID"
 	activityIRIContextKey        = "activityIRI"
 	activityTypeContextKey       = "activityType"
@@ -37,6 +38,7 @@ type ctx struct {
 func newPostRequestContext(r *http.Request, db *database) (c ctx, err error) {
 	c = ctx{r.Context()}
 	// TODO
+	c.WithUserPreferences(userPreferences{})
 	c.WithTargetUserUUID("")
 	c.WithCompleteRequestURL(r, "", "")
 	c.WithActivityIRI(nil) // Optional
@@ -47,9 +49,14 @@ func newPostRequestContext(r *http.Request, db *database) (c ctx, err error) {
 func newGetRequestContext(r *http.Request, db *database) (c ctx, err error) {
 	c = ctx{r.Context()}
 	// TODO
+	c.WithUserPreferences(userPreferences{})
 	c.WithTargetUserUUID("")
 	c.WithCompleteRequestURL(r, "", "")
 	return
+}
+
+func (c ctx) WithUserPreferences(u userPreferences) {
+	c.Context = context.WithValue(c.Context, userPreferencesContextKey, u)
 }
 
 func (c ctx) WithTargetUserUUID(s string) {
@@ -69,6 +76,17 @@ func (c ctx) WithCompleteRequestURL(r *http.Request, scheme, host string) {
 	u.Host = host
 	u.Scheme = scheme
 	c.Context = context.WithValue(c.Context, completeRequestURLContextKey, &u)
+}
+
+func (c ctx) UserPreferences() (u userPreferences, err error) {
+	v := c.Value(userPreferencesContextKey)
+	var ok bool
+	if v == nil {
+		err = fmt.Errorf("no user preferences in context")
+	} else if u, ok = v.(userPreferences); !ok {
+		err = fmt.Errorf("user preferences in context is not of type userPreferences")
+	}
+	return
 }
 
 func (c ctx) TargetUserUUID() (s string, err error) {

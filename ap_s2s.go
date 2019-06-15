@@ -75,13 +75,29 @@ func (f *federatingBehavior) Blocked(c context.Context, actorIRIs []*url.URL) (b
 	return
 }
 
-func (f *federatingBehavior) Callbacks(c context.Context) (wrapped pub.FederatingWrappedCallbacks, other []interface{}) {
-	// TODO
+func (f *federatingBehavior) Callbacks(c context.Context) (wrapped pub.FederatingWrappedCallbacks, other []interface{}, err error) {
+	ctx := ctx{c}
+	var u userPreferences
+	if u, err = ctx.UserPreferences(); err != nil {
+		return
+	}
+	wrapped = pub.FederatingWrappedCallbacks{
+		OnFollow: u.OnFollow(),
+	}
 	return
 }
 
 func (f *federatingBehavior) DefaultCallback(c context.Context, activity pub.Activity) error {
-	// TODO
+	ctx := ctx{c}
+	activityIRI, err := ctx.ActivityIRI()
+	if err != nil {
+		return err
+	}
+	activityType, err := ctx.ActivityType()
+	if err != nil {
+		return err
+	}
+	InfoLogger.Infof("Nothing to do for federated Activity of type %q: %s", activityType, activityIRI)
 	return nil
 }
 

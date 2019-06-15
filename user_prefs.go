@@ -17,35 +17,35 @@
 package apcore
 
 import (
-	"context"
-	"net/http"
-
 	"github.com/go-fed/activity/pub"
 )
 
-var _ pub.SocialProtocol = &socialBehavior{}
+type onFollow string
 
-type socialBehavior struct {
-	db *database
+const (
+	onFollowAlwaysAccept onFollow = "ALWAYS_ACCEPT"
+	onFollowAlwaysReject onFollow = "ALWAYS_REJECT"
+	onFollowManual       onFollow = "MANUAL"
+)
+
+type userPreferences struct {
+	onFollow onFollow
 }
 
-func newSocialBehavior(db *database) *socialBehavior {
-	return &socialBehavior{
-		db: db,
+func (u *userPreferences) Load(s scanner) (err error) {
+	// TODO
+	return
+}
+
+func (u userPreferences) OnFollow() pub.OnFollowBehavior {
+	switch u.onFollow {
+	case onFollowAlwaysAccept:
+		return pub.OnFollowAutomaticallyAccept
+	case onFollowAlwaysReject:
+		return pub.OnFollowAutomaticallyReject
+	case onFollowManual:
+		fallthrough
+	default:
+		return pub.OnFollowDoNothing
 	}
-}
-
-func (s *socialBehavior) AuthenticatePostOutbox(c context.Context, w http.ResponseWriter, r *http.Request) (authenticated bool, err error) {
-	// TODO
-	return
-}
-
-func (s *socialBehavior) Callbacks(c context.Context) (wrapped pub.SocialWrappedCallbacks, other []interface{}, err error) {
-	// TODO
-	return
-}
-
-func (s *socialBehavior) DefaultCallback(c context.Context, activity pub.Activity) error {
-	// TODO
-	return nil
 }
