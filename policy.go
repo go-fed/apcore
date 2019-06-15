@@ -55,7 +55,20 @@ type resolution struct {
 }
 
 func (r *resolution) Load(row scanner) (err error) {
-	// TODO
+	var activityIRI string
+	if err = row.Scan(
+		&r.Id,
+		&r.TargetUserId,
+		&r.Permit,
+		&activityIRI,
+		&r.Public,
+		&r.Reason,
+		&r.PolicyId); err != nil {
+		return
+	}
+	if r.ActivityId, err = url.Parse(activityIRI); err != nil {
+		return
+	}
 	return
 }
 
