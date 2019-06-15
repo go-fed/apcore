@@ -28,12 +28,14 @@ import (
 var _ pub.FederatingProtocol = &federatingBehavior{}
 
 type federatingBehavior struct {
-	db *database
+	app Application
+	db  *database
 }
 
-func newFederatingBehavior(db *database) *federatingBehavior {
+func newFederatingBehavior(a Application, db *database) *federatingBehavior {
 	return &federatingBehavior{
-		db: db,
+		app: a,
+		db:  db,
 	}
 }
 
@@ -49,8 +51,8 @@ func (f *federatingBehavior) Blocked(c context.Context, actorIRIs []*url.URL) (b
 	if targetUserId, err = ctx.TargetUserUUID(); err != nil {
 		return
 	}
-	var activityId *url.URL
-	if activityId, err = ctx.ActivityId(); err != nil {
+	var activityIRI *url.URL
+	if activityIRI, err = ctx.ActivityIRI(); err != nil {
 		return
 	}
 	var activityType string
@@ -69,7 +71,7 @@ func (f *federatingBehavior) Blocked(c context.Context, actorIRIs []*url.URL) (b
 	}
 	// 3. Apply policies -- instance first
 	p := append(ip, ap...)
-	blocked, err = p.Apply(c, f.db, targetUserId, actorIRIs, activityId, activityType)
+	blocked, err = p.IsBlocked(c, f.db, targetUserId, actorIRIs, activityIRI, activityType)
 	return
 }
 
@@ -84,13 +86,11 @@ func (f *federatingBehavior) DefaultCallback(c context.Context, activity pub.Act
 }
 
 func (f *federatingBehavior) MaxInboxForwardingRecursionDepth(c context.Context) int {
-	// TODO
-	return -1
+	return f.app.MaxInboxForwardingRecursionDepth(c)
 }
 
 func (f *federatingBehavior) MaxDeliveryRecursionDepth(c context.Context) int {
-	// TODO
-	return -1
+	return f.app.MaxDeliveryRecursionDepth(c)
 }
 
 func (f *federatingBehavior) FilterForwarding(c context.Context, potentialRecipients []*url.URL, a pub.Activity) (filteredRecipients []*url.URL, err error) {
@@ -99,6 +99,11 @@ func (f *federatingBehavior) FilterForwarding(c context.Context, potentialRecipi
 }
 
 func (f *federatingBehavior) GetInbox(c context.Context, r *http.Request) (ocp vocab.ActivityStreamsOrderedCollectionPage, err error) {
-	// TODO
+	ctx := ctx{c}
+	var inboxIRI *url.URL
+	if inboxIRI, err = ctx.CompleteRequestURL(); err != nil {
+		return
+	}
+	ocp, err = f.db.GetInbox(c, inboxIRI)
 	return
 }

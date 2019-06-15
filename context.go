@@ -19,18 +19,56 @@ package apcore
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 )
 
 const (
-	// TODO: Populate the following items in the context.
-	targetUserUUIDContextKey = "targetUserUUID"
-	activityIdContextKey     = "activityId"
-	activityTypeContextKey   = "activityType"
+	targetUserUUIDContextKey     = "targetUserUUID"
+	activityIRIContextKey        = "activityIRI"
+	activityTypeContextKey       = "activityType"
+	completeRequestURLContextKey = "completeRequestURL"
 )
 
 type ctx struct {
 	context.Context
+}
+
+func newPostRequestContext(r *http.Request, db *database) (c ctx, err error) {
+	c = ctx{r.Context()}
+	// TODO
+	c.WithTargetUserUUID("")
+	c.WithCompleteRequestURL(r, "", "")
+	c.WithActivityIRI(nil) // Optional
+	c.WithActivityType("")
+	return
+}
+
+func newGetRequestContext(r *http.Request, db *database) (c ctx, err error) {
+	c = ctx{r.Context()}
+	// TODO
+	c.WithTargetUserUUID("")
+	c.WithCompleteRequestURL(r, "", "")
+	return
+}
+
+func (c ctx) WithTargetUserUUID(s string) {
+	c.Context = context.WithValue(c.Context, targetUserUUIDContextKey, s)
+}
+
+func (c ctx) WithActivityIRI(u *url.URL) {
+	c.Context = context.WithValue(c.Context, activityIRIContextKey, u)
+}
+
+func (c ctx) WithActivityType(s string) {
+	c.Context = context.WithValue(c.Context, activityTypeContextKey, s)
+}
+
+func (c ctx) WithCompleteRequestURL(r *http.Request, scheme, host string) {
+	u := *r.URL // Copy
+	u.Host = host
+	u.Scheme = scheme
+	c.Context = context.WithValue(c.Context, completeRequestURLContextKey, &u)
 }
 
 func (c ctx) TargetUserUUID() (s string, err error) {
@@ -44,16 +82,14 @@ func (c ctx) TargetUserUUID() (s string, err error) {
 	return
 }
 
-func (c ctx) ActivityId() (u *url.URL, err error) {
-	v := c.Value(activityIdContextKey)
-	var s string
+func (c ctx) ActivityIRI() (u *url.URL, err error) {
+	v := c.Value(activityIRIContextKey)
 	var ok bool
 	if v == nil {
 		err = fmt.Errorf("no activity id in context")
-	} else if s, ok = v.(string); !ok {
-		err = fmt.Errorf("activity id in context is not a string")
+	} else if u, ok = v.(*url.URL); !ok {
+		err = fmt.Errorf("activity id in context is not a *url.URL")
 	}
-	u, err = url.Parse(s)
 	return
 }
 
@@ -64,6 +100,17 @@ func (c ctx) ActivityType() (s string, err error) {
 		err = fmt.Errorf("no activity type in context")
 	} else if s, ok = v.(string); !ok {
 		err = fmt.Errorf("activity type in context is not a string")
+	}
+	return
+}
+
+func (c ctx) CompleteRequestURL() (u *url.URL, err error) {
+	v := c.Value(completeRequestURLContextKey)
+	var ok bool
+	if v == nil {
+		err = fmt.Errorf("no complete request URL in context")
+	} else if u, ok = v.(*url.URL); !ok {
+		err = fmt.Errorf("complete request URL in context is not a *url.URL")
 	}
 	return
 }

@@ -276,11 +276,13 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `resolutions
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   create_time timestamp with time zone DEFAULT current_timestamp,
+  order integer NOT NULL,
   user_id uuid REFERENCES ` + p.schema + `users (id) NOT NULL ON DELETE CASCADE,
   permitted integer NOT NULL,
   activity_iri text NOT NULL,
   is_public boolean NOT NULL,
   reason text NOT NULL
+  CONSTRAINT activity_unique_order UNIQUE (activity_iri, order) DEFERRABLE INITIALLY DEFERRED
 );`
 }
 

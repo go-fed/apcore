@@ -27,6 +27,8 @@ import (
 // Application is an ActivityPub application built on top of apcore's
 // infrastructure.
 type Application interface {
+	// CALLS MADE AT SERVER STARTUP
+
 	// Information about this application's software. This will be shown at
 	// the command line and used for NodeInfo statistics.
 	Software() Software
@@ -107,11 +109,28 @@ type Application interface {
 	// Router.
 	BuildRoutes(r *Router, db Database) error
 
-	// Calls made at serving time
+	// CALLS MADE AT SERVING TIME
 
 	// NewId creates a new id IRI for the content being created.
 	//
 	// A peer making a GET request to this IRI on this server should then
 	// serve the ActivityPub value provided in this call.
 	NewId(c context.Context, t vocab.Type) (id *url.URL, err error)
+
+	// The maximum recursion depth to use when determining whether to do
+	// inbox forwarding, which if triggered ensures older thread
+	// participants are able to receive messages.
+	//
+	// If zero, then there is no limit.
+	//
+	// Only called if S2SEnabled returned true at startup time.
+	MaxInboxForwardingRecursionDepth(c context.Context) int
+	// The maximum depth to search for peers to deliver due to inbox
+	// forwarding, which ensures messages received by this server are
+	// propagated to them so there are no "ghost reply" problems.
+	//
+	// If zero, then there is no limit.
+	//
+	// Only called if S2SEnabled returned true at startup time.
+	MaxDeliveryRecursionDepth(c context.Context) int
 }

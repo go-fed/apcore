@@ -25,6 +25,7 @@ import (
 
 type Router struct {
 	router            *mux.Router
+	db                *database
 	actor             pub.Actor
 	errorHandler      http.Handler
 	badRequestHandler http.Handler
@@ -33,6 +34,7 @@ type Router struct {
 func (r *Router) wrap(route *mux.Route) *Route {
 	return &Route{
 		route:             route,
+		db:                r.db,
 		actor:             r.actor,
 		errorHandler:      r.errorHandler,
 		badRequestHandler: r.badRequestHandler,
@@ -42,52 +44,88 @@ func (r *Router) wrap(route *mux.Route) *Route {
 func (r *Router) ActorPostInbox(path string) *Route {
 	return r.wrap(r.router.HandleFunc(path,
 		func(w http.ResponseWriter, req *http.Request) {
-			isApRequest, err := r.actor.PostInbox(req.Context(), w, req)
+			c, err := newPostRequestContext(req, r.db)
+			if err != nil {
+				ErrorLogger.Errorf("Error building context for ActorPostInbox: %s", err)
+				r.errorHandler.ServeHTTP(w, req)
+				return
+			}
+			isApRequest, err := r.actor.PostInbox(c.Context, w, req)
 			if err != nil {
 				ErrorLogger.Errorf("Error in ActorPostInbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
+				return
 			} else if !isApRequest {
 				r.badRequestHandler.ServeHTTP(w, req)
+				return
 			}
+			return
 		}))
 }
 
 func (r *Router) ActorPostOutbox(path string) *Route {
 	return r.wrap(r.router.HandleFunc(path,
 		func(w http.ResponseWriter, req *http.Request) {
-			isApRequest, err := r.actor.PostOutbox(req.Context(), w, req)
+			c, err := newPostRequestContext(req, r.db)
+			if err != nil {
+				ErrorLogger.Errorf("Error building context for ActorPostOutbox: %s", err)
+				r.errorHandler.ServeHTTP(w, req)
+				return
+			}
+			isApRequest, err := r.actor.PostOutbox(c.Context, w, req)
 			if err != nil {
 				ErrorLogger.Errorf("Error in ActorPostOutbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
+				return
 			} else if !isApRequest {
 				r.badRequestHandler.ServeHTTP(w, req)
+				return
 			}
+			return
 		}))
 }
 
 func (r *Router) ActorGetInbox(path string, web func(http.ResponseWriter, *http.Request)) *Route {
 	return r.wrap(r.router.HandleFunc(path,
 		func(w http.ResponseWriter, req *http.Request) {
-			isApRequest, err := r.actor.GetInbox(req.Context(), w, req)
+			c, err := newGetRequestContext(req, r.db)
+			if err != nil {
+				ErrorLogger.Errorf("Error building context for ActorGetInbox: %s", err)
+				r.errorHandler.ServeHTTP(w, req)
+				return
+			}
+			isApRequest, err := r.actor.GetInbox(c.Context, w, req)
 			if err != nil {
 				ErrorLogger.Errorf("Error in ActorGetInbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
+				return
 			} else if !isApRequest {
 				web(w, req)
+				return
 			}
+			return
 		}))
 }
 
 func (r *Router) ActorGetOutbox(path string, web func(http.ResponseWriter, *http.Request)) *Route {
 	return r.wrap(r.router.HandleFunc(path,
 		func(w http.ResponseWriter, req *http.Request) {
-			isApRequest, err := r.actor.GetOutbox(req.Context(), w, req)
+			c, err := newGetRequestContext(req, r.db)
+			if err != nil {
+				ErrorLogger.Errorf("Error building context for ActorGetOutbox: %s", err)
+				r.errorHandler.ServeHTTP(w, req)
+				return
+			}
+			isApRequest, err := r.actor.GetOutbox(c.Context, w, req)
 			if err != nil {
 				ErrorLogger.Errorf("Error in ActorGetOutbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
+				return
 			} else if !isApRequest {
 				web(w, req)
+				return
 			}
+			return
 		}))
 }
 
@@ -97,11 +135,15 @@ func (r *Router) ActivityPubOnlyHandleFunc(path string, apHandler pub.HandlerFun
 		func(w http.ResponseWriter, req *http.Request) {
 			isASRequest, err := apHandler(req.Context(), w, req)
 			if err != nil {
-				ErrorLogger.Error(err)
+				ErrorLogger.Errorf("Error in ActivityPubOnlyHandleFunc: %s", err)
+				r.errorHandler.ServeHTTP(w, req)
+				return
 			}
 			if !isASRequest && r.router.NotFoundHandler != nil {
 				r.router.NotFoundHandler.ServeHTTP(w, req)
+				return
 			}
+			return
 		}))
 }
 
@@ -111,11 +153,15 @@ func (r *Router) ActivityPubAndWebHandleFunc(path string, apHandler pub.HandlerF
 		func(w http.ResponseWriter, req *http.Request) {
 			isASRequest, err := apHandler(req.Context(), w, req)
 			if err != nil {
-				ErrorLogger.Error(err)
+				ErrorLogger.Errorf("Error in ActivityPubAndWebHandleFunc: %s", err)
+				r.errorHandler.ServeHTTP(w, req)
+				return
 			}
 			if !isASRequest {
 				f(w, req)
+				return
 			}
+			return
 		}))
 }
 
@@ -177,6 +223,7 @@ func (r *Router) Walk(walkFn mux.WalkFunc) error {
 
 type Route struct {
 	route             *mux.Route
+	db                *database
 	actor             pub.Actor
 	errorHandler      http.Handler
 	badRequestHandler http.Handler

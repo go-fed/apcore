@@ -36,7 +36,7 @@ func newActor(c *config, a Application, db *database) (actor pub.Actor, err erro
 		err = fmt.Errorf("neither C2S nor S2S are enabled by the Application")
 	} else if cs && ss {
 		c2s := newSocialBehavior(db)
-		s2s := newFederatingBehavior(db)
+		s2s := newFederatingBehavior(a, db)
 		actor = pub.NewActor(
 			common,
 			c2s,
@@ -51,7 +51,7 @@ func newActor(c *config, a Application, db *database) (actor pub.Actor, err erro
 			apdb,
 			clock)
 	} else if ss {
-		s2s := newFederatingBehavior(db)
+		s2s := newFederatingBehavior(a, db)
 		actor = pub.NewFederatingActor(
 			common,
 			s2s,

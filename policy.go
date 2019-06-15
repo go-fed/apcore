@@ -46,6 +46,7 @@ type scanner interface {
 // resolution is the decision of one or more policies.
 type resolution struct {
 	Id           string
+	Order        int
 	Permit       permit
 	ActivityId   *url.URL
 	TargetUserId string
@@ -61,6 +62,7 @@ func (r *resolution) Load(row scanner) (err error) {
 		&r.TargetUserId,
 		&r.Permit,
 		&activityIRI,
+		&r.Order,
 		&r.Public,
 		&r.Reason,
 		&r.PolicyId); err != nil {
@@ -192,8 +194,8 @@ func (p *policy) Load(r scanner, isInstance bool) (err error) {
 
 type policies []policy
 
-// Apply uses a number of policies to determine and record a resolution.
-func (p policies) Apply(c context.Context, db *database, targetUserId string, from []*url.URL, activityId *url.URL, activityType string) (blocked bool, err error) {
+// IsBlocked uses a number of policies to determine and record resolutions.
+func (p policies) IsBlocked(c context.Context, db *database, targetUserId string, from []*url.URL, activityIRI *url.URL, activityType string) (blocked bool, err error) {
 	var r []resolution
 	defer func() {
 		if err == nil {
@@ -205,12 +207,13 @@ func (p policies) Apply(c context.Context, db *database, targetUserId string, fr
 		return
 	}
 	outcome := unknown
-	for _, policy := range p {
+	for i, policy := range p {
 		res := resolution{
-			ActivityId:   activityId,
+			ActivityId:   activityIRI,
 			TargetUserId: targetUserId,
 			Public:       policy.Public,
 			PolicyId:     policy.Id,
+			Order:        i,
 		}
 		res.Permit, res.Reason = policy.Resolve(from, activityType)
 		r = append(r, res)
