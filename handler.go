@@ -54,6 +54,7 @@ func newHandler(c *config, a Application, actor pub.Actor, db *database, debug b
 		router:            r,
 		db:                db,
 		actor:             actor,
+		host:              c.ServerConfig.Host,
 		errorHandler:      a.InternalServerErrorHandler(),
 		badRequestHandler: a.BadRequestHandler(),
 	}, db)
