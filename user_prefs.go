@@ -33,7 +33,9 @@ type userPreferences struct {
 }
 
 func (u *userPreferences) Load(s scanner) (err error) {
-	// TODO
+	if err = s.Scan(&u.onFollow); err != nil {
+		return
+	}
 	return
 }
 

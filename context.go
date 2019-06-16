@@ -35,23 +35,31 @@ type ctx struct {
 	context.Context
 }
 
-func newPostRequestContext(r *http.Request, db *database) (c ctx, err error) {
+func newPostRequestContext(scheme, host string, r *http.Request, db *database) (c ctx, err error) {
 	c = ctx{r.Context()}
-	// TODO
-	c.WithUserPreferences(userPreferences{})
-	c.WithTargetUserUUID("")
-	c.WithCompleteRequestURL(r, "", "")
-	c.WithActivityIRI(nil) // Optional
-	c.WithActivityType("")
+	var userId string // TODO
+	c.WithTargetUserUUID(userId)
+	var u userPreferences
+	if u, err = db.UserPreferences(c.Context, userId); err != nil {
+		return
+	}
+	c.WithUserPreferences(u)
+	c.WithCompleteRequestURL(r, scheme, host)
+	c.WithActivityIRI(nil) // TODO, Optional
+	c.WithActivityType("") // TODO
 	return
 }
 
-func newGetRequestContext(r *http.Request, db *database) (c ctx, err error) {
+func newGetRequestContext(scheme, host string, r *http.Request, db *database) (c ctx, err error) {
 	c = ctx{r.Context()}
-	// TODO
-	c.WithUserPreferences(userPreferences{})
-	c.WithTargetUserUUID("")
-	c.WithCompleteRequestURL(r, "", "")
+	var userId string // TODO
+	c.WithTargetUserUUID(userId)
+	var u userPreferences
+	if u, err = db.UserPreferences(c.Context, userId); err != nil {
+		return
+	}
+	c.WithUserPreferences(u)
+	c.WithCompleteRequestURL(r, scheme, host)
 	return
 }
 

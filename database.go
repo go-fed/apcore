@@ -42,6 +42,7 @@ type database struct {
 	// default size of fetching pages of inbox, outboxes, etc
 	defaultCollectionSize int
 	// Prepared statements for apcore
+	userPreferences      *sql.Stmt
 	insertUserPolicy     *sql.Stmt
 	insertInstancePolicy *sql.Stmt
 	updateUserPolicy     *sql.Stmt
@@ -122,6 +123,10 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 		defaultCollectionSize: c.DatabaseConfig.DefaultCollectionPageSize,
 	}
 	// apcore statement preparations
+	db.userPreferences, err = db.db.Prepare(sqlgen.UserPreferences())
+	if err != nil {
+		return
+	}
 	db.updateUserPolicy, err = db.db.Prepare(sqlgen.UpdateUserPolicy())
 	if err != nil {
 		return
@@ -304,6 +309,31 @@ func (d *database) Close() error {
 
 func (d *database) Ping() error {
 	return d.db.Ping()
+}
+
+func (d *database) UserPreferences(c context.Context, userId string) (u userPreferences, err error) {
+	pu := &u
+	var r *sql.Rows
+	r, err = d.userPreferences.QueryContext(c, userId)
+	if err != nil {
+		return
+	}
+	defer r.Close()
+	var n int
+	for r.Next() {
+		if n > 0 {
+			err = fmt.Errorf("multiple rows when obtaining user preferences")
+			return
+		}
+		if err = pu.Load(r); err != nil {
+			return
+		}
+		n++
+	}
+	if err = r.Err(); err != nil {
+		return
+	}
+	return
 }
 
 func (d *database) InsertPolicy(c context.Context, p policy) (err error) {

@@ -27,6 +27,7 @@ type Router struct {
 	router            *mux.Router
 	db                *database
 	actor             pub.Actor
+	host              string
 	errorHandler      http.Handler
 	badRequestHandler http.Handler
 }
@@ -36,15 +37,17 @@ func (r *Router) wrap(route *mux.Route) *Route {
 		route:             route,
 		db:                r.db,
 		actor:             r.actor,
+		host:              r.host,
 		errorHandler:      r.errorHandler,
 		badRequestHandler: r.badRequestHandler,
 	}
 }
 
-func (r *Router) ActorPostInbox(path string) *Route {
+func (r *Router) ActorPostInbox(path, scheme string) *Route {
+	// TODO: wrap with schemes
 	return r.wrap(r.router.HandleFunc(path,
 		func(w http.ResponseWriter, req *http.Request) {
-			c, err := newPostRequestContext(req, r.db)
+			c, err := newPostRequestContext(scheme, r.host, req, r.db)
 			if err != nil {
 				ErrorLogger.Errorf("Error building context for ActorPostInbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
@@ -63,10 +66,10 @@ func (r *Router) ActorPostInbox(path string) *Route {
 		}))
 }
 
-func (r *Router) ActorPostOutbox(path string) *Route {
+func (r *Router) ActorPostOutbox(path, scheme string) *Route {
 	return r.wrap(r.router.HandleFunc(path,
 		func(w http.ResponseWriter, req *http.Request) {
-			c, err := newPostRequestContext(req, r.db)
+			c, err := newPostRequestContext(scheme, r.host, req, r.db)
 			if err != nil {
 				ErrorLogger.Errorf("Error building context for ActorPostOutbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
@@ -85,10 +88,10 @@ func (r *Router) ActorPostOutbox(path string) *Route {
 		}))
 }
 
-func (r *Router) ActorGetInbox(path string, web func(http.ResponseWriter, *http.Request)) *Route {
+func (r *Router) ActorGetInbox(path, scheme string, web func(http.ResponseWriter, *http.Request)) *Route {
 	return r.wrap(r.router.HandleFunc(path,
 		func(w http.ResponseWriter, req *http.Request) {
-			c, err := newGetRequestContext(req, r.db)
+			c, err := newGetRequestContext(scheme, r.host, req, r.db)
 			if err != nil {
 				ErrorLogger.Errorf("Error building context for ActorGetInbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
@@ -107,10 +110,10 @@ func (r *Router) ActorGetInbox(path string, web func(http.ResponseWriter, *http.
 		}))
 }
 
-func (r *Router) ActorGetOutbox(path string, web func(http.ResponseWriter, *http.Request)) *Route {
+func (r *Router) ActorGetOutbox(path, scheme string, web func(http.ResponseWriter, *http.Request)) *Route {
 	return r.wrap(r.router.HandleFunc(path,
 		func(w http.ResponseWriter, req *http.Request) {
-			c, err := newGetRequestContext(req, r.db)
+			c, err := newGetRequestContext(scheme, r.host, req, r.db)
 			if err != nil {
 				ErrorLogger.Errorf("Error building context for ActorGetOutbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
@@ -225,6 +228,7 @@ type Route struct {
 	route             *mux.Route
 	db                *database
 	actor             pub.Actor
+	host              string
 	errorHandler      http.Handler
 	badRequestHandler http.Handler
 }

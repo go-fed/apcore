@@ -27,6 +27,7 @@ type sqlManager interface {
 }
 
 type sqlGenerator interface {
+	UserPreferences() string
 	UpdateUserPolicy() string
 	UpdateInstancePolicy() string
 	InsertUserPolicy() string
@@ -238,7 +239,8 @@ func (p *pgV0) userPreferencesTable() string {
 CREATE TABLE IF NOT EXISTS ` + p.schema + `user_preferences
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES ` + p.schema + `users (id) NOT NULL ON DELETE CASCADE
+  user_id uuid REFERENCES ` + p.schema + `users (id) NOT NULL ON DELETE CASCADE,
+  on_follow text NOT NULL
 );`
 }
 
@@ -278,7 +280,7 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `resolutions
   create_time timestamp with time zone DEFAULT current_timestamp,
   order integer NOT NULL,
   user_id uuid REFERENCES ` + p.schema + `users (id) NOT NULL ON DELETE CASCADE,
-  permitted integer NOT NULL,
+  permitted string NOT NULL,
   activity_iri text NOT NULL,
   is_public boolean NOT NULL,
   reason text NOT NULL
@@ -302,6 +304,11 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `resolutions_user_policies
   resolution_id uuid REFERENCES ` + p.schema + `resolutions (id) NOT NULL ON DELETE CASCADE,
   user_policy_id uuid REFERENCES ` + p.schema + `user_policies (id) NOT NULL ON DELETE CASCADE
 );`
+}
+
+func (p *pgV0) UserPreferences() string {
+	// TODO
+	return ""
 }
 
 func (p *pgV0) UpdateUserPolicy() string {

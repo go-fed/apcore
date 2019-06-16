@@ -22,6 +22,7 @@ import (
 	"net/url"
 )
 
+// TODO: Turn into string
 type permit int
 
 const (
