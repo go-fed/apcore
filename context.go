@@ -21,6 +21,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+
+	"github.com/go-fed/activity/pub"
+	"github.com/go-fed/activity/streams/vocab"
 )
 
 const (
@@ -35,51 +38,47 @@ type ctx struct {
 	context.Context
 }
 
-func newPostRequestContext(scheme, host string, r *http.Request, db *database) (c ctx, err error) {
-	c = ctx{r.Context()}
-	var userId string // TODO
-	c.WithTargetUserUUID(userId)
+func newRequestContext(scheme, host string, r *http.Request, db *database) (c ctx, err error) {
+	pc := &ctx{r.Context()}
+	var userId string
+	if userId, err = db.UserIdForBoxPath(c.Context, r.URL.Path); err != nil {
+		return
+	}
+	pc.withTargetUserUUID(userId)
 	var u userPreferences
 	if u, err = db.UserPreferences(c.Context, userId); err != nil {
 		return
 	}
-	c.WithUserPreferences(u)
-	c.WithCompleteRequestURL(r, scheme, host)
-	c.WithActivityIRI(nil) // TODO, Optional
-	c.WithActivityType("") // TODO
+	pc.withUserPreferences(u)
+	pc.withCompleteRequestURL(r, scheme, host)
+	c = *pc
 	return
 }
 
-func newGetRequestContext(scheme, host string, r *http.Request, db *database) (c ctx, err error) {
-	c = ctx{r.Context()}
-	var userId string // TODO
-	c.WithTargetUserUUID(userId)
-	var u userPreferences
-	if u, err = db.UserPreferences(c.Context, userId); err != nil {
-		return
+func (c *ctx) withActivityStreamsValue(t vocab.Type) {
+	if id, err := pub.GetId(t); err != nil {
+		c.withActivityIRI(id)
 	}
-	c.WithUserPreferences(u)
-	c.WithCompleteRequestURL(r, scheme, host)
-	return
+	c.withActivityType(t.GetTypeName())
 }
 
-func (c ctx) WithUserPreferences(u userPreferences) {
+func (c *ctx) withUserPreferences(u userPreferences) {
 	c.Context = context.WithValue(c.Context, userPreferencesContextKey, u)
 }
 
-func (c ctx) WithTargetUserUUID(s string) {
+func (c *ctx) withTargetUserUUID(s string) {
 	c.Context = context.WithValue(c.Context, targetUserUUIDContextKey, s)
 }
 
-func (c ctx) WithActivityIRI(u *url.URL) {
+func (c *ctx) withActivityIRI(u *url.URL) {
 	c.Context = context.WithValue(c.Context, activityIRIContextKey, u)
 }
 
-func (c ctx) WithActivityType(s string) {
+func (c *ctx) withActivityType(s string) {
 	c.Context = context.WithValue(c.Context, activityTypeContextKey, s)
 }
 
-func (c ctx) WithCompleteRequestURL(r *http.Request, scheme, host string) {
+func (c *ctx) withCompleteRequestURL(r *http.Request, scheme, host string) {
 	u := *r.URL // Copy
 	u.Host = host
 	u.Scheme = scheme

@@ -22,6 +22,7 @@ import (
 	"net/http"
 
 	"github.com/go-fed/activity/pub"
+	"github.com/go-fed/activity/streams/vocab"
 )
 
 var _ pub.SocialProtocol = &socialBehavior{}
@@ -34,6 +35,13 @@ func newSocialBehavior(db *database) *socialBehavior {
 	return &socialBehavior{
 		db: db,
 	}
+}
+
+func (s *socialBehavior) PostOutboxRequestBodyHook(c context.Context, r *http.Request, data vocab.Type) (out context.Context, err error) {
+	ctx := &ctx{c}
+	ctx.withActivityStreamsValue(data)
+	out = ctx.Context
+	return
 }
 
 func (s *socialBehavior) AuthenticatePostOutbox(c context.Context, w http.ResponseWriter, r *http.Request) (authenticated bool, err error) {

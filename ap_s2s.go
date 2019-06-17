@@ -39,6 +39,13 @@ func newFederatingBehavior(a Application, db *database) *federatingBehavior {
 	}
 }
 
+func (f *federatingBehavior) PostInboxRequestBodyHook(c context.Context, r *http.Request, activity pub.Activity) (out context.Context, err error) {
+	ctx := &ctx{c}
+	ctx.withActivityStreamsValue(activity)
+	out = ctx.Context
+	return
+}
+
 func (f *federatingBehavior) AuthenticatePostInbox(c context.Context, w http.ResponseWriter, r *http.Request) (authenticated bool, err error) {
 	// TODO
 	// 1. Validate HTTP Signatures

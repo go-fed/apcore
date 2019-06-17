@@ -137,7 +137,7 @@ type Route struct {
 func (r *Route) ActorPostInbox(path, scheme string) *Route {
 	r.route = r.route.Path(path).Schemes(scheme).HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
-			c, err := newPostRequestContext(scheme, r.host, req, r.db)
+			c, err := newRequestContext(scheme, r.host, req, r.db)
 			if err != nil {
 				ErrorLogger.Errorf("Error building context for ActorPostInbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
@@ -160,7 +160,7 @@ func (r *Route) ActorPostInbox(path, scheme string) *Route {
 func (r *Route) ActorPostOutbox(path, scheme string) *Route {
 	r.route = r.route.Path(path).Schemes(scheme).HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
-			c, err := newPostRequestContext(scheme, r.host, req, r.db)
+			c, err := newRequestContext(scheme, r.host, req, r.db)
 			if err != nil {
 				ErrorLogger.Errorf("Error building context for ActorPostOutbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
@@ -183,7 +183,7 @@ func (r *Route) ActorPostOutbox(path, scheme string) *Route {
 func (r *Route) ActorGetInbox(path, scheme string, web func(http.ResponseWriter, *http.Request)) *Route {
 	r.route = r.route.Path(path).Schemes(scheme).HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
-			c, err := newGetRequestContext(scheme, r.host, req, r.db)
+			c, err := newRequestContext(scheme, r.host, req, r.db)
 			if err != nil {
 				ErrorLogger.Errorf("Error building context for ActorGetInbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
@@ -206,7 +206,7 @@ func (r *Route) ActorGetInbox(path, scheme string, web func(http.ResponseWriter,
 func (r *Route) ActorGetOutbox(path, scheme string, web func(http.ResponseWriter, *http.Request)) *Route {
 	r.route = r.route.Path(path).Schemes(scheme).HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
-			c, err := newGetRequestContext(scheme, r.host, req, r.db)
+			c, err := newRequestContext(scheme, r.host, req, r.db)
 			if err != nil {
 				ErrorLogger.Errorf("Error building context for ActorGetOutbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)

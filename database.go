@@ -42,6 +42,7 @@ type database struct {
 	// default size of fetching pages of inbox, outboxes, etc
 	defaultCollectionSize int
 	// Prepared statements for apcore
+	userIdForBoxPath     *sql.Stmt
 	userPreferences      *sql.Stmt
 	insertUserPolicy     *sql.Stmt
 	insertInstancePolicy *sql.Stmt
@@ -123,6 +124,10 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 		defaultCollectionSize: c.DatabaseConfig.DefaultCollectionPageSize,
 	}
 	// apcore statement preparations
+	db.userIdForBoxPath, err = db.db.Prepare(sqlgen.UserIdForBoxPath())
+	if err != nil {
+		return
+	}
 	db.userPreferences, err = db.db.Prepare(sqlgen.UserPreferences())
 	if err != nil {
 		return
@@ -287,6 +292,15 @@ func postgresConn(pg postgresConfig) (s string, err error) {
 }
 
 func (d *database) Close() error {
+	d.userIdForBoxPath.Close()
+	d.userPreferences.Close()
+	d.insertUserPolicy.Close()
+	d.insertInstancePolicy.Close()
+	d.updateUserPolicy.Close()
+	d.updateInstancePolicy.Close()
+	d.instancePolicies.Close()
+	d.userPolicies.Close()
+	d.userResolutions.Close()
 	d.inboxContains.Close()
 	d.getInbox.Close()
 	d.actorForOutbox.Close()
@@ -309,6 +323,30 @@ func (d *database) Close() error {
 
 func (d *database) Ping() error {
 	return d.db.Ping()
+}
+
+func (d *database) UserIdForBoxPath(c context.Context, boxPath string) (userId string, err error) {
+	var r *sql.Rows
+	r, err = d.userIdForBoxPath.QueryContext(c, boxPath)
+	if err != nil {
+		return
+	}
+	defer r.Close()
+	var n int
+	for r.Next() {
+		if n > 0 {
+			err = fmt.Errorf("multiple rows when obtaining user id for box path")
+			return
+		}
+		if err = r.Scan(&userId); err != nil {
+			return
+		}
+		n++
+	}
+	if err = r.Err(); err != nil {
+		return
+	}
+	return
 }
 
 func (d *database) UserPreferences(c context.Context, userId string) (u userPreferences, err error) {

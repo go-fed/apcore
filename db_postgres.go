@@ -27,6 +27,7 @@ type sqlManager interface {
 }
 
 type sqlGenerator interface {
+	UserIdForBoxPath() string
 	UserPreferences() string
 	UpdateUserPolicy() string
 	UpdateInstancePolicy() string
@@ -304,6 +305,11 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `resolutions_user_policies
   resolution_id uuid REFERENCES ` + p.schema + `resolutions (id) NOT NULL ON DELETE CASCADE,
   user_policy_id uuid REFERENCES ` + p.schema + `user_policies (id) NOT NULL ON DELETE CASCADE
 );`
+}
+
+func (p *pgV0) UserIdForBoxPath() string {
+	// TODO
+	return ""
 }
 
 func (p *pgV0) UserPreferences() string {
