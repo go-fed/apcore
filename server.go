@@ -27,6 +27,7 @@ import (
 
 type server struct {
 	a           Application
+	oa          *oAuth2Server
 	actor       pub.Actor
 	handler     *handler
 	db          *database
@@ -55,6 +56,13 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 	// Initialize the ActivityPub portion of the server
 	var actor pub.Actor
 	actor, err = newActor(c, a, db)
+	if err != nil {
+		return
+	}
+
+	// Prepare OAuth2 server
+	var oa *oAuth2Server
+	oa, err = newOAuth2Server(c)
 	if err != nil {
 		return
 	}
@@ -89,6 +97,7 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 	// Create the apcore server
 	s = &server{
 		a:           a,
+		oa:          oa,
 		actor:       actor,
 		handler:     h,
 		db:          db,
