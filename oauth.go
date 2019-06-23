@@ -58,8 +58,18 @@ func newOAuth2Server(c *config, d *database, k *sessions) (s *oAuth2Server, err 
 		// Remove previous refreshing token
 		IsRemoveRefreshing: true,
 	})
-	m.MapTokenStorage( /*TODO*/ nil)
-	m.MapClientStorage( /*TODO*/ nil)
+	var ts oauth2.TokenStore
+	ts, err = newTokenStore(d)
+	if err != nil {
+		return
+	}
+	m.MapTokenStorage(ts)
+	var cs oauth2.ClientStore
+	cs, err = newClientStore(d)
+	if err != nil {
+		return
+	}
+	m.MapClientStorage(cs)
 	// OAuth2 server
 	srv := oaserver.NewServer(&oaserver.Config{
 		TokenType: "Bearer",
@@ -81,15 +91,22 @@ func newOAuth2Server(c *config, d *database, k *sessions) (s *oAuth2Server, err 
 	}, m)
 	// Parse tokens in POST body.
 	srv.SetClientInfoHandler(oaserver.ClientFormHandler)
-	// Determines the user to use when granting an authorization token.
+	// Determines the user to use when granting an authorization token. If
+	// no user is present, then they have not yet logged in and need to do
+	// so. Note that an empty string userID plus no error will magically
+	// cause the library to stop processing.
 	srv.SetUserAuthorizationHandler(func(w http.ResponseWriter, r *http.Request) (userID string, err error) {
 		var s *session
 		if s, err = k.Get(r); err != nil {
+			err = nil
+			InfoLogger.Infof("OAuth redirect to login")
+			// TODO: Redirect to Login URL
 			return
 		}
 		if userID, err = s.UserID(); err != nil {
 			return
 		}
+		// User is already logged in
 		return
 	})
 	// Called when requesting a token through the password credential grant flow.

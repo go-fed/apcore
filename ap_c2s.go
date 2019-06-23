@@ -29,11 +29,13 @@ var _ pub.SocialProtocol = &socialBehavior{}
 
 type socialBehavior struct {
 	db *database
+	o  *oAuth2Server
 }
 
-func newSocialBehavior(db *database) *socialBehavior {
+func newSocialBehavior(db *database, o *oAuth2Server) *socialBehavior {
 	return &socialBehavior{
 		db: db,
+		o:  o,
 	}
 }
 
@@ -45,7 +47,11 @@ func (s *socialBehavior) PostOutboxRequestBodyHook(c context.Context, r *http.Re
 }
 
 func (s *socialBehavior) AuthenticatePostOutbox(c context.Context, w http.ResponseWriter, r *http.Request) (authenticated bool, err error) {
-	// TODO
+	_, err = s.o.ValidateOAuth2AccessToken(w, r)
+	if err != nil {
+		return
+	}
+	// TODO: Check scopes in the token.
 	return
 }
 

@@ -60,16 +60,16 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 		return
 	}
 
-	// Initialize the ActivityPub portion of the server
-	var actor pub.Actor
-	actor, err = newActor(c, a, db)
+	// Prepare OAuth2 server
+	var oa *oAuth2Server
+	oa, err = newOAuth2Server(c, db, ses)
 	if err != nil {
 		return
 	}
 
-	// Prepare OAuth2 server
-	var oa *oAuth2Server
-	oa, err = newOAuth2Server(c, db, ses)
+	// Initialize the ActivityPub portion of the server
+	var actor pub.Actor
+	actor, err = newActor(c, a, db, oa)
 	if err != nil {
 		return
 	}
