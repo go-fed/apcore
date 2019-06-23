@@ -17,6 +17,7 @@
 package apcore
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -27,17 +28,25 @@ import (
 )
 
 type oAuth2Server struct {
+	d *database
+	k *sessions
 	m *manage.Manager
 	s *oaserver.Server
 }
 
-func newOAuth2Server(c *config) (s *oAuth2Server, err error) {
+func newOAuth2Server(c *config, d *database, k *sessions) (s *oAuth2Server, err error) {
 	m := manage.NewDefaultManager()
 	// Configure Access token and Refresh token refresh.
+	if c.OAuthConfig.AccessTokenExpiry <= 0 {
+		err = fmt.Errorf("oauth2 access token expiration duration is <= 0")
+		return
+	} else if c.OAuthConfig.RefreshTokenExpiry <= 0 {
+		err = fmt.Errorf("oauthr2 refresh token expiration duration is <= 0")
+		return
+	}
 	m.SetAuthorizeCodeTokenCfg(&manage.Config{
-		// TODO: Configurable time
-		AccessTokenExp:    time.Hour * 2,
-		RefreshTokenExp:   time.Hour * 24 * 3,
+		AccessTokenExp:    time.Second * time.Duration(c.OAuthConfig.AccessTokenExpiry),
+		RefreshTokenExp:   time.Second * time.Duration(c.OAuthConfig.RefreshTokenExpiry),
 		IsGenerateRefresh: true,
 	})
 	m.SetRefreshTokenCfg(&manage.RefreshingConfig{
@@ -71,6 +80,27 @@ func newOAuth2Server(c *config) (s *oAuth2Server, err error) {
 	}, m)
 	// Parse tokens in POST body.
 	srv.SetClientInfoHandler(oaserver.ClientFormHandler)
+	// Determines the user to use when granting an authorization token.
+	srv.SetUserAuthorizationHandler(func(w http.ResponseWriter, r *http.Request) (userID string, err error) {
+		var s *session
+		if s, err = k.Get(r); err != nil {
+			return
+		}
+		if userID, err = s.UserID(); err != nil {
+			return
+		}
+		return
+	})
+	// When granting an authorization token, overrides the scopes of incoming requests.
+	srv.SetAuthorizeScopeHandler(func(w http.ResponseWriter, r *http.Request) (scope string, err error) {
+		// TODO
+		return
+	})
+	// Called when requesting a token through the password credential grant flow.
+	srv.SetPasswordAuthorizationHandler(func(username, password string) (userID string, err error) {
+		// TODO
+		return
+	})
 	srv.SetInternalErrorHandler(func(err error) (re *errors.Response) {
 		re = &errors.Response{
 			Error:       errors.ErrServerError,
@@ -81,25 +111,35 @@ func newOAuth2Server(c *config) (s *oAuth2Server, err error) {
 		return
 	})
 	srv.SetResponseErrorHandler(func(re *errors.Response) {
-		ErrorLogger.Errorf("OAuth2 response error: %s", re.Error.Error())
+		ErrorLogger.Errorf("oauth2 response error: %s", re.Error.Error())
 	})
 	s = &oAuth2Server{
+		d: d,
+		k: k,
 		m: m,
 		s: srv,
 	}
 	return
 }
 
+// TODO: Call/expose this handler
 func (o *oAuth2Server) HandleAuthorizationRequest(w http.ResponseWriter, r *http.Request) {
 	if err := o.s.HandleAuthorizeRequest(w, r); err != nil {
 		// oauth2 library would already have written headers by now.
-		ErrorLogger.Errorf("OAuth2 HandleAuthorizeRequest error: %s", err)
+		ErrorLogger.Errorf("oauth2 HandleAuthorizeRequest error: %s", err)
 	}
 }
 
+// TODO: Call/expose this handler
 func (o *oAuth2Server) HandleAccessTokenRequest(w http.ResponseWriter, r *http.Request) {
 	if err := o.s.HandleTokenRequest(w, r); err != nil {
 		// oauth2 library would already have written headers by now.
-		ErrorLogger.Errorf("OAuth2 HandleTokenRequest error: %s", err)
+		ErrorLogger.Errorf("oauth2 HandleTokenRequest error: %s", err)
 	}
+}
+
+// TODO: Call/expose this handler
+func (o *oAuth2Server) ValidateOAuth2AccessToken(w http.ResponseWriter, r *http.Request) (token oauth2.TokenInfo, err error) {
+	token, err = o.s.ValidationBearerToken(r)
+	return
 }

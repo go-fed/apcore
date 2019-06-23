@@ -29,6 +29,7 @@ const (
 // Overall configuration file structure
 type config struct {
 	ServerConfig      serverConfig      `ini:"server" comment:"HTTP server configuration"`
+	OAuthConfig       oAuthConfig       `ini:"oauth" comment:"OAuth 2 configuration"`
 	DatabaseConfig    databaseConfig    `ini:"database" comment:"Database configuration"`
 	ActivityPubConfig activityPubConfig `ini:"activitypub" comment:"ActivityPub configuration"`
 }
@@ -41,6 +42,7 @@ func defaultConfig(dbkind string) (c *config, err error) {
 	}
 	c = &config{
 		ServerConfig:      defaultServerConfig(),
+		OAuthConfig:       defaultOAuthConfig(),
 		DatabaseConfig:    dbc,
 		ActivityPubConfig: defaultActivityPubConfig(),
 	}
@@ -49,9 +51,11 @@ func defaultConfig(dbkind string) (c *config, err error) {
 
 // Configuration section specifically for the HTTP server.
 type serverConfig struct {
-	Host                        string `ini:"sr_host" comment:"(required) Host with TLD for this instance; ignored in debug mode"`
+	Host                        string `ini:"sr_host" comment:"(required) Host with TLD for this instance (basically, the fully qualified domain or subdomain); ignored in debug mode"`
 	CookieAuthKeyFile           string `ini:"sr_cookie_auth_key_file" comment:"(required) Path to private key file used for cookie authentication"`
 	CookieEncryptionKeyFile     string `ini:"sr_cookie_encryption_key_file" comment:"Path to private key file used for cookie encryption"`
+	CookieMaxAge                int    `ini:"sr_cookie_max_age" comment:"(default: 86400 seconds) Number of seconds a cookie is valid; 0 indicates no Max-Age (browser-dependent, usually session-only); negative value is invalid"`
+	CookieSessionName           string `ini:"sr_cookie_session_name" comment:"(required) Cookie session name to use for the application"`
 	HttpsReadTimeoutSeconds     int    `ini:"sr_https_read_timeout_seconds" comment:"Timeout in seconds for incoming HTTPS requests; a zero or unset value does not timeout"`
 	HttpsWriteTimeoutSeconds    int    `ini:"sr_https_write_timeout_seconds" comment:"Timeout in seconds for outgoing HTTPS responses; a zero or unset value does not timeout"`
 	RedirectReadTimeoutSeconds  int    `ini:"sr_redirect_read_timeout_seconds" comment:"Timeout in seconds for incoming HTTP requests, which will be redirected to HTTPS; a zero or unset value does not timeout"`
@@ -60,7 +64,21 @@ type serverConfig struct {
 }
 
 func defaultServerConfig() serverConfig {
-	return serverConfig{}
+	return serverConfig{
+		CookieMaxAge: 86400,
+	}
+}
+
+type oAuthConfig struct {
+	AccessTokenExpiry  int `ini:"oauth_access_token_expiry" comment:"(default: 3600 seconds) Duration in seconds until an access token expires; zero or negative values are invalid."`
+	RefreshTokenExpiry int `ini:"oauth_refresh_token_expiry" comment:"(default: 7200 seconds) Duration in seconds until a refresh token expires; zero or negative values are invalid."`
+}
+
+func defaultOAuthConfig() oAuthConfig {
+	return oAuthConfig{
+		AccessTokenExpiry:  3600,
+		RefreshTokenExpiry: 7200,
+	}
 }
 
 // Configuration section specifically for the database.
@@ -229,6 +247,12 @@ func promptNewConfig(file string) (c *config, err error) {
 			return
 		}
 		// TODO: Generate the key
+	}
+	c.ServerConfig.CookieSessionName, err = promptStringWithDefault(
+		"Session name used to find cookies",
+		"my_apcore_session_name")
+	if err != nil {
+		return
 	}
 	c.ServerConfig.HttpsReadTimeoutSeconds, err = promptIntWithDefault(
 		"Enter the deadline (in seconds) for reading & writing HTTP & HTTPS requests. A value of zero means connections do not timeout",

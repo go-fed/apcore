@@ -53,6 +53,13 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 		return
 	}
 
+	// Prepare sessions
+	var ses *sessions
+	ses, err = newSessions(c)
+	if err != nil {
+		return
+	}
+
 	// Initialize the ActivityPub portion of the server
 	var actor pub.Actor
 	actor, err = newActor(c, a, db)
@@ -62,7 +69,7 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 
 	// Prepare OAuth2 server
 	var oa *oAuth2Server
-	oa, err = newOAuth2Server(c)
+	oa, err = newOAuth2Server(c, db, ses)
 	if err != nil {
 		return
 	}
@@ -70,13 +77,6 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 	// Build application routes
 	var h *handler
 	h, err = newHandler(c, a, actor, db, debug)
-	if err != nil {
-		return
-	}
-
-	// Prepare sessions
-	var ses *sessions
-	ses, err = newSessions(c)
 	if err != nil {
 		return
 	}

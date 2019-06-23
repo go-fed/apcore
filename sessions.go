@@ -17,12 +17,15 @@
 package apcore
 
 import (
+	"fmt"
 	"io/ioutil"
+	"net/http"
 
 	gs "github.com/gorilla/sessions"
 )
 
 type sessions struct {
+	name    string
 	cookies *gs.CookieStore
 }
 
@@ -44,8 +47,59 @@ func newSessions(c *config) (s *sessions, err error) {
 		InfoLogger.Info("No cookie encryption key file detected")
 		keys = [][]byte{authKey}
 	}
+	if len(c.ServerConfig.CookieSessionName) <= 0 {
+		err = fmt.Errorf("no cookie session name provided")
+		return
+	}
 	s = &sessions{
+		name:    c.ServerConfig.CookieSessionName,
 		cookies: gs.NewCookieStore(keys...),
 	}
+	opt := &gs.Options{
+		Path:     "/",
+		Domain:   c.ServerConfig.Host,
+		MaxAge:   c.ServerConfig.CookieMaxAge,
+		Secure:   true,
+		HttpOnly: true,
+	}
+	s.cookies.Options = opt
+	s.cookies.MaxAge(opt.MaxAge)
 	return
+}
+
+func (s *sessions) Get(r *http.Request) (ses *session, err error) {
+	var gs *gs.Session
+	gs, err = s.cookies.Get(r, s.name)
+	ses = &session{
+		gs: gs,
+	}
+	return
+}
+
+type session struct {
+	gs *gs.Session
+}
+
+const (
+	userIDSessionKey = "userid"
+)
+
+func (s *session) SetUserID(uuid string) {
+	s.gs.Values[userIDSessionKey] = uuid
+	return
+}
+
+func (s *session) UserID() (uuid string, err error) {
+	if v, ok := s.gs.Values[userIDSessionKey]; !ok {
+		err = fmt.Errorf("no user id in session")
+		return
+	} else if uuid, ok = v.(string); !ok {
+		err = fmt.Errorf("user id in session is not a string")
+		return
+	}
+	return
+}
+
+func (s *session) Save(r *http.Request, w http.ResponseWriter) error {
+	return s.gs.Save(r, w)
 }
