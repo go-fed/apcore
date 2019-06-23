@@ -27,6 +27,8 @@ type sqlManager interface {
 }
 
 type sqlGenerator interface {
+	HashPassForUserID() string
+	UserIdForEmail() string
 	UserIdForBoxPath() string
 	UserPreferences() string
 	UpdateUserPolicy() string
@@ -183,7 +185,7 @@ func (p *pgV0) localDataTable() string {
 CREATE TABLE IF NOT EXISTS ` + p.schema + `local_data
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  create_time timestamp with time zone DEFAULT current_timestamp,
+  create_time timestamp with time zone NOT NULL DEFAULT current_timestamp,
   payload jsonb NOT NULL
 );`
 }
@@ -197,7 +199,10 @@ func (p *pgV0) usersTable() string {
 CREATE TABLE IF NOT EXISTS ` + p.schema + `users
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  create_time timestamp with time zone DEFAULT current_timestamp,
+  create_time timestamp with time zone NOT NULL DEFAULT current_timestamp,
+  email text NOT NULL,
+  hashpass bytea NOT NULL,
+  salt bytea NOT NULL,
   actor jsonb NOT NULL
 );`
 }
@@ -305,6 +310,16 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `resolutions_user_policies
   resolution_id uuid REFERENCES ` + p.schema + `resolutions (id) NOT NULL ON DELETE CASCADE,
   user_policy_id uuid REFERENCES ` + p.schema + `user_policies (id) NOT NULL ON DELETE CASCADE
 );`
+}
+
+func (p *pgV0) HashPassForUserID() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) UserIdForEmail() string {
+	// TODO
+	return ""
 }
 
 func (p *pgV0) UserIdForBoxPath() string {

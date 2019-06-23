@@ -42,6 +42,8 @@ type database struct {
 	// default size of fetching pages of inbox, outboxes, etc
 	defaultCollectionSize int
 	// Prepared statements for apcore
+	hashPassForUserID    *sql.Stmt
+	userIdForEmail       *sql.Stmt
 	userIdForBoxPath     *sql.Stmt
 	userPreferences      *sql.Stmt
 	insertUserPolicy     *sql.Stmt
@@ -124,6 +126,14 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 		defaultCollectionSize: c.DatabaseConfig.DefaultCollectionPageSize,
 	}
 	// apcore statement preparations
+	db.hashPassForUserID, err = db.db.Prepare(sqlgen.HashPassForUserID())
+	if err != nil {
+		return
+	}
+	db.userIdForEmail, err = db.db.Prepare(sqlgen.UserIdForEmail())
+	if err != nil {
+		return
+	}
 	db.userIdForBoxPath, err = db.db.Prepare(sqlgen.UserIdForBoxPath())
 	if err != nil {
 		return
@@ -292,6 +302,8 @@ func postgresConn(pg postgresConfig) (s string, err error) {
 }
 
 func (d *database) Close() error {
+	d.hashPassForUserID.Close()
+	d.userIdForEmail.Close()
 	d.userIdForBoxPath.Close()
 	d.userPreferences.Close()
 	d.insertUserPolicy.Close()
@@ -323,6 +335,57 @@ func (d *database) Close() error {
 
 func (d *database) Ping() error {
 	return d.db.Ping()
+}
+
+func (d *database) Valid(c context.Context, userId, pass string) (valid bool, err error) {
+	var r *sql.Rows
+	r, err = d.hashPassForUserID.QueryContext(c, userId)
+	if err != nil {
+		return
+	}
+	defer r.Close()
+	var n int
+	hash := make([]byte, 0)
+	salt := make([]byte, 0)
+	for r.Next() {
+		if n > 0 {
+			err = fmt.Errorf("multiple rows when obtaining hash pass for user ID")
+			return
+		}
+		if err = r.Scan(&hash, &salt); err != nil {
+			return
+		}
+		n++
+	}
+	if err = r.Err(); err != nil {
+		return
+	}
+	valid = passEquals(pass, salt, hash)
+	return
+}
+
+func (d *database) UserIDFromEmail(c context.Context, email string) (userId string, err error) {
+	var r *sql.Rows
+	r, err = d.userIdForEmail.QueryContext(c, email)
+	if err != nil {
+		return
+	}
+	defer r.Close()
+	var n int
+	for r.Next() {
+		if n > 0 {
+			err = fmt.Errorf("multiple rows when obtaining user id for email")
+			return
+		}
+		if err = r.Scan(&userId); err != nil {
+			return
+		}
+		n++
+	}
+	if err = r.Err(); err != nil {
+		return
+	}
+	return
 }
 
 func (d *database) UserIdForBoxPath(c context.Context, boxPath string) (userId string, err error) {

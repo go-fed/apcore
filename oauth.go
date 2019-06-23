@@ -17,6 +17,7 @@
 package apcore
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -91,14 +92,21 @@ func newOAuth2Server(c *config, d *database, k *sessions) (s *oAuth2Server, err 
 		}
 		return
 	})
-	// When granting an authorization token, overrides the scopes of incoming requests.
-	srv.SetAuthorizeScopeHandler(func(w http.ResponseWriter, r *http.Request) (scope string, err error) {
-		// TODO
-		return
-	})
 	// Called when requesting a token through the password credential grant flow.
-	srv.SetPasswordAuthorizationHandler(func(username, password string) (userID string, err error) {
-		// TODO
+	srv.SetPasswordAuthorizationHandler(func(email, password string) (userID string, err error) {
+		// TODO: Fix oauth2 to support request contexts.
+		userID, err = d.UserIDFromEmail(context.Background(), email)
+		if err != nil {
+			return
+		}
+		var valid bool
+		valid, err = d.Valid(context.Background(), userID, password)
+		if err != nil {
+			return
+		} else if !valid {
+			err = fmt.Errorf("username and/or password is invalid")
+			return
+		}
 		return
 	})
 	srv.SetInternalErrorHandler(func(err error) (re *errors.Response) {
