@@ -28,6 +28,7 @@ import (
 	"github.com/go-fed/activity/streams"
 	"github.com/go-fed/activity/streams/vocab"
 	_ "github.com/lib/pq"
+	"gopkg.in/oauth2.v3"
 )
 
 type Database interface{}
@@ -53,6 +54,15 @@ type database struct {
 	instancePolicies     *sql.Stmt
 	userPolicies         *sql.Stmt
 	userResolutions      *sql.Stmt
+	// Prepared statements for oauth
+	createTokenInfo      *sql.Stmt
+	removeTokenByCode    *sql.Stmt
+	removeTokenByAccess  *sql.Stmt
+	removeTokenByRefresh *sql.Stmt
+	getTokenByCode       *sql.Stmt
+	getTokenByAccess     *sql.Stmt
+	getTokenByRefresh    *sql.Stmt
+	getClientById        *sql.Stmt
 	// Prepared statements for the database required by go-fed
 	inboxContains  *sql.Stmt
 	getInbox       *sql.Stmt
@@ -167,6 +177,40 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 		return
 	}
 	db.userResolutions, err = db.db.Prepare(sqlgen.UserResolutions())
+	if err != nil {
+		return
+	}
+
+	// prepared statements for oauth
+	db.createTokenInfo, err = db.db.Prepare(sqlgen.CreateTokenInfo())
+	if err != nil {
+		return
+	}
+	db.removeTokenByCode, err = db.db.Prepare(sqlgen.RemoveTokenByCode())
+	if err != nil {
+		return
+	}
+	db.removeTokenByAccess, err = db.db.Prepare(sqlgen.RemoveTokenByAccess())
+	if err != nil {
+		return
+	}
+	db.removeTokenByRefresh, err = db.db.Prepare(sqlgen.RemoveTokenByRefresh())
+	if err != nil {
+		return
+	}
+	db.getTokenByCode, err = db.db.Prepare(sqlgen.GetTokenByCode())
+	if err != nil {
+		return
+	}
+	db.getTokenByAccess, err = db.db.Prepare(sqlgen.GetTokenByAccess())
+	if err != nil {
+		return
+	}
+	db.getTokenByRefresh, err = db.db.Prepare(sqlgen.GetTokenByRefresh())
+	if err != nil {
+		return
+	}
+	db.getClientById, err = db.db.Prepare(sqlgen.GetClientById())
 	if err != nil {
 		return
 	}
@@ -302,6 +346,7 @@ func postgresConn(pg postgresConfig) (s string, err error) {
 }
 
 func (d *database) Close() error {
+	// apcore
 	d.hashPassForUserID.Close()
 	d.userIdForEmail.Close()
 	d.userIdForBoxPath.Close()
@@ -313,6 +358,16 @@ func (d *database) Close() error {
 	d.instancePolicies.Close()
 	d.userPolicies.Close()
 	d.userResolutions.Close()
+	// oauth
+	d.createTokenInfo.Close()
+	d.removeTokenByCode.Close()
+	d.removeTokenByAccess.Close()
+	d.removeTokenByRefresh.Close()
+	d.getTokenByCode.Close()
+	d.getTokenByAccess.Close()
+	d.getTokenByRefresh.Close()
+	d.getClientById.Close()
+	// go-fed
 	d.inboxContains.Close()
 	d.getInbox.Close()
 	d.actorForOutbox.Close()
@@ -556,6 +611,144 @@ func (d *database) UserResolutions(c context.Context, userId string) (r []resolu
 	if err = rw.Err(); err != nil {
 		return
 	}
+	return
+}
+
+// apcore oauth functions
+
+func (d *database) CreateTokenInfo(c context.Context, info oauth2.TokenInfo) error {
+	_, err := d.createTokenInfo.ExecContext(
+		c,
+		info.GetClientID(),
+		info.GetUserID(),
+		info.GetRedirectURI(),
+		info.GetScope(),
+		info.GetCode(),
+		info.GetCodeCreateAt(),
+		info.GetCodeExpiresIn(),
+		info.GetAccess(),
+		info.GetAccessCreateAt(),
+		info.GetAccessExpiresIn(),
+		info.GetRefresh(),
+		info.GetRefreshCreateAt(),
+		info.GetRefreshExpiresIn())
+	return err
+}
+
+func (d *database) RemoveTokenByCode(c context.Context, code string) error {
+	_, err := d.removeTokenByCode.ExecContext(
+		c,
+		code)
+	return err
+}
+
+func (d *database) RemoveTokenByAccess(c context.Context, access string) error {
+	_, err := d.removeTokenByAccess.ExecContext(
+		c,
+		access)
+	return err
+}
+
+func (d *database) RemoveTokenByRefresh(c context.Context, refresh string) error {
+	_, err := d.removeTokenByRefresh.ExecContext(
+		c,
+		refresh)
+	return err
+}
+
+func (d *database) mustScanRowsForOneToken(r *sql.Rows, ti *tokenInfo) (err error) {
+	var n int
+	for r.Next() {
+		if n > 0 {
+			err = fmt.Errorf("multiple rows when obtaining OAuth2 token")
+			return
+		}
+		if err = r.Scan(
+			&ti.clientId,
+			&ti.userId,
+			&ti.redirectURI,
+			&ti.scope,
+			&ti.code,
+			&ti.codeCreated,
+			&ti.codeExpires,
+			&ti.access,
+			&ti.accessCreated,
+			&ti.accessExpires,
+			&ti.refresh,
+			&ti.refreshCreated,
+			&ti.refreshExpires); err != nil {
+			return
+		}
+		n++
+	}
+	err = r.Err()
+	return
+}
+
+func (d *database) GetTokenByCode(c context.Context, code string) (oti oauth2.TokenInfo, err error) {
+	ti := &tokenInfo{}
+	oti = ti
+	var r *sql.Rows
+	r, err = d.getTokenByCode.QueryContext(c, code)
+	if err != nil {
+		return
+	}
+	defer r.Close()
+	err = d.mustScanRowsForOneToken(r, ti)
+	return
+}
+
+func (d *database) GetTokenByAccess(c context.Context, access string) (oti oauth2.TokenInfo, err error) {
+	ti := &tokenInfo{}
+	oti = ti
+	var r *sql.Rows
+	r, err = d.getTokenByAccess.QueryContext(c, access)
+	if err != nil {
+		return
+	}
+	defer r.Close()
+	err = d.mustScanRowsForOneToken(r, ti)
+	return
+}
+
+func (d *database) GetTokenByRefresh(c context.Context, refresh string) (oti oauth2.TokenInfo, err error) {
+	ti := &tokenInfo{}
+	oti = ti
+	var r *sql.Rows
+	r, err = d.getTokenByRefresh.QueryContext(c, refresh)
+	if err != nil {
+		return
+	}
+	defer r.Close()
+	err = d.mustScanRowsForOneToken(r, ti)
+	return
+}
+
+func (d *database) GetClientById(c context.Context, id string) (oci oauth2.ClientInfo, err error) {
+	ci := &clientInfo{}
+	oci = ci
+	var r *sql.Rows
+	r, err = d.getClientById.QueryContext(c, id)
+	if err != nil {
+		return
+	}
+	defer r.Close()
+	var n int
+	for r.Next() {
+		if n > 0 {
+			err = fmt.Errorf("multiple rows when obtaining OAuth2 client")
+			return
+		}
+		if err = r.Scan(
+			&ci.id,
+			&ci.secret,
+			&ci.domain,
+			&ci.userId); err != nil {
+			return
+		}
+		n++
+	}
+	err = r.Err()
 	return
 }
 

@@ -17,6 +17,7 @@
 package apcore
 
 import (
+	"context"
 	"time"
 
 	"gopkg.in/oauth2.v3"
@@ -164,44 +165,37 @@ func newTokenStore(d *database) (t *tokenStore, err error) {
 
 // Create and store the new token information
 func (t *tokenStore) Create(info oauth2.TokenInfo) error {
-	// TODO
-	return nil
+	return t.d.CreateTokenInfo(context.Background(), info)
 }
 
 // Delete the authorization code
 func (t *tokenStore) RemoveByCode(code string) error {
-	// TODO
-	return nil
+	return t.d.RemoveTokenByCode(context.Background(), code)
 }
 
 // Use the access token to delete the token information
 func (t *tokenStore) RemoveByAccess(access string) error {
-	// TODO
-	return nil
+	return t.d.RemoveTokenByAccess(context.Background(), access)
 }
 
 // Use the refresh token to delete the token information
 func (t *tokenStore) RemoveByRefresh(refresh string) error {
-	// TODO
-	return nil
+	return t.d.RemoveTokenByRefresh(context.Background(), refresh)
 }
 
 // Use the authorization code for token information data
 func (t *tokenStore) GetByCode(code string) (oauth2.TokenInfo, error) {
-	// TODO
-	return nil, nil
+	return t.d.GetTokenByCode(context.Background(), code)
 }
 
 // Use the access token for token information data
 func (t *tokenStore) GetByAccess(access string) (oauth2.TokenInfo, error) {
-	// TODO
-	return nil, nil
+	return t.d.GetTokenByAccess(context.Background(), access)
 }
 
 // Use the refresh token for token information data
 func (t *tokenStore) GetByRefresh(refresh string) (oauth2.TokenInfo, error) {
-	// TODO
-	return nil, nil
+	return t.d.GetTokenByRefresh(context.Background(), refresh)
 }
 
 var _ oauth2.ClientInfo = &clientInfo{}
@@ -245,6 +239,5 @@ func newClientStore(d *database) (t *clientStore, err error) {
 
 // According to the ID for the client information
 func (c *clientStore) GetByID(id string) (oauth2.ClientInfo, error) {
-	// TODO
-	return nil, nil
+	return c.d.GetClientById(context.Background(), id)
 }

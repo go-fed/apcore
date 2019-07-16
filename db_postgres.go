@@ -39,6 +39,16 @@ type sqlGenerator interface {
 	UserPolicies() string
 	InsertResolutions() string
 	UserResolutions() string
+
+	CreateTokenInfo() string
+	RemoveTokenByCode() string
+	RemoveTokenByAccess() string
+	RemoveTokenByRefresh() string
+	GetTokenByCode() string
+	GetTokenByAccess() string
+	GetTokenByRefresh() string
+	GetClientById() string
+
 	InboxContains() string
 	GetInbox() string
 	SetInboxUpdate() string
@@ -368,6 +378,46 @@ func (p *pgV0) InsertResolutions() string {
 }
 
 func (p *pgV0) UserResolutions() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) CreateTokenInfo() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) RemoveTokenByCode() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) RemoveTokenByAccess() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) RemoveTokenByRefresh() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) GetTokenByCode() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) GetTokenByAccess() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) GetTokenByRefresh() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) GetClientById() string {
 	// TODO
 	return ""
 }
