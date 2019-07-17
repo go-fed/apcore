@@ -24,6 +24,7 @@ import (
 
 	"gopkg.in/oauth2.v3"
 	"gopkg.in/oauth2.v3/errors"
+	oaerrors "gopkg.in/oauth2.v3/errors"
 	"gopkg.in/oauth2.v3/manage"
 	oaserver "gopkg.in/oauth2.v3/server"
 )
@@ -164,7 +165,12 @@ func (o *oAuth2Server) HandleAccessTokenRequest(w http.ResponseWriter, r *http.R
 }
 
 // TODO: Call/expose this handler
-func (o *oAuth2Server) ValidateOAuth2AccessToken(w http.ResponseWriter, r *http.Request) (token oauth2.TokenInfo, err error) {
+func (o *oAuth2Server) ValidateOAuth2AccessToken(w http.ResponseWriter, r *http.Request) (token oauth2.TokenInfo, authenticated bool, err error) {
 	token, err = o.s.ValidationBearerToken(r)
+	authenticated = err == nil
+	if err == oaerrors.ErrInvalidAccessToken {
+		authenticated = false
+		err = nil
+	}
 	return
 }

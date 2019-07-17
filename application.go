@@ -117,6 +117,11 @@ type Application interface {
 	// serve the ActivityPub value provided in this call.
 	NewId(c context.Context, t vocab.Type) (id *url.URL, err error)
 
+	// ScopePermitsPostOutbox determines if an OAuth token scope permits the
+	// bearer to post to an actor's outbox. It is only called if C2S is
+	// enabled.
+	ScopePermitsPostOutbox(scope string) (permitted bool, err error)
+
 	// The maximum recursion depth to use when determining whether to do
 	// inbox forwarding, which if triggered ensures older thread
 	// participants are able to receive messages.

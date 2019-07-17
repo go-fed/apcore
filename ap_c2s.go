@@ -23,19 +23,22 @@ import (
 
 	"github.com/go-fed/activity/pub"
 	"github.com/go-fed/activity/streams/vocab"
+	"gopkg.in/oauth2.v3"
 )
 
 var _ pub.SocialProtocol = &socialBehavior{}
 
 type socialBehavior struct {
-	db *database
-	o  *oAuth2Server
+	app Application
+	db  *database
+	o   *oAuth2Server
 }
 
-func newSocialBehavior(db *database, o *oAuth2Server) *socialBehavior {
+func newSocialBehavior(app Application, db *database, o *oAuth2Server) *socialBehavior {
 	return &socialBehavior{
-		db: db,
-		o:  o,
+		app: app,
+		db:  db,
+		o:   o,
 	}
 }
 
@@ -47,11 +50,13 @@ func (s *socialBehavior) PostOutboxRequestBodyHook(c context.Context, r *http.Re
 }
 
 func (s *socialBehavior) AuthenticatePostOutbox(c context.Context, w http.ResponseWriter, r *http.Request) (authenticated bool, err error) {
-	_, err = s.o.ValidateOAuth2AccessToken(w, r)
-	if err != nil {
+	var t oauth2.TokenInfo
+	t, authenticated, err = s.o.ValidateOAuth2AccessToken(w, r)
+	if err != nil || !authenticated {
 		return
 	}
-	// TODO: Check scopes in the token.
+	// Authenticated, but must determine if permitted by the granted scope.
+	authenticated, err = s.app.ScopePermitsPostOutbox(t.GetScope())
 	return
 }
 
