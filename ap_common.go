@@ -58,6 +58,5 @@ func (a *commonBehavior) GetOutbox(c context.Context, r *http.Request) (ocp voca
 }
 
 func (a *commonBehavior) NewTransport(c context.Context, actorBoxIRI *url.URL, gofedAgent string) (t pub.Transport, err error) {
-	// TODO
-	return
+	return newTransport()
 }
