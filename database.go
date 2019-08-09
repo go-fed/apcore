@@ -1032,8 +1032,13 @@ func (d *database) Get(c context.Context, id *url.URL) (value vocab.Type, err er
 }
 
 func (d *database) Create(c context.Context, asType vocab.Type) (err error) {
+	var m map[string]interface{}
+	m, err = streams.Serialize(asType)
+	if err != nil {
+		return
+	}
 	var b []byte
-	b, err = serialize(asType)
+	b, err = json.Marshal(m)
 	if err != nil {
 		return
 	}
@@ -1055,8 +1060,13 @@ func (d *database) Create(c context.Context, asType vocab.Type) (err error) {
 }
 
 func (d *database) Update(c context.Context, asType vocab.Type) (err error) {
+	var m map[string]interface{}
+	m, err = streams.Serialize(asType)
+	if err != nil {
+		return
+	}
 	var b []byte
-	b, err = serialize(asType)
+	b, err = json.Marshal(m)
 	if err != nil {
 		return
 	}

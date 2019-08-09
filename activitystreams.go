@@ -17,7 +17,6 @@
 package apcore
 
 import (
-	"encoding/json"
 	"net/url"
 	"strconv"
 
@@ -67,17 +66,5 @@ func toOrderedCollectionPage(id *url.URL, ids []string, current, length int) (oc
 	// id
 	// items
 	// total len
-	return
-}
-
-// TODO: Use the serialize utility in pub -- which needs to be migrated to streams
-func serialize(v vocab.Type) (b []byte, err error) {
-	var m map[string]interface{}
-	m, err = v.Serialize()
-	if err != nil {
-		return
-	}
-	m["@context"] = v.JSONLDContext()
-	b, err = json.Marshal(m)
 	return
 }
