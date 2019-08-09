@@ -60,11 +60,26 @@ func collectionPageId(base *url.URL, start, length, def int) (u *url.URL, err er
 	return
 }
 
-func toOrderedCollectionPage(id *url.URL, ids []string, current, length int) (ocp vocab.ActivityStreamsOrderedCollectionPage) {
+func toOrderedCollectionPage(id *url.URL, ids []string, current, length int) (ocp vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	ocp = streams.NewActivityStreamsOrderedCollectionPage()
-	// TODO
 	// id
+	idProp := streams.NewActivityStreamsIdProperty()
+	idProp.Set(id)
+	ocp.SetActivityStreamsId(idProp)
 	// items
+	oiProp := streams.NewActivityStreamsOrderedItemsProperty()
+	for _, i := range ids {
+		var iri *url.URL
+		iri, err = url.Parse(i)
+		if err != nil {
+			return
+		}
+		oiProp.AppendIRI(iri)
+	}
+	ocp.SetActivityStreamsOrderedItems(oiProp)
 	// total len
+	tlProp := streams.NewActivityStreamsTotalItemsProperty()
+	tlProp.Set(oiProp.Len())
+	ocp.SetActivityStreamsTotalItems(tlProp)
 	return
 }

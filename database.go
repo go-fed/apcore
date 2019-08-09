@@ -807,7 +807,7 @@ func (d *database) GetInbox(c context.Context, inboxIRI *url.URL) (inbox vocab.A
 	if err != nil {
 		return
 	}
-	inbox = toOrderedCollectionPage(id, iris, start, length)
+	inbox, err = toOrderedCollectionPage(id, iris, start, length)
 	return
 }
 
@@ -1129,7 +1129,7 @@ func (d *database) GetOutbox(c context.Context, outboxIRI *url.URL) (outbox voca
 	if err != nil {
 		return
 	}
-	outbox = toOrderedCollectionPage(id, iris, start, length)
+	outbox, err = toOrderedCollectionPage(id, iris, start, length)
 	return
 }
 
