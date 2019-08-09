@@ -22,6 +22,7 @@ import (
 
 type Software struct {
 	Name         string
+	UserAgent    string
 	MajorVersion int
 	MinorVersion int
 	PatchVersion int

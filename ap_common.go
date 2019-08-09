@@ -18,6 +18,7 @@ package apcore
 
 import (
 	"context"
+	"crypto"
 	"net/http"
 	"net/url"
 
@@ -29,11 +30,15 @@ var _ pub.CommonBehavior = &commonBehavior{}
 
 type commonBehavior struct {
 	db *database
+	tc *transportController
 }
 
-func newCommonBehavior(db *database) *commonBehavior {
+func newCommonBehavior(
+	db *database,
+	tc *transportController) *commonBehavior {
 	return &commonBehavior{
 		db: db,
+		tc: tc,
 	}
 }
 
@@ -58,5 +63,8 @@ func (a *commonBehavior) GetOutbox(c context.Context, r *http.Request) (ocp voca
 }
 
 func (a *commonBehavior) NewTransport(c context.Context, actorBoxIRI *url.URL, gofedAgent string) (t pub.Transport, err error) {
-	return newTransport()
+	// TODO: obtain keys
+	var privKey crypto.PrivateKey
+	var pubKeyId string
+	return a.tc.Get(privKey, pubKeyId)
 }

@@ -54,6 +54,11 @@ type database struct {
 	instancePolicies     *sql.Stmt
 	userPolicies         *sql.Stmt
 	userResolutions      *sql.Stmt
+	// Prepared statements for persistent delivery
+	insertAttempt           *sql.Stmt
+	markSuccessfulAttempt   *sql.Stmt
+	markRetryFailureAttempt *sql.Stmt
+	markTombstonedAttempt   *sql.Stmt
 	// Prepared statements for oauth
 	createTokenInfo      *sql.Stmt
 	removeTokenByCode    *sql.Stmt
@@ -177,6 +182,24 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 		return
 	}
 	db.userResolutions, err = db.db.Prepare(sqlgen.UserResolutions())
+	if err != nil {
+		return
+	}
+
+	// prepared statements for persistent delivery
+	db.insertAttempt, err = db.db.Prepare(sqlgen.InsertAttempt())
+	if err != nil {
+		return
+	}
+	db.markSuccessfulAttempt, err = db.db.Prepare(sqlgen.MarkSuccessfulAttempt())
+	if err != nil {
+		return
+	}
+	db.markRetryFailureAttempt, err = db.db.Prepare(sqlgen.MarkRetryFailureAttempt())
+	if err != nil {
+		return
+	}
+	db.markTombstonedAttempt, err = db.db.Prepare(sqlgen.MarkTombstonedAttempt())
 	if err != nil {
 		return
 	}
@@ -358,6 +381,11 @@ func (d *database) Close() error {
 	d.instancePolicies.Close()
 	d.userPolicies.Close()
 	d.userResolutions.Close()
+	// transport retries
+	d.insertAttempt.Close()
+	d.markSuccessfulAttempt.Close()
+	d.markRetryFailureAttempt.Close()
+	d.markTombstonedAttempt.Close()
 	// oauth
 	d.createTokenInfo.Close()
 	d.removeTokenByCode.Close()
@@ -491,6 +519,9 @@ func (d *database) UserPreferences(c context.Context, userId string) (u userPref
 	}
 	return
 }
+
+// TODO: Transport Attempt API
+// TODO: Transport Attempt postgresql database tables
 
 func (d *database) InsertPolicy(c context.Context, p policy) (err error) {
 	if p.IsInstancePolicy {

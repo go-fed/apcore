@@ -40,6 +40,11 @@ type sqlGenerator interface {
 	InsertResolutions() string
 	UserResolutions() string
 
+	InsertAttempt() string
+	MarkSuccessfulAttempt() string
+	MarkRetryFailureAttempt() string
+	MarkTombstonedAttempt() string
+
 	CreateTokenInfo() string
 	RemoveTokenByCode() string
 	RemoveTokenByAccess() string
@@ -378,6 +383,26 @@ func (p *pgV0) InsertResolutions() string {
 }
 
 func (p *pgV0) UserResolutions() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) InsertAttempt() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) MarkSuccessfulAttempt() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) MarkRetryFailureAttempt() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) MarkTombstonedAttempt() string {
 	// TODO
 	return ""
 }
