@@ -37,6 +37,25 @@ const (
 	activityStreamsContentType = "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
 )
 
+func containsRequiredHttpHeaders(method string, headers []string) error {
+	var hasRequestTarget, hasDate, hasDigest bool
+	for _, header := range headers {
+		hasRequestTarget = hasRequestTarget || header == httpsig.RequestTarget
+		hasDate = hasDate || header == "Date"
+		hasDigest = hasDigest || header == "Digest"
+	}
+	if !hasRequestTarget {
+		return fmt.Errorf("missing http header for %s: %s", method, httpsig.RequestTarget)
+	} else if !hasDate {
+		return fmt.Errorf("missing http header for %s: Date", method)
+	} else if !hasDigest {
+		return fmt.Errorf("missing http header for %s: Digest", method)
+	}
+	return nil
+}
+
+// TODO: re-launch existing failed deliveries at startup and control rate-limiting.
+
 type transportController struct {
 	a           Application
 	clock       pub.Clock
@@ -44,27 +63,47 @@ type transportController struct {
 	algs        []httpsig.Algorithm
 	getHeaders  []string
 	postHeaders []string
-	l           *rate.Limiter
+	l           *rate.Limiter // TODO: Use this
 	db          *database
 }
 
 func newTransportController(
+	c *config,
 	a Application,
 	clock pub.Clock,
 	client *http.Client,
-	algs []httpsig.Algorithm,
-	getHeaders []string,
-	postHeaders []string,
-	r rate.Limit, burst int,
 	db *database) (tc *transportController, err error) {
+	if c.ActivityPubConfig.OutboundRateLimitQPS <= 0 {
+		err = fmt.Errorf("outbound rate limit qps is <= 0")
+		return
+	} else if c.ActivityPubConfig.OutboundRateLimitBurst <= 0 {
+		err = fmt.Errorf("outbound rate limit burst is <= 0")
+		return
+	} else if len(c.ActivityPubConfig.HttpSignaturesConfig.Algorithms) == 0 {
+		err = fmt.Errorf("no httpsig algorithms specified")
+		return
+	} else if err = containsRequiredHttpHeaders(http.MethodGet, c.ActivityPubConfig.HttpSignaturesConfig.GetHeaders); err != nil {
+		return
+	} else if err = containsRequiredHttpHeaders(http.MethodPost, c.ActivityPubConfig.HttpSignaturesConfig.PostHeaders); err != nil {
+		return
+	}
+	algos := make([]httpsig.Algorithm, len(c.ActivityPubConfig.HttpSignaturesConfig.Algorithms))
+	for i, algo := range c.ActivityPubConfig.HttpSignaturesConfig.Algorithms {
+		if !httpsig.IsSupportedHttpSigAlgorithm(algo) {
+			err = fmt.Errorf("unsupported httpsig algorithm: %s", algo)
+			return
+		}
+		algos[i] = httpsig.Algorithm(algo)
+	}
+
 	return &transportController{
 		a:           a,
 		clock:       clock,
 		client:      client,
-		algs:        algs,
-		getHeaders:  getHeaders,
-		postHeaders: postHeaders,
-		l:           rate.NewLimiter(r, burst),
+		algs:        algos,
+		getHeaders:  c.ActivityPubConfig.HttpSignaturesConfig.GetHeaders,
+		postHeaders: c.ActivityPubConfig.HttpSignaturesConfig.PostHeaders,
+		l:           rate.NewLimiter(rate.Limit(c.ActivityPubConfig.OutboundRateLimitQPS), c.ActivityPubConfig.OutboundRateLimitBurst),
 		db:          db,
 	}, err
 }
@@ -96,20 +135,19 @@ func (tc *transportController) wait(c context.Context) {
 	tc.l.Wait(c)
 }
 
-func (tc *transportController) insertAttempt() {
-	// TODO
+func (tc *transportController) insertAttempt(c context.Context, payload []byte, to *url.URL, fromUUID string) (id int64, err error) {
+	id, err = tc.db.InsertAttempt(c, payload, to, fromUUID)
+	return
 }
 
-func (tc *transportController) markSuccess() {
-	// TODO
+func (tc *transportController) markSuccess(c context.Context, id int64) (err error) {
+	err = tc.db.MarkSuccessfulAttempt(c, id)
+	return
 }
 
-func (tc *transportController) markFailure() {
-	// TODO
-}
-
-func (tc *transportController) markTombstone() {
-	// TODO
+func (tc *transportController) markFailure(c context.Context, id int64) (err error) {
+	err = tc.db.MarkRetryFailureAttempt(c, id)
+	return
 }
 
 var _ pub.Transport = &transport{}
@@ -122,7 +160,7 @@ type transport struct {
 	getSignerMu, postSignerMu *sync.Mutex
 	privKey                   crypto.PrivateKey
 	pubKeyId                  string
-	tc                        *transportController // TODO: Use this
+	tc                        *transportController
 }
 
 func newTransport(a Application,
@@ -169,9 +207,8 @@ func (t *transport) Dereference(c context.Context, iri *url.URL) (b []byte, err 
 		return
 	}
 	defer resp.Body.Close()
-	// TODO: Better status code handling
-	if resp.StatusCode != http.StatusOK {
-		err = fmt.Errorf("dereference failed with status (%d): %s", resp.StatusCode, resp.Status)
+
+	if err = t.handleDereferenceResponse(resp); err != nil {
 		return
 	}
 	b, err = ioutil.ReadAll(resp.Body)
@@ -179,6 +216,18 @@ func (t *transport) Dereference(c context.Context, iri *url.URL) (b []byte, err 
 }
 
 func (t *transport) Deliver(c context.Context, b []byte, to *url.URL) (err error) {
+	var fromUUID string
+	fromUUID, err = (&ctx{c}).TargetUserUUID()
+	if err != nil {
+		err = fmt.Errorf("failed to determine user to deliver on behalf of: %s", err)
+		return
+	}
+	var attemptId int64
+	if attemptId, err = t.tc.insertAttempt(c, b, to, fromUUID); err != nil {
+		err = fmt.Errorf("failed to create delivery attempt: %s", err)
+		return
+	}
+
 	byteCopy := make([]byte, len(b))
 	copy(byteCopy, b)
 	buf := bytes.NewBuffer(byteCopy)
@@ -205,9 +254,16 @@ func (t *transport) Deliver(c context.Context, b []byte, to *url.URL) (err error
 		return
 	}
 	defer resp.Body.Close()
-	// TODO: Better status code handling
-	if resp.StatusCode != http.StatusOK {
-		err = fmt.Errorf("dereference failed with status (%d): %s", resp.StatusCode, resp.Status)
+
+	if err = t.handleDeliverResponse(resp); err != nil {
+		err2 := t.tc.markFailure(c, attemptId)
+		if err2 != nil {
+			err = fmt.Errorf("failed delivery and failed to mark as failure (%d): [%s, %s]", attemptId, err, err2)
+		}
+		return
+	}
+	if err = t.tc.markSuccess(c, attemptId); err != nil {
+		err = fmt.Errorf("failed to mark delivery as successful (%d): %s", attemptId, err)
 		return
 	}
 	return
@@ -215,13 +271,34 @@ func (t *transport) Deliver(c context.Context, b []byte, to *url.URL) (err error
 
 func (t *transport) BatchDeliver(c context.Context, b []byte, recipients []*url.URL) (err error) {
 	var wg *sync.WaitGroup
-	for _, r := range recipients {
+	for i, r := range recipients {
 		wg.Add(1)
-		go func(r *url.URL) {
-			// TODO
-		}(r)
+		go func(i int, r *url.URL) {
+			err := t.Deliver(c, b, r)
+			if err != nil {
+				ErrorLogger.Errorf("BatchDeliver (%d of %d): %s", i, len(recipients), err)
+			}
+		}(i, r)
 	}
 	wg.Wait()
+	return
+}
+
+func (t *transport) handleDereferenceResponse(r *http.Response) (err error) {
+	ok := r.StatusCode == http.StatusOK
+	if !ok {
+		err = fmt.Errorf("url IRI dereference failed with status (%d): %s", r.StatusCode, r.Status)
+	}
+	return
+}
+
+func (t *transport) handleDeliverResponse(r *http.Response) (err error) {
+	ok := r.StatusCode == http.StatusOK ||
+		r.StatusCode == http.StatusCreated ||
+		r.StatusCode == http.StatusAccepted
+	if !ok {
+		err = fmt.Errorf("delivery failed with status (%d): %s", r.StatusCode, r.Status)
+	}
 	return
 }
 

@@ -18,18 +18,25 @@ package apcore
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/go-fed/activity/pub"
 )
 
-func newActor(c *config, a Application, db *database, o *oAuth2Server) (actor pub.Actor, err error) {
+func newActor(c *config, a Application, db *database, o *oAuth2Server, client *http.Client) (actor pub.Actor, err error) {
 	var clock *clock
 	clock, err = newClock(c.ActivityPubConfig.ClockTimezone)
 	if err != nil {
 		return
 	}
 
-	common := newCommonBehavior(db)
+	var tc *transportController
+	tc, err = newTransportController(c, a, clock, client, db)
+	if err != nil {
+		return
+	}
+
+	common := newCommonBehavior(db, tc)
 	apdb := newApdb(db, a)
 
 	if cs, ss := a.C2SEnabled(), a.S2SEnabled(); !cs && !ss {

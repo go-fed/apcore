@@ -67,9 +67,12 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 		return
 	}
 
+	// TODO: Reexamine this.
+	httpClient := &http.Client{}
+
 	// Initialize the ActivityPub portion of the server
 	var actor pub.Actor
-	actor, err = newActor(c, a, db, oa)
+	actor, err = newActor(c, a, db, oa, httpClient)
 	if err != nil {
 		return
 	}

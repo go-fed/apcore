@@ -110,12 +110,33 @@ func defaultDatabaseConfig(dbkind string) (d databaseConfig, err error) {
 
 // Configuration section specifically for ActivityPub.
 type activityPubConfig struct {
-	ClockTimezone string `ini:"clock_timezone" comment:"(default: UTC) Timezone for ActivityPub related operations: unset and \"UTC\" are UTC, \"Local\" is local server time, otherwise use IANA Time Zone database values"`
+	ClockTimezone          string               `ini:"ap_clock_timezone" comment:"(default: UTC) Timezone for ActivityPub related operations: unset and \"UTC\" are UTC, \"Local\" is local server time, otherwise use IANA Time Zone database values"`
+	OutboundRateLimitQPS   float64              `ini:"ap_outbound_rate_limit_qps" comment:"(default: 10) Global outbound rate limit for delivery of federated messages under steady state conditions; a negative value or value of zero is invalid"`
+	OutboundRateLimitBurst int                  `ini:"ap_outbound_rate_limit_burst" comment:"(default: 50) Global outbound burst tolerance for delivery of federated messages; a negative value or value of zero is invalid"`
+	HttpSignaturesConfig   httpSignaturesConfig `ini:"ap_http_signatures" comment:"HTTP Signatures configuration"`
 }
 
 func defaultActivityPubConfig() activityPubConfig {
 	return activityPubConfig{
-		ClockTimezone: "UTC",
+		ClockTimezone:          "UTC",
+		OutboundRateLimitQPS:   10,
+		OutboundRateLimitBurst: 50,
+		HttpSignaturesConfig:   defaultHttpSignaturesConfig(),
+	}
+}
+
+// Configuration for HTTP Signatures.
+type httpSignaturesConfig struct {
+	Algorithms  []string `ini:"http_sig_algorithms" comment:"(default: \"sha256,sha512\") Comma-separated list of algorithms used by the go-fed/httpsig library"`
+	GetHeaders  []string `ini:"http_sig_get_headers" comment:"(default: \"(request-target),Date,Digest\") Comma-separated list of HTTP headers to sign in GET requests; must contain \"(request-target)\", \"Date\", and \"Digest\""`
+	PostHeaders []string `ini:"http_sig_post_headers" comment:"(default: \"(request-target),Date,Digest\") Comma-separated list of HTTP headers to sign in POST requests; must contain \"(request-target)\", \"Date\", and \"Digest\""`
+}
+
+func defaultHttpSignaturesConfig() httpSignaturesConfig {
+	return httpSignaturesConfig{
+		Algorithms:  []string{"sha256", "sha512"},
+		GetHeaders:  []string{"(request-target)", "Date", "Digest"},
+		PostHeaders: []string{"(request-target)", "Date", "Digest"},
 	}
 }
 

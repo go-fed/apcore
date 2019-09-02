@@ -58,7 +58,6 @@ type database struct {
 	insertAttempt           *sql.Stmt
 	markSuccessfulAttempt   *sql.Stmt
 	markRetryFailureAttempt *sql.Stmt
-	markTombstonedAttempt   *sql.Stmt
 	// Prepared statements for oauth
 	createTokenInfo      *sql.Stmt
 	removeTokenByCode    *sql.Stmt
@@ -196,10 +195,6 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 		return
 	}
 	db.markRetryFailureAttempt, err = db.db.Prepare(sqlgen.MarkRetryFailureAttempt())
-	if err != nil {
-		return
-	}
-	db.markTombstonedAttempt, err = db.db.Prepare(sqlgen.MarkTombstonedAttempt())
 	if err != nil {
 		return
 	}
@@ -385,7 +380,6 @@ func (d *database) Close() error {
 	d.insertAttempt.Close()
 	d.markSuccessfulAttempt.Close()
 	d.markRetryFailureAttempt.Close()
-	d.markTombstonedAttempt.Close()
 	// oauth
 	d.createTokenInfo.Close()
 	d.removeTokenByCode.Close()
@@ -520,9 +514,6 @@ func (d *database) UserPreferences(c context.Context, userId string) (u userPref
 	return
 }
 
-// TODO: Transport Attempt API
-// TODO: Transport Attempt postgresql database tables
-
 func (d *database) InsertPolicy(c context.Context, p policy) (err error) {
 	if p.IsInstancePolicy {
 		_, err = d.insertInstancePolicy.ExecContext(c,
@@ -642,6 +633,29 @@ func (d *database) UserResolutions(c context.Context, userId string) (r []resolu
 	if err = rw.Err(); err != nil {
 		return
 	}
+	return
+}
+
+// apcore attempt functions
+
+func (d *database) InsertAttempt(c context.Context, payload []byte, to *url.URL, fromUUID string) (id int64, err error) {
+	var res sql.Result
+	res, err = d.insertAttempt.ExecContext(c, payload, to, fromUUID)
+	if err != nil {
+		return
+	}
+	id, err = res.LastInsertId()
+	return
+}
+
+func (d *database) MarkSuccessfulAttempt(c context.Context, id int64) (err error) {
+	_, err = d.markSuccessfulAttempt.ExecContext(c, id)
+	return
+
+}
+
+func (d *database) MarkRetryFailureAttempt(c context.Context, id int64) (err error) {
+	_, err = d.markRetryFailureAttempt.ExecContext(c, id)
 	return
 }
 

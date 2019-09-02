@@ -43,7 +43,7 @@ func newOAuth2Server(c *config, d *database, k *sessions) (s *oAuth2Server, err 
 		err = fmt.Errorf("oauth2 access token expiration duration is <= 0")
 		return
 	} else if c.OAuthConfig.RefreshTokenExpiry <= 0 {
-		err = fmt.Errorf("oauthr2 refresh token expiration duration is <= 0")
+		err = fmt.Errorf("oauth2 refresh token expiration duration is <= 0")
 		return
 	}
 	m.SetAuthorizeCodeTokenCfg(&manage.Config{

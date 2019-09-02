@@ -21,6 +21,8 @@ import (
 	"fmt"
 )
 
+// TODO: Table for delivery attempts
+
 type sqlManager interface {
 	CreateTables(t *sql.Tx) (err error)
 	UpgradeTables(t *sql.Tx) (err error)
@@ -43,7 +45,6 @@ type sqlGenerator interface {
 	InsertAttempt() string
 	MarkSuccessfulAttempt() string
 	MarkRetryFailureAttempt() string
-	MarkTombstonedAttempt() string
 
 	CreateTokenInfo() string
 	RemoveTokenByCode() string
@@ -398,11 +399,6 @@ func (p *pgV0) MarkSuccessfulAttempt() string {
 }
 
 func (p *pgV0) MarkRetryFailureAttempt() string {
-	// TODO
-	return ""
-}
-
-func (p *pgV0) MarkTombstonedAttempt() string {
 	// TODO
 	return ""
 }
