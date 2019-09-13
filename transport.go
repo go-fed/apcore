@@ -20,8 +20,6 @@ import (
 	"bytes"
 	"context"
 	"crypto"
-	"crypto/sha256"
-	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -61,6 +59,7 @@ type transportController struct {
 	clock       pub.Clock
 	client      *http.Client
 	algs        []httpsig.Algorithm
+	digestAlg   httpsig.DigestAlgorithm
 	getHeaders  []string
 	postHeaders []string
 	l           *rate.Limiter // TODO: Use this
@@ -86,6 +85,9 @@ func newTransportController(
 		return
 	} else if err = containsRequiredHttpHeaders(http.MethodPost, c.ActivityPubConfig.HttpSignaturesConfig.PostHeaders); err != nil {
 		return
+	} else if !httpsig.IsSupportedDigestAlgorithm(c.ActivityPubConfig.HttpSignaturesConfig.DigestAlgorithm) {
+		err = fmt.Errorf("unsupported digest algorithm: %s", c.ActivityPubConfig.HttpSignaturesConfig.DigestAlgorithm)
+		return
 	}
 	algos := make([]httpsig.Algorithm, len(c.ActivityPubConfig.HttpSignaturesConfig.Algorithms))
 	for i, algo := range c.ActivityPubConfig.HttpSignaturesConfig.Algorithms {
@@ -101,6 +103,7 @@ func newTransportController(
 		clock:       clock,
 		client:      client,
 		algs:        algos,
+		digestAlg:   httpsig.DigestAlgorithm(c.ActivityPubConfig.HttpSignaturesConfig.DigestAlgorithm),
 		getHeaders:  c.ActivityPubConfig.HttpSignaturesConfig.GetHeaders,
 		postHeaders: c.ActivityPubConfig.HttpSignaturesConfig.PostHeaders,
 		l:           rate.NewLimiter(rate.Limit(c.ActivityPubConfig.OutboundRateLimitQPS), c.ActivityPubConfig.OutboundRateLimitBurst),
@@ -112,11 +115,11 @@ func (tc *transportController) Get(
 	privKey crypto.PrivateKey,
 	pubKeyId string) (t *transport, err error) {
 	var getSigner, postSigner httpsig.Signer
-	getSigner, _, err = httpsig.NewSigner(tc.algs, tc.getHeaders, httpsig.Signature)
+	getSigner, _, err = httpsig.NewSigner(tc.algs, tc.digestAlg, tc.getHeaders, httpsig.Signature)
 	if err != nil {
 		return
 	}
-	postSigner, _, err = httpsig.NewSigner(tc.algs, tc.postHeaders, httpsig.Signature)
+	postSigner, _, err = httpsig.NewSigner(tc.algs, tc.digestAlg, tc.postHeaders, httpsig.Signature)
 	if err != nil {
 		return
 	}
@@ -196,7 +199,7 @@ func (t *transport) Dereference(c context.Context, iri *url.URL) (b []byte, err 
 	req.Header.Add("Date", t.date())
 	req.Header.Add("User-Agent", t.userAgent())
 	t.getSignerMu.Lock()
-	err = t.getSigner.SignRequest(t.privKey, t.pubKeyId, req)
+	err = t.getSigner.SignRequest(t.privKey, t.pubKeyId, req, nil)
 	t.getSignerMu.Unlock()
 	if err != nil {
 		return
@@ -241,9 +244,8 @@ func (t *transport) Deliver(c context.Context, b []byte, to *url.URL) (err error
 	req.Header.Add("Accept-Charset", "utf-8")
 	req.Header.Add("Date", t.date())
 	req.Header.Add("User-Agent", t.userAgent())
-	req.Header.Add("Digest", t.digest(b))
 	t.postSignerMu.Lock()
-	err = t.postSigner.SignRequest(t.privKey, t.pubKeyId, req)
+	err = t.postSigner.SignRequest(t.privKey, t.pubKeyId, req, b)
 	t.postSignerMu.Unlock()
 	if err != nil {
 		return
@@ -308,10 +310,4 @@ func (t *transport) userAgent() string {
 
 func (t *transport) date() string {
 	return fmt.Sprintf("%s GMT", t.clock.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05"))
-}
-
-func (t *transport) digest(b []byte) string {
-	sum := sha256.Sum256(b)
-	return fmt.Sprintf("SHA-256=%s",
-		base64.StdEncoding.EncodeToString(sum[:]))
 }

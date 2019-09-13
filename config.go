@@ -127,16 +127,18 @@ func defaultActivityPubConfig() activityPubConfig {
 
 // Configuration for HTTP Signatures.
 type httpSignaturesConfig struct {
-	Algorithms  []string `ini:"http_sig_algorithms" comment:"(default: \"sha256,sha512\") Comma-separated list of algorithms used by the go-fed/httpsig library"`
-	GetHeaders  []string `ini:"http_sig_get_headers" comment:"(default: \"(request-target),Date,Digest\") Comma-separated list of HTTP headers to sign in GET requests; must contain \"(request-target)\", \"Date\", and \"Digest\""`
-	PostHeaders []string `ini:"http_sig_post_headers" comment:"(default: \"(request-target),Date,Digest\") Comma-separated list of HTTP headers to sign in POST requests; must contain \"(request-target)\", \"Date\", and \"Digest\""`
+	Algorithms      []string `ini:"http_sig_algorithms" comment:"(default: \"sha256,sha512\") Comma-separated list of algorithms used by the go-fed/httpsig library"`
+	DigestAlgorithm string   `ini:"http_sig_digest_algorithm" comment:"(default: \"SHA-256\") RFC ???? algorithm for use in signing header Digests"` // TODO: Find the Digest header RFC for reference
+	GetHeaders      []string `ini:"http_sig_get_headers" comment:"(default: \"(request-target),Date,Digest\") Comma-separated list of HTTP headers to sign in GET requests; must contain \"(request-target)\", \"Date\", and \"Digest\""`
+	PostHeaders     []string `ini:"http_sig_post_headers" comment:"(default: \"(request-target),Date,Digest\") Comma-separated list of HTTP headers to sign in POST requests; must contain \"(request-target)\", \"Date\", and \"Digest\""`
 }
 
 func defaultHttpSignaturesConfig() httpSignaturesConfig {
 	return httpSignaturesConfig{
-		Algorithms:  []string{"sha256", "sha512"},
-		GetHeaders:  []string{"(request-target)", "Date", "Digest"},
-		PostHeaders: []string{"(request-target)", "Date", "Digest"},
+		Algorithms:      []string{"sha256", "sha512"},
+		DigestAlgorithm: "SHA-256",
+		GetHeaders:      []string{"(request-target)", "Date", "Digest"},
+		PostHeaders:     []string{"(request-target)", "Date", "Digest"},
 	}
 }
 
