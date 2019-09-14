@@ -18,7 +18,7 @@ package apcore
 
 import (
 	"context"
-	"crypto"
+	"crypto/rsa"
 	"net/http"
 	"net/url"
 
@@ -29,14 +29,17 @@ import (
 var _ pub.CommonBehavior = &commonBehavior{}
 
 type commonBehavior struct {
+	p  *paths
 	db *database
 	tc *transportController
 }
 
 func newCommonBehavior(
+	p *paths,
 	db *database,
 	tc *transportController) *commonBehavior {
 	return &commonBehavior{
+		p:  p,
 		db: db,
 		tc: tc,
 	}
@@ -63,8 +66,23 @@ func (a *commonBehavior) GetOutbox(c context.Context, r *http.Request) (ocp voca
 }
 
 func (a *commonBehavior) NewTransport(c context.Context, actorBoxIRI *url.URL, gofedAgent string) (t pub.Transport, err error) {
-	// TODO: obtain keys
-	var privKey crypto.PrivateKey
-	var pubKeyId string
+	ctx := ctx{c}
+	var userUUID string
+	userUUID, err = ctx.TargetUserUUID()
+	if err != nil {
+		return
+	}
+	var privKey *rsa.PrivateKey
+	var kUUID string
+	kUUID, privKey, err = a.db.GetUserPKey(c, userUUID)
+	if err != nil {
+		return
+	}
+	var pubKeyURL *url.URL
+	pubKeyURL, err = a.p.PublicKeyPath(userUUID, kUUID)
+	if err != nil {
+		return
+	}
+	pubKeyId := pubKeyURL.String()
 	return a.tc.Get(privKey, pubKeyId)
 }
