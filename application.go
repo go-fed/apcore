@@ -29,10 +29,6 @@ import (
 type Application interface {
 	// CALLS MADE AT SERVER STARTUP
 
-	// Information about this application's software. This will be shown at
-	// the command line and used for NodeInfo statistics.
-	Software() Software
-
 	// Returns a pointer to the configuration struct used by the specific
 	// application. It will be used to save and load from configuration
 	// files. This object will be passed to SetConfiguration after it is
@@ -138,4 +134,11 @@ type Application interface {
 	//
 	// Only called if S2SEnabled returned true at startup time.
 	MaxDeliveryRecursionDepth(c context.Context) int
+
+	// CALLS MADE BOTH AT STARTUP AND SERVING TIME
+
+	// Information about this application's software. This will be shown at
+	// the command line and used for NodeInfo statistics, as well as for
+	// user agent information.
+	Software() Software
 }

@@ -29,13 +29,17 @@ var _ pub.FederatingProtocol = &federatingBehavior{}
 
 type federatingBehavior struct {
 	app Application
+	p   *paths
 	db  *database
+	tc  *transportController
 }
 
-func newFederatingBehavior(a Application, db *database) *federatingBehavior {
+func newFederatingBehavior(a Application, p *paths, db *database, tc *transportController) *federatingBehavior {
 	return &federatingBehavior{
 		app: a,
+		p:   p,
 		db:  db,
+		tc:  tc,
 	}
 }
 
@@ -47,8 +51,7 @@ func (f *federatingBehavior) PostInboxRequestBodyHook(c context.Context, r *http
 }
 
 func (f *federatingBehavior) AuthenticatePostInbox(c context.Context, w http.ResponseWriter, r *http.Request) (authenticated bool, err error) {
-	// TODO
-	// 1. Validate HTTP Signatures
+	authenticated, err = verifyHttpSignatures(c, r, f.p, f.db, f.tc)
 	return
 }
 

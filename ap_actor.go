@@ -23,7 +23,12 @@ import (
 	"github.com/go-fed/activity/pub"
 )
 
-func newActor(c *config, a Application, db *database, o *oAuth2Server, client *http.Client) (actor pub.Actor, err error) {
+func newActor(c *config,
+	a Application,
+	p *paths,
+	db *database,
+	o *oAuth2Server,
+	client *http.Client) (actor pub.Actor, err error) {
 	var clock *clock
 	clock, err = newClock(c.ActivityPubConfig.ClockTimezone)
 	if err != nil {
@@ -43,7 +48,7 @@ func newActor(c *config, a Application, db *database, o *oAuth2Server, client *h
 		err = fmt.Errorf("neither C2S nor S2S are enabled by the Application")
 	} else if cs && ss {
 		c2s := newSocialBehavior(a, db, o)
-		s2s := newFederatingBehavior(a, db)
+		s2s := newFederatingBehavior(a, p, db, tc)
 		actor = pub.NewActor(
 			common,
 			c2s,
@@ -58,7 +63,7 @@ func newActor(c *config, a Application, db *database, o *oAuth2Server, client *h
 			apdb,
 			clock)
 	} else if ss {
-		s2s := newFederatingBehavior(a, db)
+		s2s := newFederatingBehavior(a, p, db, tc)
 		actor = pub.NewFederatingActor(
 			common,
 			s2s,

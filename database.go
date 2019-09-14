@@ -18,6 +18,9 @@ package apcore
 
 import (
 	"context"
+	"crypto"
+	"crypto/rsa"
+	"crypto/x509"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -54,6 +57,8 @@ type database struct {
 	instancePolicies     *sql.Stmt
 	userPolicies         *sql.Stmt
 	userResolutions      *sql.Stmt
+	insertUserPKey       *sql.Stmt
+	getUserPKey          *sql.Stmt
 	// Prepared statements for persistent delivery
 	insertAttempt           *sql.Stmt
 	markSuccessfulAttempt   *sql.Stmt
@@ -181,6 +186,14 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 		return
 	}
 	db.userResolutions, err = db.db.Prepare(sqlgen.UserResolutions())
+	if err != nil {
+		return
+	}
+	db.insertUserPKey, err = db.db.Prepare(sqlgen.InsertUserPKey())
+	if err != nil {
+		return
+	}
+	db.getUserPKey, err = db.db.Prepare(sqlgen.GetUserPKey())
 	if err != nil {
 		return
 	}
@@ -376,6 +389,8 @@ func (d *database) Close() error {
 	d.instancePolicies.Close()
 	d.userPolicies.Close()
 	d.userResolutions.Close()
+	d.insertUserPKey.Close()
+	d.getUserPKey.Close()
 	// transport retries
 	d.insertAttempt.Close()
 	d.markSuccessfulAttempt.Close()
@@ -631,6 +646,54 @@ func (d *database) UserResolutions(c context.Context, userId string) (r []resolu
 		r = append(r, res)
 	}
 	if err = rw.Err(); err != nil {
+		return
+	}
+	return
+}
+
+func (d *database) InsertUserPKey(c context.Context, userUUID string, k *rsa.PrivateKey) (id int64, err error) {
+	var pKeyB []byte
+	pKeyB, err = x509.MarshalPKCS8PrivateKey(k)
+	if err != nil {
+		return
+	}
+	var res sql.Result
+	res, err = d.insertUserPKey.ExecContext(c, userUUID, pKeyB)
+	if err != nil {
+		return
+	}
+	id, err = res.LastInsertId()
+	return
+}
+
+func (d *database) GetUserPKey(c context.Context, userUUID string) (kUUID string, k *rsa.PrivateKey, err error) {
+	var rw *sql.Rows
+	rw, err = d.getUserPKey.QueryContext(c, userUUID)
+	if err != nil {
+		return
+	}
+	defer rw.Close()
+	var pKeyB []byte
+	var n int
+	for rw.Next() {
+		if n > 0 {
+			err = fmt.Errorf("multiple rows when getting user private key: %s", userUUID)
+			return
+		}
+		if err = rw.Scan(&kUUID, &pKeyB); err != nil {
+			return
+		}
+		n++
+	}
+	if err = rw.Err(); err != nil {
+		return
+	}
+	var pk crypto.PrivateKey
+	pk, err = x509.ParsePKCS8PrivateKey(pKeyB)
+	var ok bool
+	k, ok = pk.(*rsa.PrivateKey)
+	if !ok {
+		err = fmt.Errorf("private key is not of type *rsa.PrivateKey")
 		return
 	}
 	return

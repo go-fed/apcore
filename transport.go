@@ -111,6 +111,10 @@ func newTransportController(
 	}, err
 }
 
+func (tc *transportController) GetFirstAlgorithm() httpsig.Algorithm {
+	return tc.algs[0]
+}
+
 func (tc *transportController) Get(
 	privKey crypto.PrivateKey,
 	pubKeyId string) (t *transport, err error) {
@@ -305,7 +309,7 @@ func (t *transport) handleDeliverResponse(r *http.Response) (err error) {
 }
 
 func (t *transport) userAgent() string {
-	return fmt.Sprintf("%s (go-fed/activity go-fed/apcore)", t.a.Software().UserAgent)
+	return userAgent(t.a.Software())
 }
 
 func (t *transport) date() string {

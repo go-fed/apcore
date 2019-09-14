@@ -21,8 +21,6 @@ import (
 	"fmt"
 )
 
-// TODO: Table for delivery attempts
-
 type sqlManager interface {
 	CreateTables(t *sql.Tx) (err error)
 	UpgradeTables(t *sql.Tx) (err error)
@@ -41,6 +39,9 @@ type sqlGenerator interface {
 	UserPolicies() string
 	InsertResolutions() string
 	UserResolutions() string
+
+	InsertUserPKey() string
+	GetUserPKey() string
 
 	InsertAttempt() string
 	MarkSuccessfulAttempt() string
@@ -149,6 +150,14 @@ func (p *pgV0) CreateTables(t *sql.Tx) (err error) {
 		return
 	}
 	err = p.maybeLogExecute(t, p.resolutionInstancePolicyJoinTable())
+	if err != nil {
+		return
+	}
+	err = p.maybeLogExecute(t, p.deliveryAttemptTable())
+	if err != nil {
+		return
+	}
+	err = p.maybeLogExecute(t, p.privateKeyTable())
 	if err != nil {
 		return
 	}
@@ -328,6 +337,27 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `resolutions_user_policies
 );`
 }
 
+func (p *pgV0) deliveryAttemptTable() string {
+	return `
+CREATE TABLE IF NOT EXISTS ` + p.schema + `delivery_attempts
+(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  create_time timestamp with time zone DEFAULT current_timestamp,
+  state text NOT NULL
+);`
+}
+
+func (p *pgV0) privateKeyTable() string {
+	return `
+CREATE TABLE IF NOT EXISTS ` + p.schema + `private_keys
+(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES ` + p.schema + `users(id) NOT NULL ON DELETE CASCADE,
+  create_time timestamp with time zone DEFAULT current_timestamp,
+  priv_key bytea NOT NULL
+);`
+}
+
 func (p *pgV0) HashPassForUserID() string {
 	// TODO
 	return ""
@@ -384,6 +414,16 @@ func (p *pgV0) InsertResolutions() string {
 }
 
 func (p *pgV0) UserResolutions() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) InsertUserPKey() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) GetUserPKey() string {
 	// TODO
 	return ""
 }

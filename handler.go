@@ -48,6 +48,7 @@ func newHandler(c *config, a Application, actor pub.Actor, db *database, debug b
 	// TODO: Webfinger
 	// TODO: Node-info
 	// TODO: Host-meta
+	// TODO: Actor routes (public key id)
 
 	// Application-specific routes
 	err = a.BuildRoutes(&Router{

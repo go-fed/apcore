@@ -70,9 +70,12 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 	// TODO: Reexamine this.
 	httpClient := &http.Client{}
 
+	// Set up well known paths
+	p := newPaths("https", c.ServerConfig.Host)
+
 	// Initialize the ActivityPub portion of the server
 	var actor pub.Actor
-	actor, err = newActor(c, a, db, oa, httpClient)
+	actor, err = newActor(c, a, p, db, oa, httpClient)
 	if err != nil {
 		return
 	}
