@@ -50,8 +50,9 @@ func (f *federatingBehavior) PostInboxRequestBodyHook(c context.Context, r *http
 	return
 }
 
-func (f *federatingBehavior) AuthenticatePostInbox(c context.Context, w http.ResponseWriter, r *http.Request) (authenticated bool, err error) {
+func (f *federatingBehavior) AuthenticatePostInbox(c context.Context, w http.ResponseWriter, r *http.Request) (out context.Context, authenticated bool, err error) {
 	authenticated, err = verifyHttpSignatures(c, r, f.p, f.db, f.tc)
+	out = c
 	return
 }
 

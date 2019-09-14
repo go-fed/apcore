@@ -24,34 +24,87 @@ import (
 
 	"github.com/go-fed/activity/pub"
 	"github.com/go-fed/activity/streams/vocab"
+	"gopkg.in/oauth2.v3"
 )
 
 var _ pub.CommonBehavior = &commonBehavior{}
 
 type commonBehavior struct {
-	p  *paths
-	db *database
-	tc *transportController
+	app Application
+	p   *paths
+	db  *database
+	tc  *transportController
+	o   *oAuth2Server
 }
 
 func newCommonBehavior(
+	app Application,
 	p *paths,
 	db *database,
-	tc *transportController) *commonBehavior {
+	tc *transportController,
+	o *oAuth2Server) *commonBehavior {
 	return &commonBehavior{
-		p:  p,
-		db: db,
-		tc: tc,
+		app: app,
+		p:   p,
+		db:  db,
+		tc:  tc,
+		o:   o,
 	}
 }
 
-func (a *commonBehavior) AuthenticateGetInbox(c context.Context, w http.ResponseWriter, r *http.Request) (authenticated bool, err error) {
-	// TODO
+func (a *commonBehavior) AuthenticateGetInbox(c context.Context, w http.ResponseWriter, r *http.Request) (newCtx context.Context, authenticated bool, err error) {
+	newCtx = c
+	var t oauth2.TokenInfo
+	var oAuthAuthenticated bool
+	t, oAuthAuthenticated, err = a.o.ValidateOAuth2AccessToken(w, r)
+	if err != nil {
+		return
+	} else {
+		// With or without OAuth, permit public access
+		authenticated = true
+	}
+	// No OAuth2 means guaranteed denial of private access
+	if !oAuthAuthenticated {
+		return
+	}
+	// Determine if private access permitted by the granted scope.
+	var ok bool
+	ok, err = a.app.ScopePermitsPrivateGetInbox(t.GetScope())
+	if err != nil {
+		return
+	} else {
+		ctx := &ctx{c}
+		ctx.SetPrivateScope(ok)
+		newCtx = ctx.Context
+	}
 	return
 }
 
-func (a *commonBehavior) AuthenticateGetOutbox(c context.Context, w http.ResponseWriter, r *http.Request) (authenticated bool, err error) {
-	// TODO
+func (a *commonBehavior) AuthenticateGetOutbox(c context.Context, w http.ResponseWriter, r *http.Request) (newCtx context.Context, authenticated bool, err error) {
+	newCtx = c
+	var t oauth2.TokenInfo
+	var oAuthAuthenticated bool
+	t, oAuthAuthenticated, err = a.o.ValidateOAuth2AccessToken(w, r)
+	if err != nil {
+		return
+	} else {
+		// With or without OAuth, permit public access
+		authenticated = true
+	}
+	// No OAuth2 means guaranteed denial of private access
+	if !oAuthAuthenticated {
+		return
+	}
+	// Determine if private access permitted by the granted scope.
+	var ok bool
+	ok, err = a.app.ScopePermitsPrivateGetOutbox(t.GetScope())
+	if err != nil {
+		return
+	} else {
+		ctx := &ctx{c}
+		ctx.SetPrivateScope(ok)
+		newCtx = ctx.Context
+	}
 	return
 }
 

@@ -117,6 +117,16 @@ type Application interface {
 	// bearer to post to an actor's outbox. It is only called if C2S is
 	// enabled.
 	ScopePermitsPostOutbox(scope string) (permitted bool, err error)
+	// ScopePermitsPrivateGetInbox determines if an OAuth token scope
+	// permits the bearer to view private (non-Public) messages in an
+	// actor's inbox. It is always called, regardless whether C2S or S2S is
+	// enabled.
+	ScopePermitsPrivateGetInbox(scope string) (permitted bool, err error)
+	// ScopePermitsPrivateGetOutbox determines if an OAuth token scope
+	// permits the bearer to view private (non-Public) messages in an
+	// actor's outbox. It is always called, regardless whether C2S or S2S is
+	// enabled.
+	ScopePermitsPrivateGetOutbox(scope string) (permitted bool, err error)
 
 	// The maximum recursion depth to use when determining whether to do
 	// inbox forwarding, which if triggered ensures older thread

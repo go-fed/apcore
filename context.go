@@ -32,6 +32,7 @@ const (
 	activityIRIContextKey        = "activityIRI"
 	activityTypeContextKey       = "activityType"
 	completeRequestURLContextKey = "completeRequestURL"
+	privateScopeContextKey       = "privateScope"
 )
 
 type ctx struct {
@@ -83,6 +84,10 @@ func (c *ctx) withCompleteRequestURL(r *http.Request, scheme, host string) {
 	u.Host = host
 	u.Scheme = scheme
 	c.Context = context.WithValue(c.Context, completeRequestURLContextKey, &u)
+}
+
+func (c *ctx) SetPrivateScope(b bool) {
+	c.Context = context.WithValue(c.Context, privateScopeContextKey, b)
 }
 
 func (c ctx) UserPreferences() (u userPreferences, err error) {
@@ -138,4 +143,16 @@ func (c ctx) CompleteRequestURL() (u *url.URL, err error) {
 		err = fmt.Errorf("complete request URL in context is not a *url.URL")
 	}
 	return
+}
+
+func (c *ctx) HasPrivateScope() bool {
+	v := c.Value(privateScopeContextKey)
+	var b, ok bool
+	if v == nil {
+		return false
+	} else if b, ok = v.(bool); !ok {
+		return false
+	} else {
+		return b
+	}
 }

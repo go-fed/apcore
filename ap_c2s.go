@@ -49,7 +49,8 @@ func (s *socialBehavior) PostOutboxRequestBodyHook(c context.Context, r *http.Re
 	return
 }
 
-func (s *socialBehavior) AuthenticatePostOutbox(c context.Context, w http.ResponseWriter, r *http.Request) (authenticated bool, err error) {
+func (s *socialBehavior) AuthenticatePostOutbox(c context.Context, w http.ResponseWriter, r *http.Request) (out context.Context, authenticated bool, err error) {
+	out = c
 	var t oauth2.TokenInfo
 	t, authenticated, err = s.o.ValidateOAuth2AccessToken(w, r)
 	if err != nil || !authenticated {

@@ -41,7 +41,7 @@ func newActor(c *config,
 		return
 	}
 
-	common := newCommonBehavior(p, db, tc)
+	common := newCommonBehavior(a, p, db, tc, o)
 	apdb := newApdb(db, a)
 
 	if cs, ss := a.C2SEnabled(), a.S2SEnabled(); !cs && !ss {
