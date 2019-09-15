@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/go-fed/activity/pub"
 	"github.com/go-fed/activity/streams/vocab"
 )
 
@@ -28,6 +29,9 @@ import (
 // infrastructure.
 type Application interface {
 	// CALLS MADE AT SERVER STARTUP
+	//
+	// These calls are made at least once, during server initialization, but
+	// are not called when the server is handling requests.
 
 	// Returns a pointer to the configuration struct used by the specific
 	// application. It will be used to save and load from configuration
@@ -101,17 +105,107 @@ type Application interface {
 	// data directly, allowing clients to create the custom Fediverse
 	// behavior their application desires.
 	//
-	// The bulk of the application logic is in the handlers created by the
-	// Router.
+	// The bulk of typical HTTP application logic is in the handlers created
+	// by the Router. The apcore.Router also supports creating routes that
+	// process and serve ActivityStreams data, but the processing of the
+	// ActivityPub data itself is handled elsewhere in
+	// ApplyFederatingCallbacks and/or ApplySocialCallbacks.
 	BuildRoutes(r *Router, db Database) error
 
 	// CALLS MADE AT SERVING TIME
+	//
+	// These calls are made when the server is handling requests, but are
+	// not called during server initialization.
 
 	// NewId creates a new id IRI for the content being created.
 	//
 	// A peer making a GET request to this IRI on this server should then
 	// serve the ActivityPub value provided in this call.
+	//
+	// Ensure the route returned by NewId will be servable by a handler
+	// created in the BuildRoutes call.
 	NewId(c context.Context, t vocab.Type) (id *url.URL, err error)
+	// ApplyFederatingCallbacks injects ActivityPub specific behaviors for
+	// federated data.
+	//
+	// Additional behavior for out-of-the-box supported types, such as the
+	// Create type, can be set by directly defining a function on the
+	// callback passed in:
+	//
+	//     func (m *myImpl) ApplyFederatingCallbacks(fwc *pub.FederatingWrappedCallbacks) (others []interface{}) {
+	//       fwc.Create = func(c context.Context, as vocab.ActivityStreamsCreate) error {
+	//         // Additional application behavior for the Create activity.
+	//       }
+	//     }
+	//
+	// To use less common types that do no have out-of-the-box behavior,
+	// such as the Listen type, return the functions in `others` that
+	// implement the behavior. The functions in `others` must be in the
+	// form:
+	//
+	//     func(c context.Context, as vocab.ActivityStreamsListen) error {
+	//       // Application behavior for the Listen activity.
+	//     }
+	//
+	// Caution: returning an out-of-the-box supported type in `others` will
+	// override the framework-provided default behavior for that type. For
+	// example, the "Create" behavior's default behavior of creating
+	// ActivityStreams types in the database can be overridden by:
+	//
+	//     func (m *myImpl) ApplyFederatingCallbacks(fwc *pub.FederatingWrappedCallbacks) (others []interface{}) {
+	//       others = []interface{}{
+	//         func(c context.Context, as vocab.ActivityStreamsCreate) error {
+	//           // New behavior for the Create activity that overrides the
+	//           // framework provided defaults.
+	//         },
+	//       }
+	//       return
+	//     }
+	//
+	// Note: The `OnFollow` value will already be populated by the user's
+	// preferred behavior upon receiving a Follow request.
+	//
+	// Only called if S2SEnabled returned true at startup time.
+	ApplyFederatingCallbacks(fwc *pub.FederatingWrappedCallbacks) (others []interface{})
+	// ApplySocialCallbacks injects ActivityPub specific behaviors for
+	// social, or C2S, data.
+	//
+	// Additional behavior for out-of-the-box supported types, such as the
+	// Create type, can be set by directly defining a function on the
+	// callback passed in:
+	//
+	//     func (m *myImpl) ApplySocialCallbacks(swc *pub.SocialWrappedCallbacks) (others []interface{}) {
+	//       swc.Create = func(c context.Context, as vocab.ActivityStreamsCreate) error {
+	//         // Additional application behavior for the Create activity.
+	//       }
+	//     }
+	//
+	// To use less common types that do no have out-of-the-box behavior,
+	// such as the Listen type, return the functions in `others` that
+	// implement the behavior. The functions in `others` must be in the
+	// form:
+	//
+	//     func(c context.Context, as vocab.ActivityStreamsListen) error {
+	//       // Application behavior for the Listen activity.
+	//     }
+	//
+	// Caution: returning an out-of-the-box supported type in `others` will
+	// override the framework-provided default behavior for that type. For
+	// example, the "Create" behavior's default behavior of creating
+	// ActivityStreams types in the database can be overridden by:
+	//
+	//     func (m *myImpl) ApplySocialCallbacks(swc *pub.SocialWrappedCallbacks) (others []interface{}) {
+	//       others = []interface{}{
+	//         func(c context.Context, as vocab.ActivityStreamsCreate) error {
+	//           // New behavior for the Create activity that overrides the
+	//           // framework provided defaults.
+	//         },
+	//       }
+	//       return
+	//     }
+	//
+	// Only called if C2SEnabled returned true at startup time.
+	ApplySocialCallbacks(swc *pub.SocialWrappedCallbacks) (others []interface{})
 
 	// ScopePermitsPostOutbox determines if an OAuth token scope permits the
 	// bearer to post to an actor's outbox. It is only called if C2S is
@@ -146,6 +240,9 @@ type Application interface {
 	MaxDeliveryRecursionDepth(c context.Context) int
 
 	// CALLS MADE BOTH AT STARTUP AND SERVING TIME
+	//
+	// These calls are made at least once during server initialization, and
+	// are called when the server is handling requests.
 
 	// Information about this application's software. This will be shown at
 	// the command line and used for NodeInfo statistics, as well as for

@@ -63,7 +63,7 @@ func (s *socialBehavior) AuthenticatePostOutbox(c context.Context, w http.Respon
 
 func (s *socialBehavior) Callbacks(c context.Context) (wrapped pub.SocialWrappedCallbacks, other []interface{}, err error) {
 	wrapped = pub.SocialWrappedCallbacks{}
-	// TODO: Others from Application
+	other = s.app.ApplySocialCallbacks(&wrapped)
 	return
 }
 
