@@ -42,6 +42,7 @@ type sqlGenerator interface {
 
 	InsertUserPKey() string
 	GetUserPKey() string
+	FollowersByUserUUID() string
 
 	InsertAttempt() string
 	MarkSuccessfulAttempt() string
@@ -424,6 +425,11 @@ func (p *pgV0) InsertUserPKey() string {
 }
 
 func (p *pgV0) GetUserPKey() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) FollowersByUserUUID() string {
 	// TODO
 	return ""
 }

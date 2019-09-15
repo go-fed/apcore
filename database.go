@@ -59,6 +59,7 @@ type database struct {
 	userResolutions      *sql.Stmt
 	insertUserPKey       *sql.Stmt
 	getUserPKey          *sql.Stmt
+	followersByUserUUID  *sql.Stmt
 	// Prepared statements for persistent delivery
 	insertAttempt           *sql.Stmt
 	markSuccessfulAttempt   *sql.Stmt
@@ -194,6 +195,10 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 		return
 	}
 	db.getUserPKey, err = db.db.Prepare(sqlgen.GetUserPKey())
+	if err != nil {
+		return
+	}
+	db.followersByUserUUID, err = db.db.Prepare(sqlgen.FollowersByUserUUID())
 	if err != nil {
 		return
 	}
@@ -391,6 +396,7 @@ func (d *database) Close() error {
 	d.userResolutions.Close()
 	d.insertUserPKey.Close()
 	d.getUserPKey.Close()
+	d.followersByUserUUID.Close()
 	// transport retries
 	d.insertAttempt.Close()
 	d.markSuccessfulAttempt.Close()
@@ -696,6 +702,44 @@ func (d *database) GetUserPKey(c context.Context, userUUID string) (kUUID string
 		err = fmt.Errorf("private key is not of type *rsa.PrivateKey")
 		return
 	}
+	return
+}
+
+func (d *database) FollowersByUserUUID(c context.Context, userUUID string) (followers vocab.ActivityStreamsCollection, err error) {
+	var r *sql.Rows
+	r, err = d.followersByUserUUID.QueryContext(c, userUUID)
+	if err != nil {
+		return
+	}
+	var n int
+	var jsonb []byte
+	for r.Next() {
+		if n > 0 {
+			err = fmt.Errorf("multiple rows when fetching followers for user UUID")
+			return
+		}
+		if err = r.Scan(&jsonb); err != nil {
+			return
+		}
+		n++
+	}
+	if err = r.Err(); err != nil {
+		return
+	}
+	m := make(map[string]interface{}, 0)
+	err = json.Unmarshal(jsonb, &m)
+	if err != nil {
+		return
+	}
+	var res *streams.JSONResolver
+	res, err = streams.NewJSONResolver(func(ctx context.Context, i vocab.ActivityStreamsCollection) error {
+		followers = i
+		return nil
+	})
+	if err != nil {
+		return
+	}
+	err = res.Resolve(c, m)
 	return
 }
 

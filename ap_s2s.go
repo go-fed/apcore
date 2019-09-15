@@ -122,7 +122,36 @@ func (f *federatingBehavior) MaxDeliveryRecursionDepth(c context.Context) int {
 }
 
 func (f *federatingBehavior) FilterForwarding(c context.Context, potentialRecipients []*url.URL, a pub.Activity) (filteredRecipients []*url.URL, err error) {
-	// TODO
+	ctx := ctx{c}
+	var userUUID string
+	userUUID, err = ctx.TargetUserUUID()
+	if err != nil {
+		return
+	}
+	// Here we limit to only allow forwarding to the target user's
+	// followers.
+	var fc vocab.ActivityStreamsCollection
+	fc, err = f.db.FollowersByUserUUID(c, userUUID)
+	if err != nil {
+		return
+	}
+	allowedRecipients := make(map[*url.URL]bool, 0)
+	items := fc.GetActivityStreamsItems()
+	if items != nil {
+		for iter := items.Begin(); iter != items.End(); iter = iter.Next() {
+			var id *url.URL
+			id, err = pub.ToId(iter)
+			if err != nil {
+				return
+			}
+			allowedRecipients[id] = true
+		}
+	}
+	for _, elem := range potentialRecipients {
+		if has, ok := allowedRecipients[elem]; ok && has {
+			filteredRecipients = append(filteredRecipients, elem)
+		}
+	}
 	return
 }
 
