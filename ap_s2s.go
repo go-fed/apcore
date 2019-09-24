@@ -161,6 +161,10 @@ func (f *federatingBehavior) GetInbox(c context.Context, r *http.Request) (ocp v
 	if inboxIRI, err = ctx.CompleteRequestURL(); err != nil {
 		return
 	}
-	ocp, err = f.db.GetInbox(c, inboxIRI)
+	if ctx.HasPrivateScope() {
+		ocp, err = f.db.GetInbox(c, inboxIRI)
+	} else {
+		ocp, err = f.db.GetPublicInbox(c, inboxIRI)
+	}
 	return
 }

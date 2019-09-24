@@ -59,6 +59,7 @@ type sqlGenerator interface {
 
 	InboxContains() string
 	GetInbox() string
+	GetPublicInbox() string
 	SetInboxUpdate() string
 	SetInboxInsert() string
 	SetInboxDelete() string
@@ -74,6 +75,7 @@ type sqlGenerator interface {
 	LocalDelete() string
 	FedDelete() string
 	GetOutbox() string
+	GetPublicOutbox() string
 	SetOutboxUpdate() string
 	SetOutboxInsert() string
 	SetOutboxDelete() string
@@ -499,6 +501,11 @@ func (p *pgV0) GetInbox() string {
 	return ""
 }
 
+func (p *pgV0) GetPublicInbox() string {
+	// TODO
+	return ""
+}
+
 func (p *pgV0) SetInboxUpdate() string {
 	// TODO
 	return ""
@@ -570,6 +577,11 @@ func (p *pgV0) FedDelete() string {
 }
 
 func (p *pgV0) GetOutbox() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) GetPublicOutbox() string {
 	// TODO
 	return ""
 }

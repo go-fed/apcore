@@ -145,7 +145,6 @@ func (c ctx) CompleteRequestURL() (u *url.URL, err error) {
 	return
 }
 
-// TODO: Use this when retrieving the inbox or outbox
 func (c *ctx) HasPrivateScope() bool {
 	v := c.Value(privateScopeContextKey)
 	var b, ok bool

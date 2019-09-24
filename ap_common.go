@@ -114,7 +114,11 @@ func (a *commonBehavior) GetOutbox(c context.Context, r *http.Request) (ocp voca
 	if outboxIRI, err = ctx.CompleteRequestURL(); err != nil {
 		return
 	}
-	ocp, err = a.db.GetOutbox(c, outboxIRI)
+	if ctx.HasPrivateScope() {
+		ocp, err = a.db.GetOutbox(c, outboxIRI)
+	} else {
+		ocp, err = a.db.GetPublicOutbox(c, outboxIRI)
+	}
 	return
 }
 

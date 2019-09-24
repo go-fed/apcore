@@ -74,23 +74,25 @@ type database struct {
 	getTokenByRefresh    *sql.Stmt
 	getClientById        *sql.Stmt
 	// Prepared statements for the database required by go-fed
-	inboxContains  *sql.Stmt
-	getInbox       *sql.Stmt
-	actorForOutbox *sql.Stmt
-	actorForInbox  *sql.Stmt
-	outboxForInbox *sql.Stmt
-	exists         *sql.Stmt
-	get            *sql.Stmt
-	localCreate    *sql.Stmt
-	fedCreate      *sql.Stmt
-	localUpdate    *sql.Stmt
-	fedUpdate      *sql.Stmt
-	localDelete    *sql.Stmt
-	fedDelete      *sql.Stmt
-	getOutbox      *sql.Stmt
-	followers      *sql.Stmt
-	following      *sql.Stmt
-	liked          *sql.Stmt
+	inboxContains   *sql.Stmt
+	getInbox        *sql.Stmt
+	getPublicInbox  *sql.Stmt
+	actorForOutbox  *sql.Stmt
+	actorForInbox   *sql.Stmt
+	outboxForInbox  *sql.Stmt
+	exists          *sql.Stmt
+	get             *sql.Stmt
+	localCreate     *sql.Stmt
+	fedCreate       *sql.Stmt
+	localUpdate     *sql.Stmt
+	fedUpdate       *sql.Stmt
+	localDelete     *sql.Stmt
+	fedDelete       *sql.Stmt
+	getOutbox       *sql.Stmt
+	getPublicOutbox *sql.Stmt
+	followers       *sql.Stmt
+	following       *sql.Stmt
+	liked           *sql.Stmt
 }
 
 func newDatabase(c *config, a Application, debug bool) (db *database, err error) {
@@ -260,6 +262,10 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 	if err != nil {
 		return
 	}
+	db.getPublicInbox, err = db.db.Prepare(sqlgen.GetPublicInbox())
+	if err != nil {
+		return
+	}
 	db.actorForOutbox, err = db.db.Prepare(sqlgen.ActorForOutbox())
 	if err != nil {
 		return
@@ -305,6 +311,10 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 		return
 	}
 	db.getOutbox, err = db.db.Prepare(sqlgen.GetOutbox())
+	if err != nil {
+		return
+	}
+	db.getPublicOutbox, err = db.db.Prepare(sqlgen.GetPublicOutbox())
 	if err != nil {
 		return
 	}
@@ -413,6 +423,7 @@ func (d *database) Close() error {
 	// go-fed
 	d.inboxContains.Close()
 	d.getInbox.Close()
+	d.getPublicInbox.Close()
 	d.actorForOutbox.Close()
 	d.actorForInbox.Close()
 	d.outboxForInbox.Close()
@@ -425,6 +436,7 @@ func (d *database) Close() error {
 	d.localDelete.Close()
 	d.fedDelete.Close()
 	d.getOutbox.Close()
+	d.getPublicOutbox.Close()
 	d.followers.Close()
 	d.following.Close()
 	d.liked.Close()
@@ -930,11 +942,15 @@ func (d *database) InboxContains(c context.Context, inbox, id *url.URL) (contain
 	return
 }
 
-func (d *database) GetInbox(c context.Context, inboxIRI *url.URL) (inbox vocab.ActivityStreamsOrderedCollectionPage, err error) {
+func (d *database) getInboxImpl(c context.Context, inboxIRI *url.URL, private bool) (inbox vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	start := collectionPageStartIndex(inboxIRI)
 	length := collectionPageLength(inboxIRI, d.defaultCollectionSize)
 	var r *sql.Rows
-	r, err = d.getInbox.QueryContext(c, inboxIRI.String(), start, length)
+	if private {
+		r, err = d.getInbox.QueryContext(c, inboxIRI.String(), start, length)
+	} else {
+		r, err = d.getPublicInbox.QueryContext(c, inboxIRI.String(), start, length)
+	}
 	if err != nil {
 		return
 	}
@@ -960,6 +976,16 @@ func (d *database) GetInbox(c context.Context, inboxIRI *url.URL) (inbox vocab.A
 		return
 	}
 	inbox, err = toOrderedCollectionPage(id, iris, start, length)
+	return
+}
+
+func (d *database) GetInbox(c context.Context, inboxIRI *url.URL) (inbox vocab.ActivityStreamsOrderedCollectionPage, err error) {
+	inbox, err = d.getInboxImpl(c, inboxIRI, true)
+	return
+}
+
+func (d *database) GetPublicInbox(c context.Context, inboxIRI *url.URL) (inbox vocab.ActivityStreamsOrderedCollectionPage, err error) {
+	inbox, err = d.getInboxImpl(c, inboxIRI, false)
 	return
 }
 
@@ -1252,11 +1278,15 @@ func (d *database) Delete(c context.Context, id *url.URL) (err error) {
 	}
 }
 
-func (d *database) GetOutbox(c context.Context, outboxIRI *url.URL) (outbox vocab.ActivityStreamsOrderedCollectionPage, err error) {
+func (d *database) getOutboxImpl(c context.Context, outboxIRI *url.URL, private bool) (outbox vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	start := collectionPageStartIndex(outboxIRI)
 	length := collectionPageLength(outboxIRI, d.defaultCollectionSize)
 	var r *sql.Rows
-	r, err = d.getOutbox.QueryContext(c, outboxIRI.String(), start, length)
+	if private {
+		r, err = d.getOutbox.QueryContext(c, outboxIRI.String(), start, length)
+	} else {
+		r, err = d.getPublicOutbox.QueryContext(c, outboxIRI.String(), start, length)
+	}
 	if err != nil {
 		return
 	}
@@ -1282,6 +1312,16 @@ func (d *database) GetOutbox(c context.Context, outboxIRI *url.URL) (outbox voca
 		return
 	}
 	outbox, err = toOrderedCollectionPage(id, iris, start, length)
+	return
+}
+
+func (d *database) GetOutbox(c context.Context, outboxIRI *url.URL) (outbox vocab.ActivityStreamsOrderedCollectionPage, err error) {
+	outbox, err = d.getOutboxImpl(c, outboxIRI, true)
+	return
+}
+
+func (d *database) GetPublicOutbox(c context.Context, outboxIRI *url.URL) (outbox vocab.ActivityStreamsOrderedCollectionPage, err error) {
+	outbox, err = d.getOutboxImpl(c, outboxIRI, false)
 	return
 }
 
