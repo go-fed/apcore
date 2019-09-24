@@ -17,6 +17,7 @@
 package apcore
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net/http"
@@ -26,6 +27,8 @@ import (
 )
 
 type server struct {
+	certFile    string
+	keyFile     string
 	a           Application
 	oa          *oAuth2Server
 	actor       pub.Actor
@@ -35,7 +38,7 @@ type server struct {
 	config      *config
 	httpServer  *http.Server
 	httpsServer *http.Server
-	debug       bool
+	debug       bool // TODO: http only, no https
 }
 
 func newServer(configFileName string, a Application, debug bool) (s *server, err error) {
@@ -87,8 +90,8 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 		return
 	}
 
-	// Prepare HTTPS server. No option to run the server as HTTP, because
-	// we're living in the future.
+	// Prepare HTTPS server. No option to run the server as HTTP in prod,
+	// because we're living in the future.
 	httpsServer := &http.Server{
 		Addr:         ":https",
 		Handler:      h.Handler(),
@@ -102,6 +105,8 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 
 	// Create the apcore server
 	s = &server{
+		certFile:    c.ServerConfig.CertFile,
+		keyFile:     c.ServerConfig.KeyFile,
 		a:           a,
 		oa:          oa,
 		actor:       actor,
@@ -115,7 +120,7 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 	}
 
 	// Post-creation hooks
-	httpsServer.RegisterOnShutdown(s.stop)
+	httpsServer.RegisterOnShutdown(s.onStop)
 	return
 }
 
@@ -149,10 +154,51 @@ func createRedirectServer(c *config) *http.Server {
 	}
 }
 
-func (s *server) start() {
-	// TODO
+func (s *server) start() error {
+	err := s.db.Open()
+	if err != nil {
+		return err
+	}
+	InfoLogger.Infof("Starting application")
+	err = s.a.Start()
+	if err != nil {
+		return err
+	}
+	go func() {
+		InfoLogger.Infof("Starting http redirection server")
+		err := s.httpServer.ListenAndServe()
+		if err != http.ErrServerClosed {
+			ErrorLogger.Errorf("Error shutting down http redirect server: %s", err)
+		} else {
+			InfoLogger.Infof("Http redirect server shutdown")
+		}
+	}()
+	InfoLogger.Infof("Launching https server")
+	err = s.httpsServer.ListenAndServeTLS(
+		s.certFile,
+		s.keyFile)
+	if err != http.ErrServerClosed {
+		ErrorLogger.Errorf("Error shutting down https server: %s", err)
+	} else {
+		InfoLogger.Infof("HTTPS server shutdown")
+	}
+	return nil
 }
 
 func (s *server) stop() {
-	// TODO
+	InfoLogger.Infof("Shutdown HTTPS server")
+	s.httpsServer.Shutdown(context.Background())
+}
+
+func (s *server) onStop() {
+	InfoLogger.Infof("Shutdown HTTP server")
+	s.httpServer.Shutdown(context.Background())
+	InfoLogger.Infof("Stop application")
+	if err := s.a.Stop(); err != nil {
+		ErrorLogger.Errorf("Error shutting down application: %s", err)
+	}
+	InfoLogger.Infof("Close database")
+	if err := s.db.Close(); err != nil {
+		ErrorLogger.Errorf("Error closing database: %s", err)
+	}
 }

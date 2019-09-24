@@ -33,6 +33,18 @@ type Application interface {
 	// These calls are made at least once, during server initialization, but
 	// are not called when the server is handling requests.
 
+	// Start is called at the beginning of a server's lifecycle, after the
+	// database connection is opened but before web traffic is being served.
+	//
+	// If an error is returned, then the startup process fails.
+	Start() error
+	// Stop is called at the end of a server's lifecycle, after the web
+	// servers have stopped serving traffic but before the database is
+	// closed.
+	//
+	// If an error is returned, shutdown continues but an error is reported.
+	Stop() error
+
 	// Returns a pointer to the configuration struct used by the specific
 	// application. It will be used to save and load from configuration
 	// files. This object will be passed to SetConfiguration after it is

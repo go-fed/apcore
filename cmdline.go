@@ -22,7 +22,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/google/logger"
 )
@@ -167,12 +169,17 @@ func allActionsUsage() string {
 
 // The 'serve' command line action.
 func serveFn(a Application) error {
-	_, err := newServer(*configFlag, a, *debugFlag)
+	s, err := newServer(*configFlag, a, *debugFlag)
 	if err != nil {
 		return err
 	}
-	// TODO
-	return nil
+	interruptCh := make(chan os.Signal, 2)
+	signal.Notify(interruptCh, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-interruptCh
+		s.stop()
+	}()
+	return s.start()
 }
 
 // The 'new' command line action.

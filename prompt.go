@@ -88,6 +88,11 @@ func promptOverwriteExistingFile(path string) (b bool, err error) {
 			path))
 }
 
+func promptString(display string) (s string, err error) {
+	s, err = promptStringWithDefault(display, "")
+	return
+}
+
 func promptStringWithDefault(display, def string) (s string, err error) {
 	p := promptui.Prompt{
 		Label:     display,
@@ -100,6 +105,9 @@ func promptStringWithDefault(display, def string) (s string, err error) {
 			ValidationError: fmt.Sprintf(`{{ ">>" | red }} {{ . | red }}{{ ":" | bold}}`),
 			Success:         fmt.Sprintf(`{{ "%s" | bold }} {{ . | faint }}{{ ":" | bold}}`, promptui.IconGood),
 		},
+	}
+	if len(def) > 0 {
+		p.Default = def
 	}
 	s, err = p.Run()
 	return

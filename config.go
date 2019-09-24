@@ -52,6 +52,8 @@ func defaultConfig(dbkind string) (c *config, err error) {
 // Configuration section specifically for the HTTP server.
 type serverConfig struct {
 	Host                        string `ini:"sr_host" comment:"(required) Host with TLD for this instance (basically, the fully qualified domain or subdomain); ignored in debug mode"`
+	CertFile                    string `init:"sr_cert_file" comment:"(required) Path to the certificate file used to establish TLS connections for HTTPS"`
+	KeyFile                     string `init:"sr_cert_file" comment:"(required) Path to the private key file used to establish TLS connections for HTTPS"`
 	CookieAuthKeyFile           string `ini:"sr_cookie_auth_key_file" comment:"(required) Path to private key file used for cookie authentication"`
 	CookieEncryptionKeyFile     string `ini:"sr_cookie_encryption_key_file" comment:"Path to private key file used for cookie encryption"`
 	CookieMaxAge                int    `ini:"sr_cookie_max_age" comment:"(default: 86400 seconds) Number of seconds a cookie is valid; 0 indicates no Max-Age (browser-dependent, usually session-only); negative value is invalid"`
@@ -223,6 +225,16 @@ func promptNewConfig(file string) (c *config, err error) {
 	c.ServerConfig.Host, err = promptStringWithDefault(
 		"Enter the host for this server (ignored in debug mode)",
 		"example.com")
+	if err != nil {
+		return
+	}
+	c.ServerConfig.CertFile, err = promptString(
+		"Enter the path to the file containing the certificate used in HTTPS connections")
+	if err != nil {
+		return
+	}
+	c.ServerConfig.KeyFile, err = promptString(
+		"Enter the path to the file containing the private key for the certificate used in HTTPS connections")
 	if err != nil {
 		return
 	}

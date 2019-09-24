@@ -110,13 +110,13 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 		return
 	}
 
-	InfoLogger.Infof("Opening database")
+	InfoLogger.Infof("Creating database object with Open")
 	var sqldb *sql.DB
 	sqldb, err = sql.Open(kind, conn)
 	if err != nil {
 		return
 	}
-	InfoLogger.Infof("DB Open complete")
+	InfoLogger.Infof("Creating database object with Open is complete")
 
 	// Apply general database configurations
 	if c.DatabaseConfig.ConnMaxLifetimeSeconds > 0 {
@@ -130,16 +130,8 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 	if c.DatabaseConfig.MaxIdleConns >= 0 {
 		sqldb.SetMaxIdleConns(c.DatabaseConfig.MaxIdleConns)
 	}
-
-	InfoLogger.Infof("Pinging database to force-check an initial connection...")
-	start := time.Now()
-	err = sqldb.Ping()
-	if err != nil {
-		InfoLogger.Infof("Unsuccessfully pinged database")
-		return
-	}
-	end := time.Now()
-	InfoLogger.Infof("Successfully pinged database with latency: %s", end.Sub(start))
+	InfoLogger.Infof("Database connections configured successfully")
+	InfoLogger.Infof("NOTE: No underlying database connections may have happened yet!")
 
 	db = &database{
 		db:                    sqldb,
@@ -147,189 +139,207 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 		hostname:              c.ServerConfig.Host,
 		defaultCollectionSize: c.DatabaseConfig.DefaultCollectionPageSize,
 	}
+	return
+}
+
+func (d *database) Open() (err error) {
+	InfoLogger.Infof("Opening connections to database by pinging to force-check an initial connection...")
+	start := time.Now()
+	err = d.db.Ping()
+	if err != nil {
+		ErrorLogger.Errorf("Unsuccessfully pinged database: %s", err)
+		return
+	}
+	end := time.Now()
+	InfoLogger.Infof("Successfully pinged database with latency: %s", end.Sub(start))
+
+	InfoLogger.Infof("Beginning creating prepared statements")
+	start = time.Now()
 	// apcore statement preparations
-	db.hashPassForUserID, err = db.db.Prepare(sqlgen.HashPassForUserID())
+	d.hashPassForUserID, err = d.db.Prepare(d.sqlgen.HashPassForUserID())
 	if err != nil {
 		return
 	}
-	db.userIdForEmail, err = db.db.Prepare(sqlgen.UserIdForEmail())
+	d.userIdForEmail, err = d.db.Prepare(d.sqlgen.UserIdForEmail())
 	if err != nil {
 		return
 	}
-	db.userIdForBoxPath, err = db.db.Prepare(sqlgen.UserIdForBoxPath())
+	d.userIdForBoxPath, err = d.db.Prepare(d.sqlgen.UserIdForBoxPath())
 	if err != nil {
 		return
 	}
-	db.userPreferences, err = db.db.Prepare(sqlgen.UserPreferences())
+	d.userPreferences, err = d.db.Prepare(d.sqlgen.UserPreferences())
 	if err != nil {
 		return
 	}
-	db.updateUserPolicy, err = db.db.Prepare(sqlgen.UpdateUserPolicy())
+	d.updateUserPolicy, err = d.db.Prepare(d.sqlgen.UpdateUserPolicy())
 	if err != nil {
 		return
 	}
-	db.updateInstancePolicy, err = db.db.Prepare(sqlgen.UpdateInstancePolicy())
+	d.updateInstancePolicy, err = d.db.Prepare(d.sqlgen.UpdateInstancePolicy())
 	if err != nil {
 		return
 	}
-	db.insertUserPolicy, err = db.db.Prepare(sqlgen.InsertUserPolicy())
+	d.insertUserPolicy, err = d.db.Prepare(d.sqlgen.InsertUserPolicy())
 	if err != nil {
 		return
 	}
-	db.insertInstancePolicy, err = db.db.Prepare(sqlgen.InsertInstancePolicy())
+	d.insertInstancePolicy, err = d.db.Prepare(d.sqlgen.InsertInstancePolicy())
 	if err != nil {
 		return
 	}
-	db.instancePolicies, err = db.db.Prepare(sqlgen.InstancePolicies())
+	d.instancePolicies, err = d.db.Prepare(d.sqlgen.InstancePolicies())
 	if err != nil {
 		return
 	}
-	db.userPolicies, err = db.db.Prepare(sqlgen.UserPolicies())
+	d.userPolicies, err = d.db.Prepare(d.sqlgen.UserPolicies())
 	if err != nil {
 		return
 	}
-	db.userResolutions, err = db.db.Prepare(sqlgen.UserResolutions())
+	d.userResolutions, err = d.db.Prepare(d.sqlgen.UserResolutions())
 	if err != nil {
 		return
 	}
-	db.insertUserPKey, err = db.db.Prepare(sqlgen.InsertUserPKey())
+	d.insertUserPKey, err = d.db.Prepare(d.sqlgen.InsertUserPKey())
 	if err != nil {
 		return
 	}
-	db.getUserPKey, err = db.db.Prepare(sqlgen.GetUserPKey())
+	d.getUserPKey, err = d.db.Prepare(d.sqlgen.GetUserPKey())
 	if err != nil {
 		return
 	}
-	db.followersByUserUUID, err = db.db.Prepare(sqlgen.FollowersByUserUUID())
+	d.followersByUserUUID, err = d.db.Prepare(d.sqlgen.FollowersByUserUUID())
 	if err != nil {
 		return
 	}
 
 	// prepared statements for persistent delivery
-	db.insertAttempt, err = db.db.Prepare(sqlgen.InsertAttempt())
+	d.insertAttempt, err = d.db.Prepare(d.sqlgen.InsertAttempt())
 	if err != nil {
 		return
 	}
-	db.markSuccessfulAttempt, err = db.db.Prepare(sqlgen.MarkSuccessfulAttempt())
+	d.markSuccessfulAttempt, err = d.db.Prepare(d.sqlgen.MarkSuccessfulAttempt())
 	if err != nil {
 		return
 	}
-	db.markRetryFailureAttempt, err = db.db.Prepare(sqlgen.MarkRetryFailureAttempt())
+	d.markRetryFailureAttempt, err = d.db.Prepare(d.sqlgen.MarkRetryFailureAttempt())
 	if err != nil {
 		return
 	}
 
 	// prepared statements for oauth
-	db.createTokenInfo, err = db.db.Prepare(sqlgen.CreateTokenInfo())
+	d.createTokenInfo, err = d.db.Prepare(d.sqlgen.CreateTokenInfo())
 	if err != nil {
 		return
 	}
-	db.removeTokenByCode, err = db.db.Prepare(sqlgen.RemoveTokenByCode())
+	d.removeTokenByCode, err = d.db.Prepare(d.sqlgen.RemoveTokenByCode())
 	if err != nil {
 		return
 	}
-	db.removeTokenByAccess, err = db.db.Prepare(sqlgen.RemoveTokenByAccess())
+	d.removeTokenByAccess, err = d.db.Prepare(d.sqlgen.RemoveTokenByAccess())
 	if err != nil {
 		return
 	}
-	db.removeTokenByRefresh, err = db.db.Prepare(sqlgen.RemoveTokenByRefresh())
+	d.removeTokenByRefresh, err = d.db.Prepare(d.sqlgen.RemoveTokenByRefresh())
 	if err != nil {
 		return
 	}
-	db.getTokenByCode, err = db.db.Prepare(sqlgen.GetTokenByCode())
+	d.getTokenByCode, err = d.db.Prepare(d.sqlgen.GetTokenByCode())
 	if err != nil {
 		return
 	}
-	db.getTokenByAccess, err = db.db.Prepare(sqlgen.GetTokenByAccess())
+	d.getTokenByAccess, err = d.db.Prepare(d.sqlgen.GetTokenByAccess())
 	if err != nil {
 		return
 	}
-	db.getTokenByRefresh, err = db.db.Prepare(sqlgen.GetTokenByRefresh())
+	d.getTokenByRefresh, err = d.db.Prepare(d.sqlgen.GetTokenByRefresh())
 	if err != nil {
 		return
 	}
-	db.getClientById, err = db.db.Prepare(sqlgen.GetClientById())
+	d.getClientById, err = d.db.Prepare(d.sqlgen.GetClientById())
 	if err != nil {
 		return
 	}
 
 	// go-fed statement preparations
-	db.inboxContains, err = db.db.Prepare(sqlgen.InboxContains())
+	d.inboxContains, err = d.db.Prepare(d.sqlgen.InboxContains())
 	if err != nil {
 		return
 	}
-	db.getInbox, err = db.db.Prepare(sqlgen.GetInbox())
+	d.getInbox, err = d.db.Prepare(d.sqlgen.GetInbox())
 	if err != nil {
 		return
 	}
-	db.getPublicInbox, err = db.db.Prepare(sqlgen.GetPublicInbox())
+	d.getPublicInbox, err = d.db.Prepare(d.sqlgen.GetPublicInbox())
 	if err != nil {
 		return
 	}
-	db.actorForOutbox, err = db.db.Prepare(sqlgen.ActorForOutbox())
+	d.actorForOutbox, err = d.db.Prepare(d.sqlgen.ActorForOutbox())
 	if err != nil {
 		return
 	}
-	db.actorForInbox, err = db.db.Prepare(sqlgen.ActorForInbox())
+	d.actorForInbox, err = d.db.Prepare(d.sqlgen.ActorForInbox())
 	if err != nil {
 		return
 	}
-	db.outboxForInbox, err = db.db.Prepare(sqlgen.OutboxForInbox())
+	d.outboxForInbox, err = d.db.Prepare(d.sqlgen.OutboxForInbox())
 	if err != nil {
 		return
 	}
-	db.exists, err = db.db.Prepare(sqlgen.Exists())
+	d.exists, err = d.db.Prepare(d.sqlgen.Exists())
 	if err != nil {
 		return
 	}
-	db.get, err = db.db.Prepare(sqlgen.Get())
+	d.get, err = d.db.Prepare(d.sqlgen.Get())
 	if err != nil {
 		return
 	}
-	db.localCreate, err = db.db.Prepare(sqlgen.LocalCreate())
+	d.localCreate, err = d.db.Prepare(d.sqlgen.LocalCreate())
 	if err != nil {
 		return
 	}
-	db.fedCreate, err = db.db.Prepare(sqlgen.FedCreate())
+	d.fedCreate, err = d.db.Prepare(d.sqlgen.FedCreate())
 	if err != nil {
 		return
 	}
-	db.localUpdate, err = db.db.Prepare(sqlgen.LocalUpdate())
+	d.localUpdate, err = d.db.Prepare(d.sqlgen.LocalUpdate())
 	if err != nil {
 		return
 	}
-	db.fedUpdate, err = db.db.Prepare(sqlgen.FedUpdate())
+	d.fedUpdate, err = d.db.Prepare(d.sqlgen.FedUpdate())
 	if err != nil {
 		return
 	}
-	db.localDelete, err = db.db.Prepare(sqlgen.LocalDelete())
+	d.localDelete, err = d.db.Prepare(d.sqlgen.LocalDelete())
 	if err != nil {
 		return
 	}
-	db.fedDelete, err = db.db.Prepare(sqlgen.FedDelete())
+	d.fedDelete, err = d.db.Prepare(d.sqlgen.FedDelete())
 	if err != nil {
 		return
 	}
-	db.getOutbox, err = db.db.Prepare(sqlgen.GetOutbox())
+	d.getOutbox, err = d.db.Prepare(d.sqlgen.GetOutbox())
 	if err != nil {
 		return
 	}
-	db.getPublicOutbox, err = db.db.Prepare(sqlgen.GetPublicOutbox())
+	d.getPublicOutbox, err = d.db.Prepare(d.sqlgen.GetPublicOutbox())
 	if err != nil {
 		return
 	}
-	db.followers, err = db.db.Prepare(sqlgen.Followers())
+	d.followers, err = d.db.Prepare(d.sqlgen.Followers())
 	if err != nil {
 		return
 	}
-	db.following, err = db.db.Prepare(sqlgen.Following())
+	d.following, err = d.db.Prepare(d.sqlgen.Following())
 	if err != nil {
 		return
 	}
-	db.liked, err = db.db.Prepare(sqlgen.Liked())
+	d.liked, err = d.db.Prepare(d.sqlgen.Liked())
 	if err != nil {
 		return
 	}
+	end = time.Now()
+	InfoLogger.Infof("Successfully created prepared statements in: %s", end.Sub(start))
 	return
 }
 
