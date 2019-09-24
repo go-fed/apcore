@@ -337,8 +337,8 @@ func postgresConn(pg postgresConfig) (s string, err error) {
 	hasPw, err = promptDoesXHavePassword(
 		fmt.Sprintf(
 			"user=%q in db_name=%q",
-			pg.DatabaseName,
-			pg.UserName))
+			pg.UserName,
+			pg.DatabaseName))
 	if err != nil {
 		return
 	}
