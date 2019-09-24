@@ -20,6 +20,8 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
+	"io/ioutil"
+	"os"
 )
 
 func createRSAPrivateKey(n int) (k *rsa.PrivateKey, err error) {
@@ -28,5 +30,20 @@ func createRSAPrivateKey(n int) (k *rsa.PrivateKey, err error) {
 		return
 	}
 	k, err = rsa.GenerateKey(rand.Reader, n)
+	return
+}
+
+func createKeyFile(file string) (err error) {
+	c := 64
+	k := make([]byte, c)
+	var n int
+	n, err = rand.Read(k)
+	if err != nil {
+		return
+	} else if n != c {
+		err = fmt.Errorf("crypto/rand read %d of %d bytes", n, c)
+		return
+	}
+	err = ioutil.WriteFile(file, k, os.FileMode(0660))
 	return
 }

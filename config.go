@@ -207,7 +207,7 @@ func saveConfigFile(filename string, c *config, others ...interface{}) error {
 }
 
 func promptNewConfig(file string) (c *config, err error) {
-	// TODO
+	// TODO: Something more welcoming at the beginning
 
 	var s string
 	s, err = promptSelection(
@@ -261,7 +261,10 @@ func promptNewConfig(file string) (c *config, err error) {
 		if err != nil {
 			return
 		}
-		// TODO: Generate the key
+		err = createKeyFile(c.ServerConfig.CookieAuthKeyFile)
+		if err != nil {
+			return
+		}
 	}
 	var want bool
 	if have, err = promptYN("Do you already have a file containing a cookie encryption private key?"); err != nil {
@@ -282,7 +285,10 @@ func promptNewConfig(file string) (c *config, err error) {
 		if err != nil {
 			return
 		}
-		// TODO: Generate the key
+		err = createKeyFile(c.ServerConfig.CookieEncryptionKeyFile)
+		if err != nil {
+			return
+		}
 	}
 	c.ServerConfig.CookieSessionName, err = promptStringWithDefault(
 		"Session name used to find cookies",
