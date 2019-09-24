@@ -168,6 +168,7 @@ func loadConfigFile(filename string, a Application, debug bool) (c *config, err 
 	if err != nil {
 		return
 	}
+	c = &config{}
 	err = cfg.MapTo(c)
 	if err != nil {
 		return
