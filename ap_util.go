@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/go-fed/activity/pub"
 	"github.com/go-fed/activity/streams"
 	"github.com/go-fed/activity/streams/vocab"
 	"github.com/go-fed/httpsig"
@@ -37,10 +38,10 @@ func userAgent(s Software) string {
 }
 
 type publicKeyer interface {
-	GetActivityStreamsPublicKey() vocab.ActivityStreamsPublicKeyProperty
+	GetW3IDSecurityV1PublicKey() vocab.W3IDSecurityV1PublicKeyProperty
 }
 
-func getPublicKeyFromResponse(c context.Context, b []byte) (p crypto.PublicKey, err error) {
+func getPublicKeyFromResponse(c context.Context, b []byte, keyId *url.URL) (p crypto.PublicKey, err error) {
 	m := make(map[string]interface{}, 0)
 	err = json.Unmarshal(b, &m)
 	if err != nil {
@@ -56,12 +57,33 @@ func getPublicKeyFromResponse(c context.Context, b []byte) (p crypto.PublicKey, 
 		err = fmt.Errorf("ActivityStreams type cannot be converted to one known to have publicKey property: %T", t)
 		return
 	}
-	pkp := pker.GetActivityStreamsPublicKey()
-	if pkp == nil || !pkp.IsActivityStreamsPublicKey() {
-		err = fmt.Errorf("publicKey property is not provided or it is not an embedded object")
+	pkp := pker.GetW3IDSecurityV1PublicKey()
+	if pkp == nil {
+		err = fmt.Errorf("publicKey property is not provided")
 		return
 	}
-	pkPemProp := pkp.Get().GetActivityStreamsPublicKeyPem()
+	var pkpFound vocab.W3IDSecurityV1PublicKey
+	for pkpIter := pkp.Begin(); pkpIter != pkp.End(); pkpIter = pkpIter.Next() {
+		if !pkpIter.IsW3IDSecurityV1PublicKey() {
+			continue
+		}
+		pkValue := pkpIter.Get()
+		var pkId *url.URL
+		pkId, err = pub.GetId(pkValue)
+		if err != nil {
+			return
+		}
+		if pkId.String() != keyId.String() {
+			continue
+		}
+		pkpFound = pkValue
+		break
+	}
+	if pkpFound == nil {
+		err = fmt.Errorf("cannot find publicKey with id: %s", keyId)
+		return
+	}
+	pkPemProp := pkpFound.GetW3IDSecurityV1PublicKeyPem()
 	if pkPemProp == nil || !pkPemProp.IsXMLSchemaString() {
 		err = fmt.Errorf("publicKeyPem property is not provided or it is not embedded as a value")
 		return
@@ -123,7 +145,7 @@ func verifyHttpSignatures(c context.Context,
 	if err != nil {
 		return
 	}
-	pKey, err := getPublicKeyFromResponse(c, b)
+	pKey, err := getPublicKeyFromResponse(c, b, kIdIRI)
 	if err != nil {
 		return
 	}
