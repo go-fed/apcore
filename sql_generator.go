@@ -28,7 +28,15 @@ type sqlManager interface {
 }
 
 // sqlGenerator is a SQL dialect provider.
+//
+// Note that the order for inputs and outputs listed matter.
 type sqlGenerator interface {
+	// HashPassForUserId fetches the salt+hash for a user
+	// Input:
+	//   userId (string)
+	// Output:
+	//   hash ([]byte)
+	//   salt ([]byte)
 	HashPassForUserID() string
 	UserIdForEmail() string
 	UserIdForBoxPath() string

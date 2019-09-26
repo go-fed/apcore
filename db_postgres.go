@@ -299,8 +299,7 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `private_keys
 }
 
 func (p *pgV0) HashPassForUserID() string {
-	// TODO
-	return ""
+	return "SELECT hashpass, salt FROM " + p.schema + "users WHERE id = $1"
 }
 
 func (p *pgV0) UserIdForEmail() string {
