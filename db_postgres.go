@@ -21,69 +21,6 @@ import (
 	"fmt"
 )
 
-type sqlManager interface {
-	CreateTables(t *sql.Tx) (err error)
-	UpgradeTables(t *sql.Tx) (err error)
-}
-
-type sqlGenerator interface {
-	HashPassForUserID() string
-	UserIdForEmail() string
-	UserIdForBoxPath() string
-	UserPreferences() string
-	UpdateUserPolicy() string
-	UpdateInstancePolicy() string
-	InsertUserPolicy() string
-	InsertInstancePolicy() string
-	InstancePolicies() string
-	UserPolicies() string
-	InsertResolutions() string
-	UserResolutions() string
-
-	InsertUserPKey() string
-	GetUserPKey() string
-	FollowersByUserUUID() string
-
-	InsertAttempt() string
-	MarkSuccessfulAttempt() string
-	MarkRetryFailureAttempt() string
-
-	CreateTokenInfo() string
-	RemoveTokenByCode() string
-	RemoveTokenByAccess() string
-	RemoveTokenByRefresh() string
-	GetTokenByCode() string
-	GetTokenByAccess() string
-	GetTokenByRefresh() string
-	GetClientById() string
-
-	InboxContains() string
-	GetInbox() string
-	GetPublicInbox() string
-	SetInboxUpdate() string
-	SetInboxInsert() string
-	SetInboxDelete() string
-	ActorForOutbox() string
-	ActorForInbox() string
-	OutboxForInbox() string
-	Exists() string
-	Get() string
-	LocalCreate() string
-	FedCreate() string
-	LocalUpdate() string
-	FedUpdate() string
-	LocalDelete() string
-	FedDelete() string
-	GetOutbox() string
-	GetPublicOutbox() string
-	SetOutboxUpdate() string
-	SetOutboxInsert() string
-	SetOutboxDelete() string
-	Followers() string
-	Following() string
-	Liked() string
-}
-
 var _ sqlManager = &pgV0{}
 var _ sqlGenerator = &pgV0{}
 
