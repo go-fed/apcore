@@ -769,7 +769,7 @@ func (d *database) FollowersByUserUUID(c context.Context, userUUID string) (foll
 
 func (d *database) InsertAttempt(c context.Context, payload []byte, to *url.URL, fromUUID string) (id int64, err error) {
 	var res sql.Result
-	res, err = d.insertAttempt.ExecContext(c, payload, to, fromUUID)
+	res, err = d.insertAttempt.ExecContext(c, fromUUID, to, payload)
 	if err != nil {
 		return
 	}

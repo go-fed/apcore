@@ -115,6 +115,16 @@ func (p *pgV0) CreateTables(t *sql.Tx) (err error) {
 	if err != nil {
 		return
 	}
+
+	// OAuth token information
+	err = p.maybeLogExecute(t, p.tokenTable())
+	if err != nil {
+		return
+	}
+	err = p.maybeLogExecute(t, p.clientTable())
+	if err != nil {
+		return
+	}
 	return
 }
 
@@ -195,6 +205,8 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `users_inbox
   local_id uuid REFERENCES ` + p.schema + `local_data (id) NOT NULL ON DELETE CASCADE,
 );`
 }
+
+// TODO: Following and followers tables
 
 func (p *pgV0) userPrivilegesTable() string {
 	return `
@@ -283,6 +295,9 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `delivery_attempts
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   create_time timestamp with time zone DEFAULT current_timestamp,
+  from_id uuid REFERENCES ` + p.schema + `users (id) NOT NULL ON DELETE CASCADE,
+  to text NOT NULL,
+  payload bytea NOT NULL,
   state text NOT NULL
 );`
 }
@@ -298,23 +313,53 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `private_keys
 );`
 }
 
+func (p *pgV0) tokenTable() string {
+	return `
+CREATE TABLE IF NOT EXISTS ` + p.schema + `oauth_tokens
+(
+  client_id text NOT NULL,
+  user_id text NOT NULL,
+  redirect_uri text NOT NULL,
+  scope text NOT NULL,
+  code text NOT NULL,
+  code_create_at timestamp with time zone NOT NULL,
+  code_expires_in bigint NOT NULL,
+  access text NOT NULL,
+  access_create_at timestamp with time zone NOT NULL,
+  access_expires_in bigint NOT NULL,
+  refresh text NOT NULL,
+  refresh_create_at timestamp with time zone NOT NULL,
+  refresh_expires_in bigint NOT NULL
+);`
+}
+
+// TODO: Create indices on code, access, refresh
+
+func (p *pgV0) clientTable() string {
+	return `
+CREATE TABLE IF NOT EXISTS ` + p.schema + `oauth_clients
+(
+  id text PRIMARY KEY,
+  secret text NOT NULL,
+  domain text NOT NULL,
+  user_id uuid REFERENCES ` + p.schema + `users(id) NOT NULL ON DELETE CASCADE
+);`
+}
+
 func (p *pgV0) HashPassForUserID() string {
 	return "SELECT hashpass, salt FROM " + p.schema + "users WHERE id = $1"
 }
 
 func (p *pgV0) UserIdForEmail() string {
-	// TODO
-	return ""
+	return "SELECT id FROM " + p.schema + "users WHERE email = $1"
 }
 
 func (p *pgV0) UserIdForBoxPath() string {
-	// TODO
-	return ""
+	return "SELECT id FROM " + p.schema + "users WHERE (actor->>'inbox' = $1 OR actor->>'outbox' = $2)"
 }
 
 func (p *pgV0) UserPreferences() string {
-	// TODO
-	return ""
+	return "SELECT on_follow FROM " + p.schema + "user_preferences WHERE user_id = $1"
 }
 
 func (p *pgV0) UpdateUserPolicy() string {
@@ -358,13 +403,11 @@ func (p *pgV0) UserResolutions() string {
 }
 
 func (p *pgV0) InsertUserPKey() string {
-	// TODO
-	return ""
+	return "INSERT INTO " + p.schema + "private_keys (user_id, priv_key) VALUES ($1, $2)"
 }
 
 func (p *pgV0) GetUserPKey() string {
-	// TODO
-	return ""
+	return "SELECT id, priv_key FROM " + p.schema + "private_keys WHERE user_id = $1"
 }
 
 func (p *pgV0) FollowersByUserUUID() string {
@@ -373,58 +416,125 @@ func (p *pgV0) FollowersByUserUUID() string {
 }
 
 func (p *pgV0) InsertAttempt() string {
-	// TODO
-	return ""
+	return "INSERT INTO " + p.schema + "delivery_attempts (from_id, to, payload, state) VALUES ($1, $2, $3, 'new')"
 }
 
 func (p *pgV0) MarkSuccessfulAttempt() string {
-	// TODO
-	return ""
+	return "UPDATE " + p.schema + "delivery_attempts SET (state) = ('success') WHERE id = $1"
 }
 
 func (p *pgV0) MarkRetryFailureAttempt() string {
-	// TODO
-	return ""
+	return "UPDATE " + p.schema + "delivery_attempts SET (state) = ('fail') WHERE id = $1"
 }
 
 func (p *pgV0) CreateTokenInfo() string {
-	// TODO
-	return ""
+	return "INSERT INTO " + p.schema + `oauth_tokens
+(
+  client_id,
+  user_id,
+  redirect_uri,
+  scope,
+  code,
+  code_create_at,
+  code_expires_in,
+  access,
+  access_create_at,
+  access_expires_in,
+  refresh,
+  refresh_create_at,
+  refresh_expires_in
+) VALUES
+(
+  $1,
+  $2,
+  $3,
+  $4,
+  $5,
+  $6,
+  $7,
+  $8,
+  $9,
+  $10,
+  $11,
+  $12,
+  $13
+)`
 }
 
 func (p *pgV0) RemoveTokenByCode() string {
-	// TODO
-	return ""
+	return "DELETE FROM " + p.schema + "oauth_tokens WHERE code = $1"
 }
 
 func (p *pgV0) RemoveTokenByAccess() string {
-	// TODO
-	return ""
+	return "DELETE FROM " + p.schema + "oauth_tokens WHERE access = $1"
 }
 
 func (p *pgV0) RemoveTokenByRefresh() string {
-	// TODO
-	return ""
+	return "DELETE FROM " + p.schema + "oauth_tokens WHERE refresh = $1"
 }
 
 func (p *pgV0) GetTokenByCode() string {
-	// TODO
-	return ""
+	return `SELECT
+(
+  client_id,
+  user_id,
+  redirect_uri,
+  scope,
+  code,
+  code_create_at,
+  code_expires_in,
+  access,
+  access_create_at,
+  access_expires_in,
+  refresh,
+  refresh_create_at,
+  refresh_expires_in
+) 
+FROM ` + p.schema + "oauth_tokens WHERE code = $1"
 }
 
 func (p *pgV0) GetTokenByAccess() string {
-	// TODO
-	return ""
+	return `SELECT
+(
+  client_id,
+  user_id,
+  redirect_uri,
+  scope,
+  code,
+  code_create_at,
+  code_expires_in,
+  access,
+  access_create_at,
+  access_expires_in,
+  refresh,
+  refresh_create_at,
+  refresh_expires_in
+) 
+FROM ` + p.schema + "oauth_tokens WHERE access = $1"
 }
 
 func (p *pgV0) GetTokenByRefresh() string {
-	// TODO
-	return ""
+	return `SELECT
+(
+  client_id,
+  user_id,
+  redirect_uri,
+  scope,
+  code,
+  code_create_at,
+  code_expires_in,
+  access,
+  access_create_at,
+  access_expires_in,
+  refresh,
+  refresh_create_at,
+  refresh_expires_in
+) 
+FROM ` + p.schema + "oauth_tokens WHERE refresh = $1"
 }
 
 func (p *pgV0) GetClientById() string {
-	// TODO
-	return ""
+	return "SELECT (id, secret, domain, user_id) FROM " + p.schema + "oauth_clients WHERE id = $1"
 }
 
 func (p *pgV0) InboxContains() string {
