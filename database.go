@@ -510,7 +510,8 @@ func (d *database) UserIDFromEmail(c context.Context, email string) (userId stri
 
 func (d *database) UserIdForBoxPath(c context.Context, boxPath string) (userId string, err error) {
 	var r *sql.Rows
-	r, err = d.userIdForBoxPath.QueryContext(c, boxPath)
+	nBoxPath, err := normalizeAsIRI(boxPath)
+	r, err = d.userIdForBoxPath.QueryContext(c, nBoxPath.String())
 	if err != nil {
 		return
 	}
@@ -930,7 +931,7 @@ func (d *database) GetClientById(c context.Context, id string) (oci oauth2.Clien
 
 func (d *database) InboxContains(c context.Context, inbox, id *url.URL) (contains bool, err error) {
 	var r *sql.Rows
-	r, err = d.inboxContains.QueryContext(c, inbox.String(), id.String())
+	r, err = d.inboxContains.QueryContext(c, normalize(inbox).String(), id.String())
 	if err != nil {
 		return
 	}
@@ -955,11 +956,12 @@ func (d *database) InboxContains(c context.Context, inbox, id *url.URL) (contain
 func (d *database) getInboxImpl(c context.Context, inboxIRI *url.URL, private bool) (inbox vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	start := collectionPageStartIndex(inboxIRI)
 	length := collectionPageLength(inboxIRI, d.defaultCollectionSize)
+	baseInboxIRI := normalize(inboxIRI)
 	var r *sql.Rows
 	if private {
-		r, err = d.getInbox.QueryContext(c, inboxIRI.String(), start, length)
+		r, err = d.getInbox.QueryContext(c, baseInboxIRI.String(), start, length)
 	} else {
-		r, err = d.getPublicInbox.QueryContext(c, inboxIRI.String(), start, length)
+		r, err = d.getPublicInbox.QueryContext(c, baseInboxIRI.String(), start, length)
 	}
 	if err != nil {
 		return
@@ -1007,12 +1009,13 @@ func (d *database) SetInbox(c context.Context, inbox vocab.ActivityStreamsOrdere
 	}
 	start := collectionPageStartIndex(iri)
 	length := collectionPageLength(iri, d.defaultCollectionSize)
+	baseInboxIRI := normalize(iri)
 	tx, err := d.db.BeginTx(c, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	r, err := tx.QueryContext(c, d.sqlgen.GetInbox(), iri.String(), start, length)
+	r, err := tx.QueryContext(c, d.sqlgen.GetInbox(), baseInboxIRI.String(), start, length)
 	if err != nil {
 		return err
 	}
@@ -1065,7 +1068,7 @@ func (d *database) SetInbox(c context.Context, inbox vocab.ActivityStreamsOrdere
 			if err != nil {
 				return err
 			}
-			_, err = tx.ExecContext(c, d.sqlgen.SetInboxInsert(), iri.String(), fedIri)
+			_, err = tx.ExecContext(c, d.sqlgen.SetInboxInsert(), baseInboxIRI.String(), fedIri)
 			if err != nil {
 				return err
 			}

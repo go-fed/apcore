@@ -538,33 +538,57 @@ func (p *pgV0) GetClientById() string {
 }
 
 func (p *pgV0) InboxContains() string {
-	// TODO
-	return ""
+	return `SELECT EXISTS (
+  SELECT 1
+  FROM ` + p.schema + `users AS u
+  INNER JOIN ` + p.schema + `users_inbox AS ui
+  ON u.id = ui.user_id
+  INNER JOIN ` + p.schema + `fed_data AS f
+  ON ui.federated_id = f.id
+  WHERE u.actor->>'inbox' = $1 AND f.payload->>'id' = $2
+);`
 }
 
 func (p *pgV0) GetInbox() string {
-	// TODO
-	return ""
+	return `SELECT ui.id, u.id, f.id, f.payload->>'id'
+FROM ` + p.schema + `users AS u
+INNER JOIN ` + p.schema + `users_inbox AS ui
+ON u.id = ui.user_id
+INNER JOIN ` + p.schema + `fed_data AS f
+ON ui.federated_id = f.id
+WHERE u.actor->>'inbox' = $1
+ORDER BY f.create_time DESC
+LIMIT $3 OFFSET $2`
 }
 
 func (p *pgV0) GetPublicInbox() string {
-	// TODO
-	return ""
+	return `SELECT ui.id, u.id, f.id, f.payload->>'id'
+FROM ` + p.schema + `users AS u
+INNER JOIN ` + p.schema + `users_inbox AS ui
+ON u.id = ui.user_id
+INNER JOIN ` + p.schema + `fed_data AS f
+ON ui.federated_id = f.id
+WHERE u.actor->>'inbox' = $1 AND
+(
+  f.payload->'to' ? 'https://www.w3.org/ns/activitystreams#Public'
+  OR f.payload->'cc' ? 'https://www.w3.org/ns/activitystreams#Public'
+)
+ORDER BY f.create_time DESC
+LIMIT $3 OFFSET $2`
 }
 
 func (p *pgV0) SetInboxUpdate() string {
-	// TODO
-	return ""
+	return "UPDATE " + p.schema + "users_inbox SET (federated_id) = ($3) WHERE id = $1 AND user_id = $2"
 }
 
 func (p *pgV0) SetInboxInsert() string {
-	// TODO
-	return ""
+	return `INSERT INTO ` + p.schema + `users_inbox (user_id, federated_id)
+SELECT users.id, $2 FROM ` + p.schema + `users
+WHERE users.actor->>'inbox' = $1`
 }
 
 func (p *pgV0) SetInboxDelete() string {
-	// TODO
-	return ""
+	return "DELETE FROM " + p.schema + "users_inbox WHERE id = $1"
 }
 
 func (p *pgV0) ActorForOutbox() string {
