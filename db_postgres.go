@@ -592,58 +592,57 @@ func (p *pgV0) SetInboxDelete() string {
 }
 
 func (p *pgV0) ActorForOutbox() string {
-	// TODO
-	return ""
+	return `SELECT actor->>'id' FROM ` + p.schema + `users
+WHERE actor->>'outbox' = $1`
 }
 
 func (p *pgV0) ActorForInbox() string {
-	// TODO
-	return ""
+	return `SELECT actor->>'id' FROM ` + p.schema + `users
+WHERE actor->>'inbox' = $1`
 }
 
 func (p *pgV0) OutboxForInbox() string {
-	// TODO
-	return ""
+	return `SELECT actor->>'outbox' FROM ` + p.schema + `users
+WHERE actor->>'inbox' = $1`
 }
 
 func (p *pgV0) Exists() string {
-	// TODO
-	return ""
+	return `SELECT EXISTS(
+SELECT 1 FROM ` + p.schema + `fed_data
+WHERE payload->>'id' = $1
+)`
 }
 
 func (p *pgV0) Get() string {
-	// TODO
-	return ""
+	return `SELECT payload FROM ` + p.schema + `fed_data WHERE payload->>'id' = $1
+UNION
+SELECT payload FROM ` + p.schema + `local_data WHERE payload->>'id' = $1
+UNION
+SELECT actor FROM ` + p.schema + `users WHERE actor->>'id' = $1`
 }
 
 func (p *pgV0) LocalCreate() string {
-	// TODO
-	return ""
+	return `INSERT INTO ` + p.schema + `local_data (payload) VALUES ($1)`
 }
 
 func (p *pgV0) FedCreate() string {
-	// TODO
-	return ""
+	return `INSERT INTO ` + p.schema + `fed_data (payload) VALUES ($1)`
 }
 
 func (p *pgV0) LocalUpdate() string {
-	// TODO
-	return ""
+	return `UPDATE ` + p.schema + `local_data SET (payload) = ($2) WHERE payload->>'id' = $1`
 }
 
 func (p *pgV0) FedUpdate() string {
-	// TODO
-	return ""
+	return `UPDATE ` + p.schema + `fed_data SET (payload) = ($2) WHERE payload->>'id' = $1`
 }
 
 func (p *pgV0) LocalDelete() string {
-	// TODO
-	return ""
+	return `DELETE FROM ` + p.schema + `local_data WHERE payload->>'id' = $1`
 }
 
 func (p *pgV0) FedDelete() string {
-	// TODO
-	return ""
+	return `DELETE FROM ` + p.schema + `fed_data WHERE payload->>'id' = $1`
 }
 
 func (p *pgV0) GetOutbox() string {

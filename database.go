@@ -1096,7 +1096,8 @@ func (d *database) Owns(c context.Context, id *url.URL) (owns bool, err error) {
 
 func (d *database) ActorForOutbox(c context.Context, outboxIRI *url.URL) (actorIRI *url.URL, err error) {
 	var r *sql.Rows
-	r, err = d.actorForOutbox.QueryContext(c, outboxIRI.String())
+	baseOutboxIRI := normalize(outboxIRI)
+	r, err = d.actorForOutbox.QueryContext(c, baseOutboxIRI.String())
 	if err != nil {
 		return
 	}
@@ -1121,7 +1122,8 @@ func (d *database) ActorForOutbox(c context.Context, outboxIRI *url.URL) (actorI
 
 func (d *database) ActorForInbox(c context.Context, inboxIRI *url.URL) (actorIRI *url.URL, err error) {
 	var r *sql.Rows
-	r, err = d.actorForInbox.QueryContext(c, inboxIRI.String())
+	baseInboxIRI := normalize(inboxIRI)
+	r, err = d.actorForInbox.QueryContext(c, baseInboxIRI.String())
 	if err != nil {
 		return
 	}
@@ -1146,7 +1148,8 @@ func (d *database) ActorForInbox(c context.Context, inboxIRI *url.URL) (actorIRI
 
 func (d *database) OutboxForInbox(c context.Context, inboxIRI *url.URL) (outboxIRI *url.URL, err error) {
 	var r *sql.Rows
-	r, err = d.outboxForInbox.QueryContext(c, inboxIRI.String())
+	baseInboxIRI := normalize(inboxIRI)
+	r, err = d.outboxForInbox.QueryContext(c, baseInboxIRI.String())
 	if err != nil {
 		return
 	}
@@ -1270,10 +1273,10 @@ func (d *database) Update(c context.Context, asType vocab.Type) (err error) {
 	if owns, err = d.Owns(c, id); err != nil {
 		return
 	} else if owns {
-		_, err = d.localUpdate.ExecContext(c, string(b))
+		_, err = d.localUpdate.ExecContext(c, id.String(), string(b))
 		return
 	} else {
-		_, err = d.fedUpdate.ExecContext(c, string(b))
+		_, err = d.fedUpdate.ExecContext(c, id.String(), string(b))
 		return
 	}
 }
