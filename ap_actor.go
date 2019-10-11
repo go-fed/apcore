@@ -28,7 +28,7 @@ func newActor(c *config,
 	p *paths,
 	db *database,
 	o *oAuth2Server,
-	client *http.Client) (actor pub.Actor, err error) {
+	client *http.Client) (actor pub.Actor, apdb *apdb, err error) {
 	var clock *clock
 	clock, err = newClock(c.ActivityPubConfig.ClockTimezone)
 	if err != nil {
@@ -42,7 +42,7 @@ func newActor(c *config,
 	}
 
 	common := newCommonBehavior(a, p, db, tc, o)
-	apdb := newApdb(db, a)
+	apdb = newApdb(db, a)
 
 	if cs, ss := a.C2SEnabled(), a.S2SEnabled(); !cs && !ss {
 		err = fmt.Errorf("neither C2S nor S2S are enabled by the Application")

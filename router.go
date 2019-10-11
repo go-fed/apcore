@@ -25,8 +25,9 @@ import (
 
 type Router struct {
 	router            *mux.Router
-	db                *database
+	db                *apdb
 	actor             pub.Actor
+	clock             pub.Clock
 	host              string
 	errorHandler      http.Handler
 	badRequestHandler http.Handler
@@ -37,6 +38,7 @@ func (r *Router) wrap(route *mux.Route) *Route {
 		route:             route,
 		db:                r.db,
 		actor:             r.actor,
+		clock:             r.clock,
 		host:              r.host,
 		errorHandler:      r.errorHandler,
 		badRequestHandler: r.badRequestHandler,
@@ -60,12 +62,12 @@ func (r *Router) ActorGetOutbox(path, scheme string, web func(http.ResponseWrite
 	return r.wrap(r.router.NewRoute()).ActorGetOutbox(path, scheme, web)
 }
 
-func (r *Router) ActivityPubOnlyHandleFunc(path string, apHandler pub.HandlerFunc) *Route {
-	return r.wrap(r.router.NewRoute()).ActivityPubOnlyHandleFunc(path, apHandler)
+func (r *Router) ActivityPubOnlyHandleFunc(path string, authFn pub.AuthenticateFunc) *Route {
+	return r.wrap(r.router.NewRoute()).ActivityPubOnlyHandleFunc(path, authFn)
 }
 
-func (r *Router) ActivityPubAndWebHandleFunc(path string, apHandler pub.HandlerFunc, f func(http.ResponseWriter, *http.Request)) *Route {
-	return r.wrap(r.router.NewRoute()).ActivityPubAndWebHandleFunc(path, apHandler, f)
+func (r *Router) ActivityPubAndWebHandleFunc(path string, authFn pub.AuthenticateFunc, f func(http.ResponseWriter, *http.Request)) *Route {
+	return r.wrap(r.router.NewRoute()).ActivityPubAndWebHandleFunc(path, authFn, f)
 }
 
 func (r *Router) Get(name string) *Route {
@@ -126,8 +128,9 @@ func (r *Router) Walk(walkFn mux.WalkFunc) error {
 
 type Route struct {
 	route             *mux.Route
-	db                *database
+	db                *apdb
 	actor             pub.Actor
+	clock             pub.Clock
 	host              string
 	errorHandler      http.Handler
 	badRequestHandler http.Handler
@@ -226,8 +229,8 @@ func (r *Route) ActorGetOutbox(path, scheme string, web func(http.ResponseWriter
 	return r
 }
 
-func (r *Route) ActivityPubOnlyHandleFunc(path string, apHandler pub.HandlerFunc) *Route {
-	// TODO: construct pub.HandlerFunc in here instead
+func (r *Route) ActivityPubOnlyHandleFunc(path string, authFn pub.AuthenticateFunc) *Route {
+	apHandler := pub.NewActivityStreamsHandler(authFn, r.db, r.clock)
 	r.route = r.route.Path(path).HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
 			isASRequest, err := apHandler(req.Context(), w, req)
@@ -245,8 +248,8 @@ func (r *Route) ActivityPubOnlyHandleFunc(path string, apHandler pub.HandlerFunc
 	return r
 }
 
-func (r *Route) ActivityPubAndWebHandleFunc(path string, apHandler pub.HandlerFunc, f func(http.ResponseWriter, *http.Request)) *Route {
-	// TODO: construct pub.HandlerFunc in here instead
+func (r *Route) ActivityPubAndWebHandleFunc(path string, authFn pub.AuthenticateFunc, f func(http.ResponseWriter, *http.Request)) *Route {
+	apHandler := pub.NewActivityStreamsHandler(authFn, r.db, r.clock)
 	r.route = r.route.Path(path).HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
 			isASRequest, err := apHandler(req.Context(), w, req)

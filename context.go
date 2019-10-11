@@ -39,7 +39,7 @@ type ctx struct {
 	context.Context
 }
 
-func newRequestContext(scheme, host string, r *http.Request, db *database) (c ctx, err error) {
+func newRequestContext(scheme, host string, r *http.Request, db *apdb) (c ctx, err error) {
 	pc := &ctx{r.Context()}
 	var userId string
 	if userId, err = db.UserIdForBoxPath(c.Context, r.URL.Path); err != nil {

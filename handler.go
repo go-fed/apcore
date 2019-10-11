@@ -30,7 +30,7 @@ type handler struct {
 	router *mux.Router
 }
 
-func newHandler(c *config, a Application, actor pub.Actor, db *database, debug bool) (h *handler, err error) {
+func newHandler(c *config, a Application, actor pub.Actor, db *apdb, debug bool) (h *handler, err error) {
 	r := mux.NewRouter()
 	r.NotFoundHandler = a.NotFoundHandler()
 	r.MethodNotAllowedHandler = a.MethodNotAllowedHandler()
