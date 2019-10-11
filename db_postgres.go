@@ -578,13 +578,19 @@ LIMIT $3 OFFSET $2`
 }
 
 func (p *pgV0) SetInboxUpdate() string {
-	return "UPDATE " + p.schema + "users_inbox SET (federated_id) = ($3) WHERE id = $1 AND user_id = $2"
+	return `WITH fed_query AS (
+  SELECT fed_data.id FROM ` + p.schema + `fed_data WHERE fed_data.payload->>'id' = $3
+)
+UPDATE ` + p.schema + `users_outbox
+SET (federated_id) = (fed_query.id)
+FROM fed_query
+WHERE id = $1 AND user_id = $2`
 }
 
 func (p *pgV0) SetInboxInsert() string {
 	return `INSERT INTO ` + p.schema + `users_inbox (user_id, federated_id)
-SELECT users.id, $2 FROM ` + p.schema + `users
-WHERE users.actor->>'inbox' = $1`
+SELECT users.id, fed_data.id FROM ` + p.schema + `users, ` + p.schema + `fed_data
+WHERE users.actor->>'inbox' = $1 AND fed_data.payload->>'id' = $2`
 }
 
 func (p *pgV0) SetInboxDelete() string {
@@ -646,28 +652,51 @@ func (p *pgV0) FedDelete() string {
 }
 
 func (p *pgV0) GetOutbox() string {
-	// TODO
-	return ""
+	return `SELECT ui.id, u.id, l.id, l.payload->>'id'
+FROM ` + p.schema + `users AS u
+INNER JOIN ` + p.schema + `users_inbox AS ui
+ON u.id = ui.user_id
+INNER JOIN ` + p.schema + `local_data AS l
+ON ui.local_id = l.id
+WHERE u.actor->>'outbox' = $1
+ORDER BY l.create_time DESC
+LIMIT $3 OFFSET $2`
 }
 
 func (p *pgV0) GetPublicOutbox() string {
-	// TODO
-	return ""
+	return `SELECT ui.id, u.id, l.id, l.payload->>'id'
+FROM ` + p.schema + `users AS u
+INNER JOIN ` + p.schema + `users_inbox AS ui
+ON u.id = ui.user_id
+INNER JOIN ` + p.schema + `local_data AS l
+ON ui.local_id = l.id
+WHERE u.actor->>'outbox' = $1 AND
+(
+  l.payload->'to' ? 'https://www.w3.org/ns/activitystreams#Public'
+  OR l.payload->'cc' ? 'https://www.w3.org/ns/activitystreams#Public'
+)
+ORDER BY l.create_time DESC
+LIMIT $3 OFFSET $2`
 }
 
 func (p *pgV0) SetOutboxUpdate() string {
-	// TODO
-	return ""
+	return `WITH local_query AS (
+  SELECT local_data.id FROM ` + p.schema + `local_data WHERE local_data.payload->>'id' = $3
+)
+UPDATE ` + p.schema + `users_outbox
+SET (local_id) = (local_query.id)
+FROM local_query
+WHERE id = $1 AND user_id = $2`
 }
 
 func (p *pgV0) SetOutboxInsert() string {
-	// TODO
-	return ""
+	return `INSERT INTO ` + p.schema + `users_outbox (user_id, local_id)
+SELECT users.id, local_data.id FROM ` + p.schema + `users, ` + p.schema + `local_data
+WHERE users.actor->>'inbox' = $1 AND local_data.payload->>'id' = $2`
 }
 
 func (p *pgV0) SetOutboxDelete() string {
-	// TODO
-	return ""
+	return "DELETE FROM " + p.schema + "users_outbox WHERE id = $1"
 }
 
 func (p *pgV0) Followers() string {

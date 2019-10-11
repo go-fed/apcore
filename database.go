@@ -983,7 +983,7 @@ func (d *database) getInboxImpl(c context.Context, inboxIRI *url.URL, private bo
 		return
 	}
 	var id *url.URL
-	id, err = collectionPageId(inboxIRI, start, length, d.defaultCollectionSize)
+	id, err = collectionPageId(baseInboxIRI, start, length, d.defaultCollectionSize)
 	if err != nil {
 		return
 	}
@@ -1297,11 +1297,12 @@ func (d *database) Delete(c context.Context, id *url.URL) (err error) {
 func (d *database) getOutboxImpl(c context.Context, outboxIRI *url.URL, private bool) (outbox vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	start := collectionPageStartIndex(outboxIRI)
 	length := collectionPageLength(outboxIRI, d.defaultCollectionSize)
+	baseOutboxIRI := normalize(outboxIRI)
 	var r *sql.Rows
 	if private {
-		r, err = d.getOutbox.QueryContext(c, outboxIRI.String(), start, length)
+		r, err = d.getOutbox.QueryContext(c, baseOutboxIRI.String(), start, length)
 	} else {
-		r, err = d.getPublicOutbox.QueryContext(c, outboxIRI.String(), start, length)
+		r, err = d.getPublicOutbox.QueryContext(c, baseOutboxIRI.String(), start, length)
 	}
 	if err != nil {
 		return
@@ -1323,7 +1324,7 @@ func (d *database) getOutboxImpl(c context.Context, outboxIRI *url.URL, private 
 		return
 	}
 	var id *url.URL
-	id, err = collectionPageId(outboxIRI, start, length, d.defaultCollectionSize)
+	id, err = collectionPageId(baseOutboxIRI, start, length, d.defaultCollectionSize)
 	if err != nil {
 		return
 	}
@@ -1349,30 +1350,31 @@ func (d *database) SetOutbox(c context.Context, outbox vocab.ActivityStreamsOrde
 	}
 	start := collectionPageStartIndex(iri)
 	length := collectionPageLength(iri, d.defaultCollectionSize)
+	baseOutboxIRI := normalize(iri)
 	tx, err := d.db.BeginTx(c, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	r, err := tx.QueryContext(c, d.sqlgen.GetOutbox(), iri.String(), start, length)
+	r, err := tx.QueryContext(c, d.sqlgen.GetOutbox(), baseOutboxIRI.String(), start, length)
 	if err != nil {
 		return err
 	}
 	defer r.Close()
 	var fetched []struct {
-		id     int64
-		userId string
-		fedId  string
-		iri    string
+		id      int64
+		userId  string
+		localId string
+		iri     string
 	}
 	for r.Next() {
 		var elem struct {
-			id     int64
-			userId string
-			fedId  string
-			iri    string
+			id      int64
+			userId  string
+			localId string
+			iri     string
 		}
-		if err = r.Scan(&elem.id, &elem.userId, &elem.fedId, &elem.iri); err != nil {
+		if err = r.Scan(&elem.id, &elem.userId, &elem.localId, &elem.iri); err != nil {
 			return err
 		}
 		fetched = append(fetched, elem)
@@ -1407,7 +1409,7 @@ func (d *database) SetOutbox(c context.Context, outbox vocab.ActivityStreamsOrde
 			if err != nil {
 				return err
 			}
-			_, err = tx.ExecContext(c, d.sqlgen.SetOutboxInsert(), iri.String(), localIri)
+			_, err = tx.ExecContext(c, d.sqlgen.SetOutboxInsert(), baseOutboxIRI.String(), localIri)
 			if err != nil {
 				return err
 			}
