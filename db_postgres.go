@@ -101,6 +101,27 @@ func (p *pgV0) CreateTables(t *sql.Tx) (err error) {
 	if err != nil {
 		return
 	}
+	// OAuth information
+	err = p.maybeLogExecute(t, p.tokenTable())
+	if err != nil {
+		return
+	}
+	err = p.maybeLogExecute(t, p.clientTable())
+	if err != nil {
+		return
+	}
+	err = p.maybeLogExecute(t, p.indexTokenCode())
+	if err != nil {
+		return
+	}
+	err = p.maybeLogExecute(t, p.indexTokenAccess())
+	if err != nil {
+		return
+	}
+	err = p.maybeLogExecute(t, p.indexTokenRefresh())
+	if err != nil {
+		return
+	}
 
 	// Create indexes
 	err = p.maybeLogExecute(t, p.indexFedDataTable())
@@ -116,15 +137,6 @@ func (p *pgV0) CreateTables(t *sql.Tx) (err error) {
 		return
 	}
 
-	// OAuth token information
-	err = p.maybeLogExecute(t, p.tokenTable())
-	if err != nil {
-		return
-	}
-	err = p.maybeLogExecute(t, p.clientTable())
-	if err != nil {
-		return
-	}
 	return
 }
 
@@ -205,8 +217,6 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `users_inbox
   local_id uuid REFERENCES ` + p.schema + `local_data (id) NOT NULL ON DELETE CASCADE,
 );`
 }
-
-// TODO: Following and followers tables
 
 func (p *pgV0) userPrivilegesTable() string {
 	return `
@@ -333,7 +343,17 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `oauth_tokens
 );`
 }
 
-// TODO: Create indices on code, access, refresh
+func (p *pgV0) indexTokenCode() string {
+	return `CREATE INDEX IF NOT EXISTS oauth_tokens_code_index ON ` + p.schema + `oauth_tokens (code);`
+}
+
+func (p *pgV0) indexTokenAccess() string {
+	return `CREATE INDEX IF NOT EXISTS oauth_tokens_access_index ON ` + p.schema + `oauth_tokens (access);`
+}
+
+func (p *pgV0) indexTokenRefresh() string {
+	return `CREATE INDEX IF NOT EXISTS oauth_tokens_refresh_index ON ` + p.schema + `oauth_tokens (refresh);`
+}
 
 func (p *pgV0) clientTable() string {
 	return `
@@ -411,8 +431,10 @@ func (p *pgV0) GetUserPKey() string {
 }
 
 func (p *pgV0) FollowersByUserUUID() string {
-	// TODO
-	return ""
+	return `SELECT local_data.payload FROM ` + p.schema + `local_data
+INNER JOIN` + p.schema + `users
+ON users.actor->>'followers' = local_data.payload->>'id'
+WHERE users.id = $1`
 }
 
 func (p *pgV0) InsertAttempt() string {
@@ -700,16 +722,22 @@ func (p *pgV0) SetOutboxDelete() string {
 }
 
 func (p *pgV0) Followers() string {
-	// TODO
-	return ""
+	return `SELECT local_data.payload FROM ` + p.schema + `local_data
+INNER JOIN` + p.schema + `users
+ON users.actor->>'followers' = local_data.payload->>'id'
+WHERE users.actor->>'id' = $1`
 }
 
 func (p *pgV0) Following() string {
-	// TODO
-	return ""
+	return `SELECT local_data.payload FROM ` + p.schema + `local_data
+INNER JOIN` + p.schema + `users
+ON users.actor->>'following' = local_data.payload->>'id'
+WHERE users.actor->>'id' = $1`
 }
 
 func (p *pgV0) Liked() string {
-	// TODO
-	return ""
+	return `SELECT local_data.payload FROM ` + p.schema + `local_data
+INNER JOIN` + p.schema + `users
+ON users.actor->>'liked' = local_data.payload->>'id'
+WHERE users.actor->>'id' = $1`
 }
