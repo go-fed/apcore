@@ -17,20 +17,34 @@
 package apcore
 
 import (
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"os"
 )
 
+const (
+	minKeySize = 1024
+)
+
 func createRSAPrivateKey(n int) (k *rsa.PrivateKey, err error) {
-	if n < 1024 {
-		err = fmt.Errorf("Creating a key of size < 1024 is forbidden: %d", n)
+	if n < minKeySize {
+		err = fmt.Errorf("Creating a key of size < %d is forbidden: %d", minKeySize, n)
 		return
 	}
 	k, err = rsa.GenerateKey(rand.Reader, n)
 	return
+}
+
+func serializeRSAPrivateKey(k *rsa.PrivateKey) ([]byte, error) {
+	return x509.MarshalPKCS8PrivateKey(k)
+}
+
+func deserializeRSAPrivateKey(b []byte) (crypto.PrivateKey, error) {
+	return x509.ParsePKCS8PrivateKey(b)
 }
 
 func createKeyFile(file string) (err error) {

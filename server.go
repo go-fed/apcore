@@ -49,6 +49,12 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 		return
 	}
 
+	// Enforce server level configuration
+	if c.ServerConfig.RSAKeySize < minKeySize {
+		err = fmt.Errorf("RSA private key size is configured to be < %d, which is forbidden: %d", minKeySize, c.ServerConfig.RSAKeySize)
+		return
+	}
+
 	// Connect to database
 	var db *database
 	db, err = newDatabase(c, a, debug)

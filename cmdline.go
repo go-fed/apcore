@@ -242,6 +242,8 @@ tables, and then closing all connections.`))
 
 // The 'init-admin' command line action.
 func initAdminFn(a Application) error {
+	fmt.Println(clarkeSays(`
+Moo~, let's create an administrative account!`))
 	// TODO
 	return nil
 }

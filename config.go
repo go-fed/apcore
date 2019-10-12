@@ -19,6 +19,7 @@ package apcore
 import (
 	"fmt"
 
+	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/ini.v1"
 )
 
@@ -63,11 +64,17 @@ type serverConfig struct {
 	RedirectReadTimeoutSeconds  int    `ini:"sr_redirect_read_timeout_seconds" comment:"Timeout in seconds for incoming HTTP requests, which will be redirected to HTTPS; a zero or unset value does not timeout"`
 	RedirectWriteTimeoutSeconds int    `ini:"sr_redirect_write_timeout_seconds" comment:"Timeout in seconds for outgoing HTTP redirect-to-HTTPS responses; a zero or unset value does not timeout"`
 	StaticRootDirectory         string `ini:"sr_static_root_directory" comment:"(required) Root directory for serving static content, such as ECMAScript, CSS, favicon; !!!Warning: Everything in this directory will be served and accessible!!!"`
+	SaltSize                    int    `ini:"sr_salt_size" comment:"(default: 32) The size of salts to use with passwords when hashing, anything smaller than 16 will be treated as 16"`
+	BCryptStrength              int    `ini:"sr_bcrypt_strength" comment:"(default: 10) The hashing cost to use with the bcrypt hashing algorithm, between 4 and 31; the higher the cost, the slower the hash comparisons for passwords will take for attackers and regular users alike"`
+	RSAKeySize                  int    `ini:"sr_rsa_private_key_size" comment:"(default: 1024) The size of the RSA private key for a user; values less than 1024 are forbidden"`
 }
 
 func defaultServerConfig() serverConfig {
 	return serverConfig{
-		CookieMaxAge: 86400,
+		CookieMaxAge:   86400,
+		SaltSize:       32,
+		BCryptStrength: bcrypt.DefaultCost,
+		RSAKeySize:     1024,
 	}
 }
 

@@ -244,6 +244,8 @@ type Application interface {
 	// If zero, then there is no limit.
 	//
 	// Only called if S2SEnabled returned true at startup time.
+	//
+	// TODO: Make configuration option
 	MaxInboxForwardingRecursionDepth(c context.Context) int
 	// The maximum depth to search for peers to deliver due to inbox
 	// forwarding, which ensures messages received by this server are
@@ -252,6 +254,8 @@ type Application interface {
 	// If zero, then there is no limit.
 	//
 	// Only called if S2SEnabled returned true at startup time.
+	//
+	// TODO: Make configuration option
 	MaxDeliveryRecursionDepth(c context.Context) int
 
 	// CALLS MADE BOTH AT STARTUP AND SERVING TIME

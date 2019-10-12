@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto"
 	"crypto/rsa"
-	"crypto/x509"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -45,6 +44,13 @@ type database struct {
 	hostname string
 	// default size of fetching pages of inbox, outboxes, etc
 	defaultCollectionSize int
+	// size of salt
+	saltSize int
+	// default strength of bcrypt
+	bcryptStrength int
+	// size of RSA private keys
+	rsaKeySize int
+
 	// Prepared statements for apcore
 	hashPassForUserID    *sql.Stmt
 	userIdForEmail       *sql.Stmt
@@ -138,6 +144,9 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 		sqlgen:                sqlgen,
 		hostname:              c.ServerConfig.Host,
 		defaultCollectionSize: c.DatabaseConfig.DefaultCollectionPageSize,
+		saltSize:              c.ServerConfig.SaltSize,
+		bcryptStrength:        c.ServerConfig.BCryptStrength,
+		rsaKeySize:            c.ServerConfig.RSAKeySize,
 	}
 	return
 }
@@ -512,6 +521,95 @@ func (d *database) Valid(c context.Context, userId, pass string) (valid bool, er
 	return
 }
 
+func (d *database) CreateUser(c context.Context,
+	email string,
+	pass string) (userId string, err error) {
+	return d.createUser(c, email, pass, false, pub.OnFollowAutomaticallyAccept)
+}
+
+func (d *database) CreateAdminUser(c context.Context,
+	email string,
+	pass string) (userId string, err error) {
+	return d.createUser(c, email, pass, true, pub.OnFollowAutomaticallyAccept)
+}
+
+func (d *database) createUser(c context.Context,
+	email string,
+	pass string,
+	admin bool,
+	onFollow pub.OnFollowBehavior) (userId string, err error) {
+	// Prepare Salt & Hash Password
+	var salt []byte
+	salt, err = newSalt(d.saltSize)
+	if err != nil {
+		return
+	}
+	var hashpass []byte
+	hashpass, err = hashPasswordWithSalt(pass, salt, d.bcryptStrength)
+	if err != nil {
+		return
+	}
+	// Prepare PrivateKey
+	var k *rsa.PrivateKey
+	k, err = createRSAPrivateKey(d.rsaKeySize)
+	if err != nil {
+		return
+	}
+	var pkb []byte
+	pkb, err = serializeRSAPrivateKey(k)
+	if err != nil {
+		return
+	}
+	// Prepare preferences
+	onFol := toOnFollow(onFollow)
+
+	var tx *sql.Tx
+	tx, err = d.db.BeginTx(c, nil)
+	if err != nil {
+		return
+	}
+	defer tx.Rollback()
+	// Create ActivityStreams `actor`
+	// TODO: Implement. Also, username.
+	var actor string
+	// Insert into users table
+	_, err = tx.ExecContext(c, d.sqlgen.InsertUser(), email, hashpass, salt, actor)
+	if err != nil {
+		return
+	}
+	var r *sql.Rows
+	r, err = tx.QueryContext(c, d.sqlgen.UserIdForEmail(), email)
+	if err != nil {
+		return
+	}
+	// Note: Close r
+	userId, err = d.userIDFromEmailRows(r)
+	if err != nil {
+		r.Close()
+		return
+	}
+	r.Close()
+
+	// Insert into user_privileges table
+	_, err = tx.ExecContext(c, d.sqlgen.InsertUserPrivileges(), userId, admin)
+	if err != nil {
+		return
+	}
+	// Insert into user_preferences table
+	_, err = tx.ExecContext(c, d.sqlgen.InsertUserPreferences(), userId, onFol)
+	if err != nil {
+		return
+	}
+	// Insert into private_keys table
+	_, err = tx.ExecContext(c, d.sqlgen.InsertUserPKey(), userId, pkb)
+	if err != nil {
+		return
+	}
+
+	err = tx.Commit()
+	return
+}
+
 func (d *database) UserIDFromEmail(c context.Context, email string) (userId string, err error) {
 	var r *sql.Rows
 	r, err = d.userIdForEmail.QueryContext(c, email)
@@ -519,6 +617,11 @@ func (d *database) UserIDFromEmail(c context.Context, email string) (userId stri
 		return
 	}
 	defer r.Close()
+	userId, err = d.userIDFromEmailRows(r)
+	return
+}
+
+func (d *database) userIDFromEmailRows(r *sql.Rows) (userId string, err error) {
 	var n int
 	for r.Next() {
 		if n > 0 {
@@ -530,9 +633,7 @@ func (d *database) UserIDFromEmail(c context.Context, email string) (userId stri
 		}
 		n++
 	}
-	if err = r.Err(); err != nil {
-		return
-	}
+	err = r.Err()
 	return
 }
 
@@ -710,7 +811,7 @@ func (d *database) UserResolutions(c context.Context, userId string) (r []resolu
 
 func (d *database) InsertUserPKey(c context.Context, userUUID string, k *rsa.PrivateKey) (id int64, err error) {
 	var pKeyB []byte
-	pKeyB, err = x509.MarshalPKCS8PrivateKey(k)
+	pKeyB, err = serializeRSAPrivateKey(k)
 	if err != nil {
 		return
 	}
@@ -746,7 +847,7 @@ func (d *database) GetUserPKey(c context.Context, userUUID string) (kUUID string
 		return
 	}
 	var pk crypto.PrivateKey
-	pk, err = x509.ParsePKCS8PrivateKey(pKeyB)
+	pk, err = deserializeRSAPrivateKey(pKeyB)
 	var ok bool
 	k, ok = pk.(*rsa.PrivateKey)
 	if !ok {

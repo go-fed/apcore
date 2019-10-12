@@ -28,6 +28,19 @@ const (
 	onFollowManual       onFollow = "MANUAL"
 )
 
+func toOnFollow(p pub.OnFollowBehavior) onFollow {
+	switch p {
+	case pub.OnFollowAutomaticallyAccept:
+		return onFollowAlwaysAccept
+	case pub.OnFollowAutomaticallyReject:
+		return onFollowAlwaysReject
+	case pub.OnFollowDoNothing:
+		fallthrough
+	default:
+		return onFollowManual
+	}
+}
+
 type userPreferences struct {
 	onFollow onFollow
 }

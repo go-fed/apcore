@@ -222,7 +222,8 @@ func (p *pgV0) userPrivilegesTable() string {
 CREATE TABLE IF NOT EXISTS ` + p.schema + `user_privileges
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES ` + p.schema + `users (id) NOT NULL ON DELETE CASCADE
+  user_id uuid REFERENCES ` + p.schema + `users (id) NOT NULL ON DELETE CASCADE,
+  admin boolean NOT NULL
 );`
 }
 
@@ -739,4 +740,19 @@ func (p *pgV0) Liked() string {
 INNER JOIN` + p.schema + `users
 ON users.actor->>'liked' = local_data.payload->>'id'
 WHERE users.actor->>'id' = $1`
+}
+
+func (p *pgV0) InsertUser() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) InsertUserPrivileges() string {
+	// TODO
+	return ""
+}
+
+func (p *pgV0) InsertUserPreferences() string {
+	// TODO
+	return ""
 }
