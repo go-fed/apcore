@@ -207,7 +207,16 @@ func saveConfigFile(filename string, c *config, others ...interface{}) error {
 }
 
 func promptNewConfig(file string) (c *config, err error) {
-	// TODO: Something more welcoming at the beginning
+	fmt.Println(`Welcome to the configuration guided flow!
+
+Here we will visit common configuration choices. While not every option is asked
+in the guided flow, you can always open the resulting configuration file to
+change options. You can also change your answers to this flow. Note that in
+order to take advantage of changed configuration values, the application will
+need to be restarted.
+
+Let's go!
+`)
 
 	var s string
 	s, err = promptSelection(
@@ -307,7 +316,24 @@ func promptNewConfig(file string) (c *config, err error) {
 	c.ServerConfig.RedirectWriteTimeoutSeconds = c.ServerConfig.HttpsReadTimeoutSeconds
 
 	// Prompt for ActivityPubConfig
-	// TODO
+	c.ActivityPubConfig.ClockTimezone, err = promptStringWithDefault(
+		"Please enter an IANA Time Zone for the server, \"UTC\", or \"Local\"",
+		"UTC")
+	if err != nil {
+		return
+	}
+	c.ActivityPubConfig.OutboundRateLimitQPS, err = promptFloat64WithDefault(
+		"Please enter the steady-state rate limit for outbound ActivityPub QPS",
+		10)
+	if err != nil {
+		return
+	}
+	c.ActivityPubConfig.OutboundRateLimitBurst, err = promptIntWithDefault(
+		"Please enter the burst limit for outbound ActivityPub QPS",
+		50)
+	if err != nil {
+		return
+	}
 
 	// Prompt for DatabaseConfig
 	c.DatabaseConfig.ConnMaxLifetimeSeconds, err = promptIntWithDefault(

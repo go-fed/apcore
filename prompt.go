@@ -147,8 +147,40 @@ func promptIntWithDefault(display string, def int) (v int, err error) {
 	}
 	var s string
 	s, err = p.Run()
+	if err != nil {
+		return
+	}
 	var i int64
 	i, err = strconv.ParseInt(s, 10, 32)
 	v = int(i)
+	return
+}
+
+func promptFloat64WithDefault(display string, def int) (v float64, err error) {
+	p := promptui.Prompt{
+		Label:     display,
+		Default:   fmt.Sprintf("%d", def),
+		AllowEdit: false,
+		Validate: func(input string) error {
+			_, err := strconv.ParseFloat(input, 64)
+			if err != nil {
+				return fmt.Errorf("Invalid number")
+			}
+			return nil
+		},
+		Templates: &promptui.PromptTemplates{
+			Prompt:          fmt.Sprintf(`{{ "%s" | bold }} {{ . | bold }}{{ ":" | bold}}`, promptui.IconInitial),
+			Valid:           fmt.Sprintf(`{{ "%s" | bold }} {{ . | bold }}{{ ":" | bold}}`, promptui.IconGood),
+			Invalid:         fmt.Sprintf(`{{ "%s" | bold }} {{ . | bold }}{{ ":" | bold}}`, promptui.IconBad),
+			ValidationError: fmt.Sprintf(`{{ ">>" | red }} {{ . | red }}{{ ":" | bold}}`),
+			Success:         fmt.Sprintf(`{{ "%s" | bold }} {{ . | faint }}{{ ":" | bold}}`, promptui.IconGood),
+		},
+	}
+	var s string
+	s, err = p.Run()
+	if err != nil {
+		return
+	}
+	v, err = strconv.ParseFloat(s, 64)
 	return
 }
