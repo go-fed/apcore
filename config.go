@@ -207,7 +207,8 @@ func saveConfigFile(filename string, c *config, others ...interface{}) error {
 }
 
 func promptNewConfig(file string) (c *config, err error) {
-	fmt.Println(`Welcome to the configuration guided flow!
+	fmt.Println(clarkeSays(fmt.Sprintf(`
+Welcome to the configuration guided flow!
 
 Here we will visit common configuration choices. While not every option is asked
 in the guided flow, you can always open the resulting configuration file to
@@ -215,8 +216,7 @@ change options. You can also change your answers to this flow. Note that in
 order to take advantage of changed configuration values, the application will
 need to be restarted.
 
-Let's go!
-`)
+Let's go!`)))
 
 	var s string
 	s, err = promptSelection(

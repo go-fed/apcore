@@ -21,7 +21,6 @@ import (
 	"fmt"
 )
 
-var _ sqlManager = &pgV0{}
 var _ sqlGenerator = &pgV0{}
 
 type pgV0 struct {

@@ -142,6 +142,34 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 	return
 }
 
+func (d *database) OpenCreateTablesClose() (err error) {
+	InfoLogger.Infof("Opening connections to database by pinging to force-check an initial connection...")
+	start := time.Now()
+	err = d.db.Ping()
+	if err != nil {
+		ErrorLogger.Errorf("Unsuccessfully pinged database: %s", err)
+		return
+	}
+	end := time.Now()
+	InfoLogger.Infof("Successfully pinged database with latency: %s", end.Sub(start))
+
+	var tx *sql.Tx
+	tx, err = d.db.BeginTx(context.Background(), nil)
+	if err != nil {
+		return
+	}
+	defer tx.Rollback()
+	err = d.sqlgen.CreateTables(tx)
+	if err != nil {
+		return
+	}
+	err = tx.Commit()
+	if err != nil {
+		return
+	}
+	return d.db.Close()
+}
+
 func (d *database) Open() (err error) {
 	InfoLogger.Infof("Opening connections to database by pinging to force-check an initial connection...")
 	start := time.Now()

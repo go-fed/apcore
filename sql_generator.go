@@ -20,17 +20,12 @@ import (
 	"database/sql"
 )
 
-// sqlManager implements the necessary table definitions needed for its
-// sqlGenerator.
-type sqlManager interface {
-	CreateTables(t *sql.Tx) (err error)
-	UpgradeTables(t *sql.Tx) (err error)
-}
-
 // sqlGenerator is a SQL dialect provider.
 //
 // Note that the order for inputs and outputs listed matter.
 type sqlGenerator interface {
+	CreateTables(t *sql.Tx) (err error)
+	UpgradeTables(t *sql.Tx) (err error)
 	// HashPassForUserId fetches the salt+hash for a user
 	// Input:
 	//   userId (string)

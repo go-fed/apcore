@@ -221,7 +221,22 @@ Moo~! That was the "init-admin" action. We are done, but before you run the
 
 // The 'init-db' command line action.
 func initDbFn(a Application) error {
-	// TODO
+	fmt.Println(clarkeSays(`
+We're connecting to the database using the specs in the config file, creating
+tables, and then closing all connections.`))
+	c, err := loadConfigFile(*configFlag, a, *debugFlag)
+	if err != nil {
+		return err
+	}
+	db, err := newDatabase(c, a, *debugFlag)
+	if err != nil {
+		return err
+	}
+	err = db.OpenCreateTablesClose()
+	if err != nil {
+		return err
+	}
+	fmt.Println(clarkeSays(`Database initialization udderly complete!`))
 	return nil
 }
 
