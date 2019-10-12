@@ -18,31 +18,19 @@ package apcore
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/go-fed/activity/pub"
 )
 
-func newActor(c *config,
-	a Application,
+func newActor(a Application,
+	clock *clock,
 	p *paths,
 	db *database,
+	apdb *apdb,
 	o *oAuth2Server,
-	client *http.Client) (actor pub.Actor, apdb *apdb, clock *clock, err error) {
-	clock, err = newClock(c.ActivityPubConfig.ClockTimezone)
-	if err != nil {
-		return
-	}
-
-	var tc *transportController
-	tc, err = newTransportController(c, a, clock, client, db)
-	if err != nil {
-		return
-	}
+	tc *transportController) (actor pub.Actor, err error) {
 
 	common := newCommonBehavior(a, p, db, tc, o)
-	apdb = newApdb(db, a)
-
 	if cs, ss := a.C2SEnabled(), a.S2SEnabled(); !cs && !ss {
 		err = fmt.Errorf("neither C2S nor S2S are enabled by the Application")
 	} else if cs && ss {

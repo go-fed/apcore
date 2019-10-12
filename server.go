@@ -77,10 +77,23 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 	p := newPaths("https", c.ServerConfig.Host)
 
 	// Initialize the ActivityPub portion of the server
-	var actor pub.Actor
-	var apdb *apdb
 	var clock *clock
-	actor, apdb, clock, err = newActor(c, a, p, db, oa, httpClient)
+	clock, err = newClock(c.ActivityPubConfig.ClockTimezone)
+	if err != nil {
+		return
+	}
+
+	var apdb *apdb
+	apdb = newApdb(db, a)
+
+	var tc *transportController
+	tc, err = newTransportController(c, a, clock, httpClient, db)
+	if err != nil {
+		return
+	}
+
+	var actor pub.Actor
+	actor, err = newActor(a, clock, p, db, apdb, oa, tc)
 	if err != nil {
 		return
 	}
