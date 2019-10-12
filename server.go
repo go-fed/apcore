@@ -79,14 +79,15 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 	// Initialize the ActivityPub portion of the server
 	var actor pub.Actor
 	var apdb *apdb
-	actor, apdb, err = newActor(c, a, p, db, oa, httpClient)
+	var clock *clock
+	actor, apdb, clock, err = newActor(c, a, p, db, oa, httpClient)
 	if err != nil {
 		return
 	}
 
 	// Build application routes
 	var h *handler
-	h, err = newHandler(c, a, actor, apdb, debug)
+	h, err = newHandler(c, a, actor, apdb, oa, clock, debug)
 	if err != nil {
 		return
 	}

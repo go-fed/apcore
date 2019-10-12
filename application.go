@@ -117,12 +117,15 @@ type Application interface {
 	// data directly, allowing clients to create the custom Fediverse
 	// behavior their application desires.
 	//
+	// The Framework provided allows handlers to use common behaviors
+	// provided by the apcore server framework.
+	//
 	// The bulk of typical HTTP application logic is in the handlers created
 	// by the Router. The apcore.Router also supports creating routes that
 	// process and serve ActivityStreams data, but the processing of the
 	// ActivityPub data itself is handled elsewhere in
 	// ApplyFederatingCallbacks and/or ApplySocialCallbacks.
-	BuildRoutes(r *Router, db Database) error
+	BuildRoutes(r *Router, db Database, f Framework) error
 
 	// CALLS MADE AT SERVING TIME
 	//

@@ -30,7 +30,7 @@ type handler struct {
 	router *mux.Router
 }
 
-func newHandler(c *config, a Application, actor pub.Actor, db *apdb, debug bool) (h *handler, err error) {
+func newHandler(c *config, a Application, actor pub.Actor, db *apdb, oauth *oAuth2Server, clock pub.Clock, debug bool) (h *handler, err error) {
 	r := mux.NewRouter()
 	r.NotFoundHandler = a.NotFoundHandler()
 	r.MethodNotAllowedHandler = a.MethodNotAllowedHandler()
@@ -51,14 +51,16 @@ func newHandler(c *config, a Application, actor pub.Actor, db *apdb, debug bool)
 	// TODO: Actor routes (public key id)
 
 	// Application-specific routes
-	err = a.BuildRoutes(&Router{
-		router:            r,
-		db:                db,
-		actor:             actor,
-		host:              c.ServerConfig.Host,
-		errorHandler:      a.InternalServerErrorHandler(),
-		badRequestHandler: a.BadRequestHandler(),
-	}, db)
+	err = a.BuildRoutes(newRouter(
+		r,
+		db,
+		oauth,
+		actor,
+		clock,
+		c.ServerConfig.Host,
+		a.InternalServerErrorHandler(),
+		a.BadRequestHandler(),
+	), db, newFramework(oauth))
 	if err != nil {
 		return
 	}

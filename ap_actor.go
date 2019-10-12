@@ -28,8 +28,7 @@ func newActor(c *config,
 	p *paths,
 	db *database,
 	o *oAuth2Server,
-	client *http.Client) (actor pub.Actor, apdb *apdb, err error) {
-	var clock *clock
+	client *http.Client) (actor pub.Actor, apdb *apdb, clock *clock, err error) {
 	clock, err = newClock(c.ActivityPubConfig.ClockTimezone)
 	if err != nil {
 		return

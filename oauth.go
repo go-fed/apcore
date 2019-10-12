@@ -148,7 +148,6 @@ func newOAuth2Server(c *config, d *database, k *sessions) (s *oAuth2Server, err 
 	return
 }
 
-// TODO: Call/expose this handler
 func (o *oAuth2Server) HandleAuthorizationRequest(w http.ResponseWriter, r *http.Request) {
 	if err := o.s.HandleAuthorizeRequest(w, r); err != nil {
 		// oauth2 library would already have written headers by now.
@@ -156,7 +155,6 @@ func (o *oAuth2Server) HandleAuthorizationRequest(w http.ResponseWriter, r *http
 	}
 }
 
-// TODO: Call/expose this handler
 func (o *oAuth2Server) HandleAccessTokenRequest(w http.ResponseWriter, r *http.Request) {
 	if err := o.s.HandleTokenRequest(w, r); err != nil {
 		// oauth2 library would already have written headers by now.
@@ -164,7 +162,6 @@ func (o *oAuth2Server) HandleAccessTokenRequest(w http.ResponseWriter, r *http.R
 	}
 }
 
-// TODO: Call/expose this handler
 func (o *oAuth2Server) ValidateOAuth2AccessToken(w http.ResponseWriter, r *http.Request) (token oauth2.TokenInfo, authenticated bool, err error) {
 	token, err = o.s.ValidationBearerToken(r)
 	authenticated = err == nil

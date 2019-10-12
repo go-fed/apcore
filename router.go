@@ -26,6 +26,7 @@ import (
 type Router struct {
 	router            *mux.Router
 	db                *apdb
+	oauth             *oAuth2Server
 	actor             pub.Actor
 	clock             pub.Clock
 	host              string
@@ -33,10 +34,31 @@ type Router struct {
 	badRequestHandler http.Handler
 }
 
+func newRouter(router *mux.Router,
+	db *apdb,
+	oauth *oAuth2Server,
+	actor pub.Actor,
+	clock pub.Clock,
+	host string,
+	errorHandler http.Handler,
+	badRequestHandler http.Handler) *Router {
+	return &Router{
+		router:            router,
+		db:                db,
+		oauth:             oauth,
+		actor:             actor,
+		clock:             clock,
+		host:              host,
+		errorHandler:      errorHandler,
+		badRequestHandler: badRequestHandler,
+	}
+}
+
 func (r *Router) wrap(route *mux.Route) *Route {
 	return &Route{
 		route:             route,
 		db:                r.db,
+		oauth:             r.oauth,
 		actor:             r.actor,
 		clock:             r.clock,
 		host:              r.host,
@@ -68,6 +90,14 @@ func (r *Router) ActivityPubOnlyHandleFunc(path string, authFn pub.AuthenticateF
 
 func (r *Router) ActivityPubAndWebHandleFunc(path string, authFn pub.AuthenticateFunc, f func(http.ResponseWriter, *http.Request)) *Route {
 	return r.wrap(r.router.NewRoute()).ActivityPubAndWebHandleFunc(path, authFn, f)
+}
+
+func (r *Router) HandleAuthorizationRequest(path string) *Route {
+	return r.wrap(r.router.NewRoute()).HandleAuthorizationRequest(path)
+}
+
+func (r *Router) HandleAccessTokenRequest(path string) *Route {
+	return r.wrap(r.router.NewRoute()).HandleAccessTokenRequest(path)
 }
 
 func (r *Router) Get(name string) *Route {
@@ -129,6 +159,7 @@ func (r *Router) Walk(walkFn mux.WalkFunc) error {
 type Route struct {
 	route             *mux.Route
 	db                *apdb
+	oauth             *oAuth2Server
 	actor             pub.Actor
 	clock             pub.Clock
 	host              string
@@ -264,6 +295,16 @@ func (r *Route) ActivityPubAndWebHandleFunc(path string, authFn pub.Authenticate
 			}
 			return
 		})
+	return r
+}
+
+func (r *Route) HandleAuthorizationRequest(path string) *Route {
+	r.route = r.route.Path(path).HandlerFunc(r.oauth.HandleAuthorizationRequest)
+	return r
+}
+
+func (r *Route) HandleAccessTokenRequest(path string) *Route {
+	r.route = r.route.Path(path).HandlerFunc(r.oauth.HandleAccessTokenRequest)
 	return r
 }
 
