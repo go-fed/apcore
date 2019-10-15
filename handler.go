@@ -18,9 +18,11 @@ package apcore
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"strings"
 	"time"
 
 	"github.com/go-fed/activity/pub"
@@ -60,7 +62,9 @@ func newHandler(scheme string, c *config, a Application, actor pub.Actor, db *ap
 	// Host-meta
 	r.WebOnlyHandleFunc("/.well-known/host-meta", hostMetaHandler(scheme, c.ServerConfig.Host))
 
-	// TODO: Webfinger
+	// Webfinger
+	r.WebOnlyHandleFunc("/.well-known/webfinger", webfingerHandler(scheme, c.ServerConfig.Host, a.BadRequestHandler(), a.InternalServerErrorHandler()))
+
 	// TODO: Node-info
 	// TODO: Actor routes (public key id)
 
@@ -158,6 +162,41 @@ func hostMetaHandler(scheme, host string) func(w http.ResponseWriter, r *http.Re
 			ErrorLogger.Errorf("error writing host-meta response:", err)
 		} else if n != len(hm) {
 			ErrorLogger.Errorf("error writing host-meta response: wrote %d of %d bytes", n, len(hm))
+		}
+	}
+}
+
+func webfingerHandler(scheme, host string, badRequestHandler, internalErrorHandler http.Handler) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vals := r.URL.Query()
+		userAccts := strings.Split(
+			strings.TrimPrefix(vals.Get("resource"), "acct:"),
+			"@")
+		if len(userAccts) != 2 {
+			ErrorLogger.Errorf("error serving webfinger: bad resource: %s", vals.Get("resource"))
+			badRequestHandler.ServeHTTP(w, r)
+			return
+		}
+		username := userAccts[0]
+		wf, err := toWebfinger(scheme, host, username, knownUserPathFor(userPathKey, username))
+		if err != nil {
+			ErrorLogger.Errorf("error serving webfinger: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		b, err := json.Marshal(wf)
+		if err != nil {
+			ErrorLogger.Errorf("error serving webfinger while marshalling: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/jrd+json")
+		w.WriteHeader(http.StatusOK)
+		n, err := w.Write(b)
+		if err != nil {
+			ErrorLogger.Errorf("error writing webfinger response:", err)
+		} else if n != len(b) {
+			ErrorLogger.Errorf("error writing webfinger response: wrote %d of %d bytes", n, len(b))
 		}
 	}
 }
