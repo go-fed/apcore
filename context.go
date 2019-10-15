@@ -39,7 +39,25 @@ type ctx struct {
 	context.Context
 }
 
-func newRequestContext(scheme, host string, r *http.Request, db *apdb) (c ctx, err error) {
+func newRequestContext(scheme, host string, r *http.Request, db *apdb, nameFromPathFn func(string) string) (c ctx, err error) {
+	pc := &ctx{r.Context()}
+	username := nameFromPathFn(r.URL.Path)
+	var userId string
+	if userId, err = db.UserIdForUsername(c.Context, username); err != nil {
+		return
+	}
+	pc.withTargetUserUUID(userId)
+	var u userPreferences
+	if u, err = db.UserPreferences(c.Context, userId); err != nil {
+		return
+	}
+	pc.withUserPreferences(u)
+	pc.withCompleteRequestURL(r, scheme, host)
+	c = *pc
+	return
+}
+
+func newRequestContextForBox(scheme, host string, r *http.Request, db *apdb) (c ctx, err error) {
 	pc := &ctx{r.Context()}
 	var userId string
 	if userId, err = db.UserIdForBoxPath(c.Context, r.URL.Path); err != nil {

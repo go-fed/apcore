@@ -180,6 +180,7 @@ func (p *pgV0) indexLocalDataTable() string {
 	return `CREATE INDEX IF NOT EXISTS local_data_jsonb_index ON ` + p.schema + `local_data USING GIN (payload);`
 }
 
+// TODO: Add constraint on "preferredUsername"
 func (p *pgV0) usersTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `users
@@ -376,6 +377,10 @@ func (p *pgV0) UserIdForEmail() string {
 
 func (p *pgV0) UserIdForBoxPath() string {
 	return "SELECT id FROM " + p.schema + "users WHERE (actor->>'inbox' = $1 OR actor->>'outbox' = $2)"
+}
+
+func (p *pgV0) UserIdForUsername() string {
+	return "SELECT id FROM " + p.schema + "users WHERE actor->>'preferredUsername' = $1"
 }
 
 func (p *pgV0) UserPreferences() string {

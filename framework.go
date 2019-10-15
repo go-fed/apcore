@@ -17,6 +17,7 @@
 package apcore
 
 import (
+	"context"
 	"net/http"
 
 	"gopkg.in/oauth2.v3"
@@ -42,15 +43,25 @@ type Framework interface {
 var _ Framework = &framework{}
 
 type framework struct {
-	o *oAuth2Server
+	scheme string
+	host   string
+	o      *oAuth2Server
+	db     *apdb
 }
 
-func newFramework(o *oAuth2Server) *framework {
+func newFramework(scheme string, host string, o *oAuth2Server, db *apdb) *framework {
 	return &framework{
-		o: o,
+		scheme: scheme,
+		host:   host,
+		o:      o,
+		db:     db,
 	}
 }
 
 func (f *framework) ValidateOAuth2AccessToken(w http.ResponseWriter, r *http.Request) (token oauth2.TokenInfo, authenticated bool, err error) {
 	return f.o.ValidateOAuth2AccessToken(w, r)
+}
+
+func (f *framework) NewRequestContext(r *http.Request, nameFromPathFn func(string) string) (context.Context, error) {
+	return newRequestContext(f.scheme, f.host, r, f.db, nameFromPathFn)
 }

@@ -42,6 +42,7 @@ type server struct {
 }
 
 func newServer(configFileName string, a Application, debug bool) (s *server, err error) {
+	// TODO: Pass in the scheme (https), have other code handle debug mode as well
 	// Load the configuration
 	var c *config
 	c, err = loadConfigFile(configFileName, a, debug)
@@ -106,7 +107,7 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 
 	// Build application routes
 	var h *handler
-	h, err = newHandler(c, a, actor, apdb, oa, clock, debug)
+	h, err = newHandler("https", c, a, actor, apdb, oa, clock, debug)
 	if err != nil {
 		return
 	}

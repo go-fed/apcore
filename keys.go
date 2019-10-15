@@ -21,6 +21,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -37,6 +38,18 @@ func createRSAPrivateKey(n int) (k *rsa.PrivateKey, err error) {
 	}
 	k, err = rsa.GenerateKey(rand.Reader, n)
 	return
+}
+
+func marshalPublicKey(p crypto.PublicKey) (string, error) {
+	pkix, err := x509.MarshalPKIXPublicKey(p)
+	if err != nil {
+		return "", err
+	}
+	pb := pem.EncodeToMemory(&pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: pkix,
+	})
+	return string(pb), nil
 }
 
 func serializeRSAPrivateKey(k *rsa.PrivateKey) ([]byte, error) {

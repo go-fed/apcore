@@ -18,6 +18,7 @@ package apcore
 
 import (
 	"net/url"
+	"strings"
 )
 
 func normalize(i *url.URL) *url.URL {
@@ -33,4 +34,39 @@ func normalizeAsIRI(s string) (*url.URL, error) {
 		return nil, err
 	}
 	return normalize(c), nil
+}
+
+type pathKey string
+
+const (
+	userPathKey      pathKey = "users"
+	inboxPathKey             = "inbox"
+	outboxPathKey            = "outbox"
+	followersPathKey         = "followers"
+	followingPathKey         = "following"
+	likedPathKey             = "liked"
+	pubKeyKey                = "pubKey"
+)
+
+var knownUserPaths map[pathKey]string = map[pathKey]string{
+	userPathKey:      "/users/{user}",
+	inboxPathKey:     "/users/{user}/inbox",
+	outboxPathKey:    "/users/{user}/outbox",
+	followersPathKey: "/users/{user}/followers",
+	followingPathKey: "/users/{user}/following",
+	likedPathKey:     "/users/{user}/liked",
+	pubKeyKey:        "/users/{user}/publicKeys/1",
+}
+
+func knownUserPathFor(k pathKey, username string) string {
+	return strings.ReplaceAll(knownUserPaths[k], "{user}", username)
+}
+
+func knownUserIRIFor(scheme string, host string, k pathKey, username string) *url.URL {
+	u := &url.URL{
+		Scheme: scheme,
+		Host:   host,
+		Path:   knownUserPathFor(k, username),
+	}
+	return u
 }

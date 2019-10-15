@@ -39,6 +39,7 @@ var _ Database = &database{}
 
 type database struct {
 	db     *sql.DB
+	app    Application
 	sqlgen sqlGenerator
 	// url.URL.Host name for this server
 	hostname string
@@ -55,6 +56,7 @@ type database struct {
 	hashPassForUserID    *sql.Stmt
 	userIdForEmail       *sql.Stmt
 	userIdForBoxPath     *sql.Stmt
+	userIdForUsername    *sql.Stmt
 	userPreferences      *sql.Stmt
 	insertUserPolicy     *sql.Stmt
 	insertInstancePolicy *sql.Stmt
@@ -141,6 +143,7 @@ func newDatabase(c *config, a Application, debug bool) (db *database, err error)
 
 	db = &database{
 		db:                    sqldb,
+		app:                   a,
 		sqlgen:                sqlgen,
 		hostname:              c.ServerConfig.Host,
 		defaultCollectionSize: c.DatabaseConfig.DefaultCollectionPageSize,
@@ -202,6 +205,10 @@ func (d *database) Open() (err error) {
 		return
 	}
 	d.userIdForBoxPath, err = d.db.Prepare(d.sqlgen.UserIdForBoxPath())
+	if err != nil {
+		return
+	}
+	d.userIdForUsername, err = d.db.Prepare(d.sqlgen.UserIdForUsername())
 	if err != nil {
 		return
 	}
@@ -443,6 +450,7 @@ func (d *database) Close() error {
 	d.hashPassForUserID.Close()
 	d.userIdForEmail.Close()
 	d.userIdForBoxPath.Close()
+	d.userIdForUsername.Close()
 	d.userPreferences.Close()
 	d.insertUserPolicy.Close()
 	d.insertInstancePolicy.Close()
@@ -522,20 +530,17 @@ func (d *database) Valid(c context.Context, userId, pass string) (valid bool, er
 }
 
 func (d *database) CreateUser(c context.Context,
-	email string,
-	pass string) (userId string, err error) {
-	return d.createUser(c, email, pass, false, pub.OnFollowAutomaticallyAccept)
+	scheme, host, username, preferredUsername, summary, email, pass string) (userId string, err error) {
+	return d.createUser(c, scheme, host, username, preferredUsername, summary, email, pass, false, pub.OnFollowAutomaticallyAccept)
 }
 
 func (d *database) CreateAdminUser(c context.Context,
-	email string,
-	pass string) (userId string, err error) {
-	return d.createUser(c, email, pass, true, pub.OnFollowAutomaticallyAccept)
+	scheme, host, username, preferredUsername, summary, email, pass string) (userId string, err error) {
+	return d.createUser(c, scheme, host, username, preferredUsername, summary, email, pass, true, pub.OnFollowAutomaticallyAccept)
 }
 
 func (d *database) createUser(c context.Context,
-	email string,
-	pass string,
+	scheme, host, username, preferredUsername, summary, email, pass string,
 	admin bool,
 	onFollow pub.OnFollowBehavior) (userId string, err error) {
 	// Prepare Salt & Hash Password
@@ -570,10 +575,23 @@ func (d *database) createUser(c context.Context,
 	}
 	defer tx.Rollback()
 	// Create ActivityStreams `actor`
-	// TODO: Implement. Also, username.
-	var actor string
+	var actor vocab.ActivityStreamsPerson
+	actor, err = toPersonActor(d.app, scheme, host, username, preferredUsername, summary, k.PublicKey)
+	if err != nil {
+		return
+	}
+	var m map[string]interface{}
+	m, err = streams.Serialize(actor)
+	if err != nil {
+		return
+	}
+	var actorB []byte
+	actorB, err = json.Marshal(m)
+	if err != nil {
+		return
+	}
 	// Insert into users table
-	_, err = tx.ExecContext(c, d.sqlgen.InsertUser(), email, hashpass, salt, actor)
+	_, err = tx.ExecContext(c, d.sqlgen.InsertUser(), email, hashpass, salt, actorB)
 	if err != nil {
 		return
 	}
@@ -641,6 +659,30 @@ func (d *database) UserIdForBoxPath(c context.Context, boxPath string) (userId s
 	var r *sql.Rows
 	nBoxPath, err := normalizeAsIRI(boxPath)
 	r, err = d.userIdForBoxPath.QueryContext(c, nBoxPath.String())
+	if err != nil {
+		return
+	}
+	defer r.Close()
+	var n int
+	for r.Next() {
+		if n > 0 {
+			err = fmt.Errorf("multiple rows when obtaining user id for box path")
+			return
+		}
+		if err = r.Scan(&userId); err != nil {
+			return
+		}
+		n++
+	}
+	if err = r.Err(); err != nil {
+		return
+	}
+	return
+}
+
+func (d *database) UserIdForUsername(c context.Context, preferredUsername string) (userId string, err error) {
+	var r *sql.Rows
+	r, err = d.userIdForBoxPath.QueryContext(c, preferredUsername)
 	if err != nil {
 		return
 	}

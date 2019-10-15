@@ -17,6 +17,7 @@
 package apcore
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
@@ -27,13 +28,13 @@ import (
 )
 
 type handler struct {
-	router *mux.Router
+	router *Router
 }
 
-func newHandler(c *config, a Application, actor pub.Actor, db *apdb, oauth *oAuth2Server, clock pub.Clock, debug bool) (h *handler, err error) {
-	r := mux.NewRouter()
-	r.NotFoundHandler = a.NotFoundHandler()
-	r.MethodNotAllowedHandler = a.MethodNotAllowedHandler()
+func newHandler(scheme string, c *config, a Application, actor pub.Actor, db *apdb, oauth *oAuth2Server, clock pub.Clock, debug bool) (h *handler, err error) {
+	mr := mux.NewRouter()
+	mr.NotFoundHandler = a.NotFoundHandler()
+	mr.MethodNotAllowedHandler = a.MethodNotAllowedHandler()
 
 	// Static assets
 	if sd := c.ServerConfig.StaticRootDirectory; len(sd) == 0 {
@@ -42,7 +43,7 @@ func newHandler(c *config, a Application, actor pub.Actor, db *apdb, oauth *oAut
 	} else {
 		InfoLogger.Infof("Serving static directory: %s", sd)
 		fs := http.FileServer(http.Dir(sd))
-		r.PathPrefix("/").Handler(fs)
+		mr.PathPrefix("/").Handler(fs)
 	}
 
 	// TODO: Webfinger
@@ -50,17 +51,56 @@ func newHandler(c *config, a Application, actor pub.Actor, db *apdb, oauth *oAut
 	// TODO: Host-meta
 	// TODO: Actor routes (public key id)
 
-	// Application-specific routes
-	err = a.BuildRoutes(newRouter(
-		r,
+	// Dynamic routes
+	r := newRouter(
+		mr,
 		db,
 		oauth,
 		actor,
 		clock,
 		c.ServerConfig.Host,
 		a.InternalServerErrorHandler(),
-		a.BadRequestHandler(),
-	), db, newFramework(oauth))
+		a.BadRequestHandler())
+
+	// Built-in routes for users, default supported:
+	// - PostInbox
+	// - PostOutbox
+	// - GetInbox
+	// - GetOutbox
+	// - Followers
+	// - Following
+	// - Liked
+	if a.S2SEnabled() {
+		r.ActorPostInbox(knownUserPaths[inboxPathKey], "https")
+		r.ActorGetInbox(knownUserPaths[inboxPathKey], "https", a.GetInboxHandler().ServeHTTP)
+	}
+	r.ActorGetOutbox(knownUserPaths[outboxPathKey], "https", a.GetOutboxHandler().ServeHTTP)
+	if a.C2SEnabled() {
+		r.ActorPostOutbox(knownUserPaths[outboxPathKey], "https")
+	}
+	authFn := func(c context.Context, w http.ResponseWriter, r *http.Request) (shouldReturn bool, err error) {
+		token, authenticated, err := oauth.ValidateOAuth2AccessToken(w, r)
+		if err != nil {
+			return
+		}
+		shouldReturn = !authenticated
+		if !authenticated {
+			return
+		}
+		ctx := &ctx{c}
+		userId, err := ctx.TargetUserUUID()
+		if err != nil {
+			return
+		}
+		shouldReturn = token.GetUserID() != userId
+		return
+	}
+	r.ActivityPubOnlyHandleFunc(knownUserPaths[followersPathKey], scheme, authFn, a.UsernameFromPath)
+	r.ActivityPubOnlyHandleFunc(knownUserPaths[followingPathKey], scheme, authFn, a.UsernameFromPath)
+	r.ActivityPubOnlyHandleFunc(knownUserPaths[likedPathKey], scheme, authFn, a.UsernameFromPath)
+
+	// Application-specific routes
+	err = a.BuildRoutes(r, db, newFramework(scheme, c.ServerConfig.Host, oauth, db))
 	if err != nil {
 		return
 	}
@@ -79,7 +119,7 @@ func newHandler(c *config, a Application, actor pub.Actor, db *apdb, oauth *oAut
 }
 
 func (h handler) Handler() http.Handler {
-	return h.router
+	return h.router.router
 }
 
 func requestLogger(next http.Handler) http.Handler {

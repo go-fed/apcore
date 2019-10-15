@@ -110,6 +110,20 @@ type Application interface {
 	InternalServerErrorHandler() http.Handler
 	// The handler for a bad request.
 	BadRequestHandler() http.Handler
+	// Web handler for a call to GET an actor's inbox. The application must
+	// apply the appropriate authorizations.
+	//
+	// The builtin ActivityPub handler will use the OAuth authorization.
+	//
+	// Only called if S2SEnabled is true.
+	GetInboxHandler() http.Handler
+	// Web handler for a call to GET an actor's outbox. The application must
+	// apply the appropriate authorizations.
+	//
+	// The builtin ActivityPub handler will use the OAuth authorization.
+	//
+	// Always called regardless whether C2SEnabled or C2SEnabled is true.
+	GetOutboxHandler() http.Handler
 
 	// Builds the HTTP and ActivityPub routes specific for this application.
 	//
@@ -257,6 +271,9 @@ type Application interface {
 	//
 	// TODO: Make configuration option
 	MaxDeliveryRecursionDepth(c context.Context) int
+	// UsernameFromPath accepts a url path and parses it to obtain a
+	// username.
+	UsernameFromPath(string) string
 
 	// CALLS MADE BOTH AT STARTUP AND SERVING TIME
 	//

@@ -35,6 +35,7 @@ type sqlGenerator interface {
 	HashPassForUserID() string
 	UserIdForEmail() string
 	UserIdForBoxPath() string
+	UserIdForUsername() string
 	InsertUser() string
 	InsertUserPrivileges() string
 	UserPreferences() string
