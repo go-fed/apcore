@@ -18,6 +18,7 @@ package apcore
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -169,7 +170,7 @@ func allActionsUsage() string {
 
 // The 'serve' command line action.
 func serveFn(a Application) error {
-	s, err := newServer(*configFlag, a, *debugFlag)
+	s, err := newServer(*configFlag, a, *debugFlag, schemeFromFlags())
 	if err != nil {
 		return err
 	}
@@ -242,9 +243,43 @@ tables, and then closing all connections.`))
 
 // The 'init-admin' command line action.
 func initAdminFn(a Application) error {
-	fmt.Println(clarkeSays(`
-Moo~, let's create an administrative account!`))
-	// TODO
+	msg := `Moo~, let's create an administrative account!`
+	if *debugFlag {
+		msg += "\nWARNING: Creating a user in debug mode will NOT work in production and MUST ONLY be used for development"
+	}
+	fmt.Println(clarkeSays(msg))
+	c, err := loadConfigFile(*configFlag, a, *debugFlag)
+	if err != nil {
+		return err
+	}
+	db, err := newDatabase(c, a, *debugFlag)
+	if err != nil {
+		return err
+	}
+	err = db.Open()
+	if err != nil {
+		return err
+	}
+	username, email, password, err := promptAdminUser()
+	if err != nil {
+		return err
+	}
+	_, err = db.CreateAdminUser(context.Background(),
+		schemeFromFlags(),
+		c.ServerConfig.Host,
+		username,
+		username,
+		"",
+		email,
+		password)
+	if err != nil {
+		return err
+	}
+	err = db.Close()
+	if err != nil {
+		return err
+	}
+	fmt.Println(clarkeSays(`New admin account successfully created! Moo~`))
 	return nil
 }
 
@@ -375,4 +410,11 @@ func Run(a Application) {
 		ErrorLogger.Errorf("error running %s: %s", flag.Arg(0), err)
 		os.Exit(1)
 	}
+}
+
+func schemeFromFlags() string {
+	if *debugFlag {
+		return "http"
+	}
+	return "https"
 }

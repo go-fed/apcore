@@ -41,8 +41,7 @@ type server struct {
 	debug       bool // TODO: http only, no https
 }
 
-func newServer(configFileName string, a Application, debug bool) (s *server, err error) {
-	// TODO: Pass in the scheme (https), have other code handle debug mode as well
+func newServer(configFileName string, a Application, debug bool, scheme string) (s *server, err error) {
 	// Load the configuration
 	var c *config
 	c, err = loadConfigFile(configFileName, a, debug)
@@ -81,7 +80,7 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 	httpClient := &http.Client{}
 
 	// Set up well known paths
-	p := newPaths("https", c.ServerConfig.Host)
+	p := newPaths(scheme, c.ServerConfig.Host)
 
 	// Initialize the ActivityPub portion of the server
 	var clock *clock
@@ -107,7 +106,7 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 
 	// Build application routes
 	var h *handler
-	h, err = newHandler("https", c, a, actor, apdb, oa, clock, debug)
+	h, err = newHandler(scheme, c, a, actor, apdb, oa, clock, debug)
 	if err != nil {
 		return
 	}
@@ -115,7 +114,7 @@ func newServer(configFileName string, a Application, debug bool) (s *server, err
 	// Prepare HTTPS server. No option to run the server as HTTP in prod,
 	// because we're living in the future.
 	httpsServer := &http.Server{
-		Addr:         ":https",
+		Addr:         ":" + scheme,
 		Handler:      h.Handler(),
 		ReadTimeout:  time.Duration(c.ServerConfig.HttpsReadTimeoutSeconds) * time.Second,
 		WriteTimeout: time.Duration(c.ServerConfig.HttpsWriteTimeoutSeconds) * time.Second,
