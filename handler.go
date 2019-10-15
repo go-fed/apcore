@@ -46,11 +46,6 @@ func newHandler(scheme string, c *config, a Application, actor pub.Actor, db *ap
 		mr.PathPrefix("/").Handler(fs)
 	}
 
-	// TODO: Webfinger
-	// TODO: Node-info
-	// TODO: Host-meta
-	// TODO: Actor routes (public key id)
-
 	// Dynamic routes
 	r := newRouter(
 		mr,
@@ -61,6 +56,13 @@ func newHandler(scheme string, c *config, a Application, actor pub.Actor, db *ap
 		c.ServerConfig.Host,
 		a.InternalServerErrorHandler(),
 		a.BadRequestHandler())
+
+	// Host-meta
+	r.WebOnlyHandleFunc("/.well-known/host-meta", hostMetaHandler(scheme, c.ServerConfig.Host))
+
+	// TODO: Webfinger
+	// TODO: Node-info
+	// TODO: Actor routes (public key id)
 
 	// Built-in routes for users, default supported:
 	// - PostInbox
@@ -141,4 +143,21 @@ func timingLogger(next http.Handler) http.Handler {
 		end := time.Now()
 		InfoLogger.Infof("%s took %s", r.URL, end.Sub(start))
 	})
+}
+
+func hostMetaHandler(scheme, host string) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/xrd+xml")
+		w.WriteHeader(http.StatusOK)
+		hm := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<XRD xmlns="http://docs.oasis-open.org/ns/xri/xrd-1.0">
+  <Link rel="lrdd" type="application/xrd+xml" template="%s://%s/.well-known/webfinger?resource={uri}"/>
+</XRD>`, scheme, host)
+		n, err := w.Write([]byte(hm))
+		if err != nil {
+			ErrorLogger.Errorf("error writing host-meta response:", err)
+		} else if n != len(hm) {
+			ErrorLogger.Errorf("error writing host-meta response: wrote %d of %d bytes", n, len(hm))
+		}
+	}
 }
