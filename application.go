@@ -251,26 +251,6 @@ type Application interface {
 	// enabled.
 	ScopePermitsPrivateGetOutbox(scope string) (permitted bool, err error)
 
-	// The maximum recursion depth to use when determining whether to do
-	// inbox forwarding, which if triggered ensures older thread
-	// participants are able to receive messages.
-	//
-	// If zero, then there is no limit.
-	//
-	// Only called if S2SEnabled returned true at startup time.
-	//
-	// TODO: Make configuration option
-	MaxInboxForwardingRecursionDepth(c context.Context) int
-	// The maximum depth to search for peers to deliver due to inbox
-	// forwarding, which ensures messages received by this server are
-	// propagated to them so there are no "ghost reply" problems.
-	//
-	// If zero, then there is no limit.
-	//
-	// Only called if S2SEnabled returned true at startup time.
-	//
-	// TODO: Make configuration option
-	MaxDeliveryRecursionDepth(c context.Context) int
 	// UsernameFromPath accepts a url path and parses it to obtain a
 	// username.
 	UsernameFromPath(string) string

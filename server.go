@@ -99,7 +99,7 @@ func newServer(configFileName string, a Application, debug bool, scheme string) 
 	}
 
 	var actor pub.Actor
-	actor, err = newActor(a, clock, p, db, apdb, oa, tc)
+	actor, err = newActor(c, a, clock, p, db, apdb, oa, tc)
 	if err != nil {
 		return
 	}

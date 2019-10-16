@@ -28,18 +28,22 @@ import (
 var _ pub.FederatingProtocol = &federatingBehavior{}
 
 type federatingBehavior struct {
-	app Application
-	p   *paths
-	db  *database
-	tc  *transportController
+	maxInboxForwardingDepth int
+	maxDeliveryDepth        int
+	app                     Application
+	p                       *paths
+	db                      *database
+	tc                      *transportController
 }
 
-func newFederatingBehavior(a Application, p *paths, db *database, tc *transportController) *federatingBehavior {
+func newFederatingBehavior(c *config, a Application, p *paths, db *database, tc *transportController) *federatingBehavior {
 	return &federatingBehavior{
-		app: a,
-		p:   p,
-		db:  db,
-		tc:  tc,
+		maxInboxForwardingDepth: c.ActivityPubConfig.MaxInboxForwardingRecursionDepth,
+		maxDeliveryDepth:        c.ActivityPubConfig.MaxDeliveryRecursionDepth,
+		app:                     a,
+		p:                       p,
+		db:                      db,
+		tc:                      tc,
 	}
 }
 
@@ -114,11 +118,11 @@ func (f *federatingBehavior) DefaultCallback(c context.Context, activity pub.Act
 }
 
 func (f *federatingBehavior) MaxInboxForwardingRecursionDepth(c context.Context) int {
-	return f.app.MaxInboxForwardingRecursionDepth(c)
+	return f.maxInboxForwardingDepth
 }
 
 func (f *federatingBehavior) MaxDeliveryRecursionDepth(c context.Context) int {
-	return f.app.MaxDeliveryRecursionDepth(c)
+	return f.maxDeliveryDepth
 }
 
 func (f *federatingBehavior) FilterForwarding(c context.Context, potentialRecipients []*url.URL, a pub.Activity) (filteredRecipients []*url.URL, err error) {

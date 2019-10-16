@@ -119,18 +119,22 @@ func defaultDatabaseConfig(dbkind string) (d databaseConfig, err error) {
 
 // Configuration section specifically for ActivityPub.
 type activityPubConfig struct {
-	ClockTimezone          string               `ini:"ap_clock_timezone" comment:"(default: UTC) Timezone for ActivityPub related operations: unset and \"UTC\" are UTC, \"Local\" is local server time, otherwise use IANA Time Zone database values"`
-	OutboundRateLimitQPS   float64              `ini:"ap_outbound_rate_limit_qps" comment:"(default: 10) Global outbound rate limit for delivery of federated messages under steady state conditions; a negative value or value of zero is invalid"`
-	OutboundRateLimitBurst int                  `ini:"ap_outbound_rate_limit_burst" comment:"(default: 50) Global outbound burst tolerance for delivery of federated messages; a negative value or value of zero is invalid"`
-	HttpSignaturesConfig   httpSignaturesConfig `ini:"ap_http_signatures" comment:"HTTP Signatures configuration"`
+	ClockTimezone                    string               `ini:"ap_clock_timezone" comment:"(default: UTC) Timezone for ActivityPub related operations: unset and \"UTC\" are UTC, \"Local\" is local server time, otherwise use IANA Time Zone database values"`
+	OutboundRateLimitQPS             float64              `ini:"ap_outbound_rate_limit_qps" comment:"(default: 10) Global outbound rate limit for delivery of federated messages under steady state conditions; a negative value or value of zero is invalid"`
+	OutboundRateLimitBurst           int                  `ini:"ap_outbound_rate_limit_burst" comment:"(default: 50) Global outbound burst tolerance for delivery of federated messages; a negative value or value of zero is invalid"`
+	HttpSignaturesConfig             httpSignaturesConfig `ini:"ap_http_signatures" comment:"HTTP Signatures configuration"`
+	MaxInboxForwardingRecursionDepth int                  `ini:"ap_max_inbox_forwarding_recursion_depth" comment:"(default: 50) The maximum recursion depth to use when determining whether to do inbox forwarding, which if triggered ensures older thread participants are able to receive messages; zero means no limit (only used if the application has S2S enabled)"`
+	MaxDeliveryRecursionDepth        int                  `ini:"ap_max_delivery_recursion_depth" comment:"(default: 50) The maximum depth to search for peers to deliver due to inbox forwarding, which ensures messages received by this server are propagated to them and no \"ghost reply\" problems occur; zero means no limit (only used if the application has S2S enabled)"`
 }
 
 func defaultActivityPubConfig() activityPubConfig {
 	return activityPubConfig{
-		ClockTimezone:          "UTC",
-		OutboundRateLimitQPS:   10,
-		OutboundRateLimitBurst: 50,
-		HttpSignaturesConfig:   defaultHttpSignaturesConfig(),
+		ClockTimezone:                    "UTC",
+		OutboundRateLimitQPS:             10,
+		OutboundRateLimitBurst:           50,
+		HttpSignaturesConfig:             defaultHttpSignaturesConfig(),
+		MaxInboxForwardingRecursionDepth: 50,
+		MaxDeliveryRecursionDepth:        50,
 	}
 }
 
