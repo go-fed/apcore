@@ -62,6 +62,6 @@ func (f *framework) ValidateOAuth2AccessToken(w http.ResponseWriter, r *http.Req
 	return f.o.ValidateOAuth2AccessToken(w, r)
 }
 
-func (f *framework) NewRequestContext(r *http.Request, nameFromPathFn func(string) string) (context.Context, error) {
-	return newRequestContext(f.scheme, f.host, r, f.db, nameFromPathFn)
+func (f *framework) NewRequestContext(r *http.Request, usernameFromPathFn func(string) (string, error)) (context.Context, error) {
+	return newRequestContext(f.scheme, f.host, r, f.db, usernameFromPathFn)
 }

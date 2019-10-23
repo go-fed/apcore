@@ -111,20 +111,22 @@ type Application interface {
 	InternalServerErrorHandler() http.Handler
 	// The handler for a bad request.
 	BadRequestHandler() http.Handler
-	// Web handler for a call to GET an actor's inbox. The application must
-	// apply the appropriate authorizations.
+	// Web handler for a call to GET an actor's inbox. The framework applies
+	// OAuth2 authorizations to fetch a public-only or private snapshot of
+	// the inbox, and passes it into this handler function.
 	//
 	// The builtin ActivityPub handler will use the OAuth authorization.
 	//
 	// Only called if S2SEnabled is true.
-	GetInboxHandler() http.Handler
-	// Web handler for a call to GET an actor's outbox. The application must
-	// apply the appropriate authorizations.
+	GetInboxHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage)
+	// Web handler for a call to GET an actor's outbox. The framework
+	// applies OAuth2 authorizations to fetch a public-only or private
+	// snapshot of the outbox, and passes it to this handler function.
 	//
 	// The builtin ActivityPub handler will use the OAuth authorization.
 	//
 	// Always called regardless whether C2SEnabled or C2SEnabled is true.
-	GetOutboxHandler() http.Handler
+	GetOutboxHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage)
 
 	// Builds the HTTP and ActivityPub routes specific for this application.
 	//
@@ -251,10 +253,6 @@ type Application interface {
 	// actor's outbox. It is always called, regardless whether C2S or S2S is
 	// enabled.
 	ScopePermitsPrivateGetOutbox(scope string) (permitted bool, err error)
-
-	// UsernameFromPath accepts a url path and parses it to obtain a
-	// username.
-	UsernameFromPath(string) string
 
 	// CALLS MADE BOTH AT STARTUP AND SERVING TIME
 	//

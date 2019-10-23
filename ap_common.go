@@ -110,6 +110,7 @@ func (a *commonBehavior) AuthenticateGetOutbox(c context.Context, w http.Respons
 
 func (a *commonBehavior) GetOutbox(c context.Context, r *http.Request) (ocp vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	ctx := ctx{c}
+	// IfChange
 	var outboxIRI *url.URL
 	if outboxIRI, err = ctx.CompleteRequestURL(); err != nil {
 		return
@@ -119,6 +120,7 @@ func (a *commonBehavior) GetOutbox(c context.Context, r *http.Request) (ocp voca
 	} else {
 		ocp, err = a.db.GetPublicOutbox(c, outboxIRI)
 	}
+	// ThenChange(router.go)
 	return
 }
 

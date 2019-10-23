@@ -17,6 +17,7 @@
 package apcore
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
 )
@@ -56,6 +57,14 @@ var knownUserPaths map[pathKey]string = map[pathKey]string{
 	followingPathKey: "/users/{user}/following",
 	likedPathKey:     "/users/{user}/liked",
 	pubKeyKey:        "/users/{user}/publicKeys/1",
+}
+
+func usernameFromKnownUserPath(path string) (string, error) {
+	s := strings.Split(path, "/")
+	if len(s) < 3 {
+		return "", fmt.Errorf("known user path does not contain username: %s", path)
+	}
+	return s[2], nil
 }
 
 func knownUserPathFor(k pathKey, username string) string {

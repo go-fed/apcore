@@ -112,18 +112,27 @@ func (a *App) BadRequestHandler() http.Handler {
 	})
 }
 
-func (a *App) GetInboxHandler() http.Handler {
-	// TODO
-	return nil
+// GetInboxHandler returns a function rendering the outbox. The framework
+// passes in a public-only or private view of the outbox, depending on the
+// authorization of the incoming request.
+func (a *App) GetInboxHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
+	return func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
+		// TODO: Write a template and execute it.
+	}
 }
 
-func (a *App) GetOutboxHandler() http.Handler {
-	// TODO
-	return nil
+// GetOutboxHandler returns a function rendering the outbox. The framework
+// passes in a public-only or private view of the outbox, depending on the
+// authorization of the incoming request.
+func (a *App) GetOutboxHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
+	return func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
+		// TODO: Write a template and execute it.
+	}
 }
 
 func (a *App) BuildRoutes(r *apcore.Router, db apcore.Database, f apcore.Framework) error {
-	// TODO
+	// TODO: Build routes
+	// TODO: Include login page that sets "loggedin" scope
 	return nil
 }
 
@@ -142,24 +151,25 @@ func (a *App) ApplySocialCallbacks(swc *pub.SocialWrappedCallbacks) (others []in
 	return
 }
 
+// ScopePermitsPostOutbox ensures the OAuth2 token scope is "loggedin", which
+// is the only permission. Other applications can have more granular
+// authorization systems.
 func (a *App) ScopePermitsPostOutbox(scope string) (permitted bool, err error) {
-	// TODO
-	return
+	return scope == "loggedin", nil
 }
 
+// ScopePermitsPrivateGetInbox ensures the OAuth2 token scope is "loggedin",
+// which is the only permission. Other applications can have more granular
+// authorization systems.
 func (a *App) ScopePermitsPrivateGetInbox(scope string) (permitted bool, err error) {
-	// TODO
-	return
+	return scope == "loggedin", nil
 }
 
+// ScopePermitsPrivateGetOutbox ensures the OAuth2 token scope is "loggedin",
+// which is the only permission. Other applications can have more granular
+// authorization systems.
 func (a *App) ScopePermitsPrivateGetOutbox(scope string) (permitted bool, err error) {
-	// TODO
-	return
-}
-
-func (a *App) UsernameFromPath(string) string {
-	// TODO
-	return ""
+	return scope == "loggedin", nil
 }
 
 // Software describes the current running software, based on the code. This

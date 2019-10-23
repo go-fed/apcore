@@ -77,12 +77,12 @@ func newHandler(scheme string, c *config, a Application, actor pub.Actor, db *ap
 	// - Following
 	// - Liked
 	if a.S2SEnabled() {
-		r.ActorPostInbox(knownUserPaths[inboxPathKey], "https")
-		r.ActorGetInbox(knownUserPaths[inboxPathKey], "https", a.GetInboxHandler().ServeHTTP)
+		r.actorPostInbox(knownUserPaths[inboxPathKey], "https")
+		r.actorGetInbox(knownUserPaths[inboxPathKey], "https", a.GetInboxHandlerFunc())
 	}
-	r.ActorGetOutbox(knownUserPaths[outboxPathKey], "https", a.GetOutboxHandler().ServeHTTP)
+	r.actorGetOutbox(knownUserPaths[outboxPathKey], "https", a.GetOutboxHandlerFunc())
 	if a.C2SEnabled() {
-		r.ActorPostOutbox(knownUserPaths[outboxPathKey], "https")
+		r.actorPostOutbox(knownUserPaths[outboxPathKey], "https")
 	}
 	authFn := func(c context.Context, w http.ResponseWriter, r *http.Request) (shouldReturn bool, err error) {
 		token, authenticated, err := oauth.ValidateOAuth2AccessToken(w, r)
@@ -101,9 +101,9 @@ func newHandler(scheme string, c *config, a Application, actor pub.Actor, db *ap
 		shouldReturn = token.GetUserID() != userId
 		return
 	}
-	r.ActivityPubOnlyHandleFunc(knownUserPaths[followersPathKey], scheme, authFn, a.UsernameFromPath)
-	r.ActivityPubOnlyHandleFunc(knownUserPaths[followingPathKey], scheme, authFn, a.UsernameFromPath)
-	r.ActivityPubOnlyHandleFunc(knownUserPaths[likedPathKey], scheme, authFn, a.UsernameFromPath)
+	r.ActivityPubOnlyHandleFunc(knownUserPaths[followersPathKey], scheme, authFn, usernameFromKnownUserPath)
+	r.ActivityPubOnlyHandleFunc(knownUserPaths[followingPathKey], scheme, authFn, usernameFromKnownUserPath)
+	r.ActivityPubOnlyHandleFunc(knownUserPaths[likedPathKey], scheme, authFn, usernameFromKnownUserPath)
 
 	// Application-specific routes
 	err = a.BuildRoutes(r, db, newFramework(scheme, c.ServerConfig.Host, oauth, db))

@@ -161,6 +161,7 @@ func (f *federatingBehavior) FilterForwarding(c context.Context, potentialRecipi
 
 func (f *federatingBehavior) GetInbox(c context.Context, r *http.Request) (ocp vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	ctx := ctx{c}
+	// IfChange
 	var inboxIRI *url.URL
 	if inboxIRI, err = ctx.CompleteRequestURL(); err != nil {
 		return
@@ -170,5 +171,6 @@ func (f *federatingBehavior) GetInbox(c context.Context, r *http.Request) (ocp v
 	} else {
 		ocp, err = f.db.GetPublicInbox(c, inboxIRI)
 	}
+	// ThenChange(router.go)
 	return
 }

@@ -31,7 +31,7 @@ or RDF vocabularies.
 * Supports common out-of-the-box command-line commands for:
   * Initializing a database with the appropriate `apcore` tables as well as your application-specific tables
   * Initializing a new administrator account
-  * Creating a server configuration file in a partially guided flow
+  * Creating a server configuration file in a guided flow
   * Comprehensive help command
   * Guided command line flow for administrators for all the above tasks, featuring Clarke the Cow
 * Configuration file support
@@ -45,6 +45,7 @@ or RDF vocabularies.
 * OAuth2 support
   * Easy API to build authorization grant and validation flows
   * Handles server side state for you
+* Webfinger & Host-Meta support
 
 ## How To Use This Framework
 

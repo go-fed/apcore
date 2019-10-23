@@ -39,9 +39,12 @@ type ctx struct {
 	context.Context
 }
 
-func newRequestContext(scheme, host string, r *http.Request, db *apdb, nameFromPathFn func(string) string) (c ctx, err error) {
+func newRequestContext(scheme, host string, r *http.Request, db *apdb, usernameFromPathFn func(string) (string, error)) (c ctx, err error) {
 	pc := &ctx{r.Context()}
-	username := nameFromPathFn(r.URL.Path)
+	var username string
+	if username, err = usernameFromPathFn(r.URL.Path); err != nil {
+		return
+	}
 	var userId string
 	if userId, err = db.UserIdForUsername(c.Context, username); err != nil {
 		return
