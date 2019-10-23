@@ -64,9 +64,9 @@ func collectionPageId(base *url.URL, start, length, def int) (u *url.URL, err er
 func toOrderedCollectionPage(id *url.URL, ids []string, current, length int) (ocp vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	ocp = streams.NewActivityStreamsOrderedCollectionPage()
 	// id
-	idProp := streams.NewActivityStreamsIdProperty()
+	idProp := streams.NewJSONLDIdProperty()
 	idProp.Set(id)
-	ocp.SetActivityStreamsId(idProp)
+	ocp.SetJSONLDId(idProp)
 	// items
 	oiProp := streams.NewActivityStreamsOrderedItemsProperty()
 	for _, i := range ids {
@@ -90,10 +90,10 @@ func toPersonActor(a Application,
 	pubKey crypto.PublicKey) (p vocab.ActivityStreamsPerson, err error) {
 	p = streams.NewActivityStreamsPerson()
 	// id
-	idProp := streams.NewActivityStreamsIdProperty()
+	idProp := streams.NewJSONLDIdProperty()
 	idIRI := knownUserIRIFor(scheme, host, userPathKey, username)
 	idProp.SetIRI(idIRI)
-	p.SetActivityStreamsId(idProp)
+	p.SetJSONLDId(idProp)
 
 	// inbox
 	inboxProp := streams.NewActivityStreamsInboxProperty()
@@ -152,10 +152,10 @@ func toPersonActor(a Application,
 	publicKeyType := streams.NewW3IDSecurityV1PublicKey()
 
 	// publicKey id
-	pubKeyIdProp := streams.NewActivityStreamsIdProperty()
+	pubKeyIdProp := streams.NewJSONLDIdProperty()
 	pubKeyIRI := knownUserIRIFor(scheme, host, pubKeyKey, username)
 	pubKeyIdProp.SetIRI(pubKeyIRI)
-	publicKeyType.SetActivityStreamsId(pubKeyIdProp)
+	publicKeyType.SetJSONLDId(pubKeyIdProp)
 
 	// publicKey owner
 	ownerProp := streams.NewW3IDSecurityV1OwnerProperty()
