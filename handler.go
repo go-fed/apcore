@@ -78,32 +78,26 @@ func newHandler(scheme string, c *config, a Application, actor pub.Actor, db *ap
 	// - Liked
 	if a.S2SEnabled() {
 		r.actorPostInbox(knownUserPaths[inboxPathKey], "https")
-		r.actorGetInbox(knownUserPaths[inboxPathKey], "https", a.GetInboxHandlerFunc())
+		r.actorGetInbox(knownUserPaths[inboxPathKey], "https", a.GetInboxWebHandlerFunc())
 	}
-	r.actorGetOutbox(knownUserPaths[outboxPathKey], "https", a.GetOutboxHandlerFunc())
+	r.actorGetOutbox(knownUserPaths[outboxPathKey], "https", a.GetOutboxWebHandlerFunc())
 	if a.C2SEnabled() {
 		r.actorPostOutbox(knownUserPaths[outboxPathKey], "https")
 	}
-	authFn := func(c context.Context, w http.ResponseWriter, r *http.Request) (shouldReturn bool, err error) {
-		token, authenticated, err := oauth.ValidateOAuth2AccessToken(w, r)
-		if err != nil {
-			return
-		}
-		shouldReturn = !authenticated
-		if !authenticated {
-			return
-		}
-		ctx := &ctx{c}
-		userId, err := ctx.TargetUserUUID()
-		if err != nil {
-			return
-		}
-		shouldReturn = token.GetUserID() != userId
-		return
+	noAuthFn := func(c context.Context, w http.ResponseWriter, r *http.Request) (shouldReturn bool, err error) {
+		return false, nil
 	}
-	r.ActivityPubOnlyHandleFunc(knownUserPaths[followersPathKey], scheme, authFn, usernameFromKnownUserPath)
-	r.ActivityPubOnlyHandleFunc(knownUserPaths[followingPathKey], scheme, authFn, usernameFromKnownUserPath)
-	r.ActivityPubOnlyHandleFunc(knownUserPaths[likedPathKey], scheme, authFn, usernameFromKnownUserPath)
+	maybeAddWebFn := func(path string, f http.HandlerFunc) {
+		if f == nil {
+			r.ActivityPubOnlyHandleFunc(path, scheme, noAuthFn, usernameFromKnownUserPath)
+		} else {
+			r.ActivityPubAndWebHandleFunc(path, scheme, noAuthFn, usernameFromKnownUserPath, f)
+		}
+	}
+	maybeAddWebFn(knownUserPaths[followersPathKey], a.GetFollowersWebHandlerFunc())
+	maybeAddWebFn(knownUserPaths[followingPathKey], a.GetFollowingWebHandlerFunc())
+	maybeAddWebFn(knownUserPaths[likedPathKey], a.GetLikedWebHandlerFunc())
+	maybeAddWebFn(knownUserPaths[userPathKey], a.GetUserWebHandlerFunc())
 
 	// Application-specific routes
 	err = a.BuildRoutes(r, db, newFramework(scheme, c.ServerConfig.Host, oauth, db))

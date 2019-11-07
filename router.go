@@ -114,6 +114,14 @@ func (r *Router) WebOnlyHandleFunc(path string, f func(http.ResponseWriter, *htt
 	return r.wrap(r.router.HandleFunc(path, f))
 }
 
+func (r *Router) Handle(path string, handler http.Handler) *Route {
+	return r.wrap(r.router.Handle(path, handler))
+}
+
+func (r *Router) HandleFunc(path string, f func(http.ResponseWriter, *http.Request)) *Route {
+	return r.wrap(r.router.HandleFunc(path, f))
+}
+
 func (r *Router) Headers(pairs ...string) *Route {
 	return r.wrap(r.router.Headers(pairs...))
 }
@@ -243,7 +251,9 @@ func (r *Route) actorGetInbox(path, scheme string, web func(w http.ResponseWrite
 					inbox, err = r.db.GetPublicInbox(c, inboxIRI)
 				}
 				// ThenChange(ap_s2s.go)
-				web(w, req, inbox)
+				if web != nil {
+					web(w, req, inbox)
+				}
 				return
 			}
 			return
@@ -278,7 +288,9 @@ func (r *Route) actorGetOutbox(path, scheme string, web func(w http.ResponseWrit
 					outbox, err = r.db.GetPublicOutbox(c, outboxIRI)
 				}
 				// ThenChange(ap_common.go)
-				web(w, req, outbox)
+				if web != nil {
+					web(w, req, outbox)
+				}
 				return
 			}
 			return
@@ -336,13 +348,23 @@ func (r *Route) HandleAccessTokenRequest(path string) *Route {
 	return r
 }
 
-func (r *Route) WebOnlyHandle(path string, handler http.Handler) *Route {
+func (r *Route) WebOnlyHandler(path string, handler http.Handler) *Route {
 	r.route = r.route.Path(path).Handler(handler)
 	return r
 }
 
-func (r *Route) WebOnlyHandleFunc(path string, f func(http.ResponseWriter, *http.Request)) *Route {
+func (r *Route) WebOnlyHandlerFunc(path string, f func(http.ResponseWriter, *http.Request)) *Route {
 	r.route = r.route.Path(path).HandlerFunc(f)
+	return r
+}
+
+func (r *Route) Handler(handler http.Handler) *Route {
+	r.route = r.route.Handler(handler)
+	return r
+}
+
+func (r *Route) HandlerFunc(f func(http.ResponseWriter, *http.Request)) *Route {
+	r.route = r.route.HandlerFunc(f)
 	return r
 }
 

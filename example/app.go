@@ -1,13 +1,31 @@
+// apcore is a server framework for implementing an ActivityPub application.
+// Copyright (C) 2019 Cory Slep
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 package main
 
 import (
 	"context"
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
 	"time"
 
 	"github.com/go-fed/activity/pub"
+	"github.com/go-fed/activity/streams"
 	"github.com/go-fed/activity/streams/vocab"
 	"github.com/go-fed/apcore"
 )
@@ -17,8 +35,22 @@ var _ apcore.Application = &App{}
 // App is an example application that minimally implements the
 // apcore.Application interface.
 type App struct {
-	config    *MyConfig
+	// config is populated by SetConfiguration
+	config *MyConfig
+	// startTime is set when Start is called
 	startTime time.Time
+	templates *template.Template
+}
+
+// newApplication creates a new App for the framework to use.
+func newApplication(tmpls []string) (*App, error) {
+	t, err := template.ParseFiles(tmpls...)
+	if err != nil {
+		return nil, err
+	}
+	return &App{
+		templates: t,
+	}, nil
 }
 
 // Start marks when the uptime began for our application.
@@ -112,25 +144,92 @@ func (a *App) BadRequestHandler() http.Handler {
 	})
 }
 
-// GetInboxHandler returns a function rendering the outbox. The framework
+// GetInboxWebHandlerFunc returns a function rendering the outbox. The framework
 // passes in a public-only or private view of the outbox, depending on the
 // authorization of the incoming request.
-func (a *App) GetInboxHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
+func (a *App) GetInboxWebHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
 	return func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
 		// TODO: Write a template and execute it.
 	}
 }
 
-// GetOutboxHandler returns a function rendering the outbox. The framework
-// passes in a public-only or private view of the outbox, depending on the
-// authorization of the incoming request.
-func (a *App) GetOutboxHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
+// GetOutboxWebHandlerFunc returns a function rendering the outbox. The
+// framework passes in a public-only or private view of the outbox, depending on
+// the authorization of the incoming request.
+func (a *App) GetOutboxWebHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
 	return func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
 		// TODO: Write a template and execute it.
 	}
 }
 
+func (a *App) GetFollowersWebHandlerFunc() http.HandlerFunc {
+	// TODO
+	return nil
+}
+
+func (a *App) GetFollowingWebHandlerFunc() http.HandlerFunc {
+	// TODO
+	return nil
+}
+
+// GetLikedWebHandlerFunc would have us fetch the user's liked collection and
+// then display it in a webpage. Instead, we return null so there's no way to
+// view the content as a webpage, but instead it is only obtainable as
+// ActivityStreams data.
+func (a *App) GetLikedWebHandlerFunc() http.HandlerFunc {
+	return nil
+}
+
+func (a *App) GetUserWebHandlerFunc() http.HandlerFunc {
+	// TODO
+	return nil
+}
+
+// BuildRoutes takes a Router and builds the endpoint http.Handler core.
+//
+// A database handle and a supplementary Framework object are provided for
+// convenience and use in the server's handlers.
 func (a *App) BuildRoutes(r *apcore.Router, db apcore.Database, f apcore.Framework) error {
+	// When building routes, the framework already provides actors at the
+	// endpoint:
+	//
+	//     /users/{user}
+	//
+	// And further routes for the inbox, outbox, followers, following, and
+	// liked collections. If you want to use web handlers at these
+	// endpoints, other App interface functions allow you to do so.
+	//
+	// The framework also handles registering webfinger and host-meta
+	// routes:
+	//
+	//     /.well-known/host-meta
+	//     /.well-known/webfinger
+	//
+	// And supports using Webfinger to find actors on this server.
+
+	// This is a helper function to generate common data needed in the web
+	// templates.
+	getTemplateData := func() interface{} {
+		// TODO
+		return nil
+	}
+	// WebOnlyHandleFunc is a convenience function for endpoints with only
+	// web content available; no ActivityStreams content exists at this
+	// endpoint.
+	//
+	// It is sugar for Path(...).HandlerFunc(...)
+	r.WebOnlyHandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		a.templates.ExecuteTemplate(w, "home.html", getTemplateData())
+	})
+	// You can use familiar mux methods to route requests appropriately.
+	//
+	// This handler displays the login page.
+	r.NewRoute().Path("/login").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		a.templates.ExecuteTemplate(w, "login.html", getTemplateData())
+	})
+	r.NewRoute().Path("/login").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// TODO
+	})
 	// TODO: Build routes
 	// TODO: Include login page that sets "loggedin" scope
 	return nil
@@ -141,13 +240,35 @@ func (a *App) NewId(c context.Context, t vocab.Type) (id *url.URL, err error) {
 	return
 }
 
+// ApplyFederatingCallbacks lets us provide hooks for our application based on
+// incoming ActivityStreams data from peer servers.
 func (a *App) ApplyFederatingCallbacks(fwc *pub.FederatingWrappedCallbacks) (others []interface{}) {
-	// TODO
+	// Here, we add additional behavior to our application if we receive a
+	// federated Create activity, besides the spec-suggested side effects.
+	//
+	// The additional behavior of our application is to print out the
+	// Create activity to Stdout.
+	fwc.Create = func(c context.Context, create vocab.ActivityStreamsCreate) error {
+		fmt.Println(streams.Serialize(create))
+		return nil
+	}
+	// Here we add new behavior to our application.
+	//
+	// The new behavior is to print out Listen activities to Stdout.
+	others = []interface{}{
+		func(c context.Context, listen vocab.ActivityStreamsListen) error {
+			fmt.Println(streams.Serialize(listen))
+			return nil
+		},
+	}
 	return
 }
 
+// ApplySocialCallbacks lets us provide hooks for our application based on
+// incoming ActivityStreams data from a user's ActivityPub client.
 func (a *App) ApplySocialCallbacks(swc *pub.SocialWrappedCallbacks) (others []interface{}) {
-	// TODO
+	// Here we add no new C2S Behavior. Doing nothing in this function will
+	// let the framework handle the suggested C2S side effects.
 	return
 }
 

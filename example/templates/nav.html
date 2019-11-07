@@ -1,0 +1,8 @@
+<nav>
+	<p><a href="https://github.com/go-fed/apcore/example">Example apcore App</p>
+	<ul>
+		{{range .Nav}}
+		<li><a href="{{.Href}}">{{.Name}}</a></li>
+		{{end}}
+	</ul>
+</nav>

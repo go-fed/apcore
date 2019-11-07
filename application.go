@@ -118,15 +118,56 @@ type Application interface {
 	// The builtin ActivityPub handler will use the OAuth authorization.
 	//
 	// Only called if S2SEnabled is true.
-	GetInboxHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage)
+	//
+	// Returning a nil handler is allowed, and doing so results in only
+	// ActivityStreams content being served.
+	GetInboxWebHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage)
 	// Web handler for a call to GET an actor's outbox. The framework
 	// applies OAuth2 authorizations to fetch a public-only or private
 	// snapshot of the outbox, and passes it to this handler function.
 	//
 	// The builtin ActivityPub handler will use the OAuth authorization.
 	//
-	// Always called regardless whether C2SEnabled or C2SEnabled is true.
-	GetOutboxHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage)
+	// Always called regardless whether C2SEnabled or S2SEnabled is true.
+	//
+	// Returning a nil handler is allowed, and doing so results in only
+	// ActivityStreams content being served.
+	GetOutboxWebHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage)
+	// Web handler for a call to GET an actor's followers collection. The
+	// framework has no authorization requirements to view a user's
+	// followers collection.
+	//
+	// Always called regardless whether C2SEnabled or S2SEnabled is true.
+	//
+	// Returning a nil handler is allowed, and doing so results in only
+	// ActivityStreams content being served.
+	GetFollowersWebHandlerFunc() http.HandlerFunc
+	// Web handler for a call to GET an actor's following collection. The
+	// framework has no authorization requirements to view a user's
+	// following collection.
+	//
+	// Always called regardless whether C2SEnabled or S2SEnabled is true.
+	//
+	// Returning a nil handler is allowed, and doing so results in only
+	// ActivityStreams content being served.
+	GetFollowingWebHandlerFunc() http.HandlerFunc
+	// Web handler for a call to GET an actor's liked collection. The
+	// framework has no authorization requirements to view a user's
+	// liked collection.
+	//
+	// Always called regardless whether C2SEnabled or S2SEnabled is true.
+	//
+	// Returning a nil handler is allowed, and doing so results in only
+	// ActivityStreams content being served.
+	GetLikedWebHandlerFunc() http.HandlerFunc
+	// Web handler for a call to GET an actor. The framework has no
+	// authorization requirements to view a user, like a profile.
+	//
+	// Always called regardless whether C2SEnabled or S2SEnabled is true.
+	//
+	// Returning a nil handler is allowed, and doing so results in only
+	// ActivityStreams content being served.
+	GetUserWebHandlerFunc() http.HandlerFunc
 
 	// Builds the HTTP and ActivityPub routes specific for this application.
 	//
