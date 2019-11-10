@@ -1,0 +1,8 @@
+{{template "header.html" .}}
+<h1>Users</h1>
+<ul>
+	{{range .Users}}
+	<li><a href="/users/{{.Name}}">{{.Name}}</a></li>
+	{{end}}
+</ul>
+{{template "footer.html" .}}

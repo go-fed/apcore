@@ -224,7 +224,7 @@ func (t *transport) Dereference(c context.Context, iri *url.URL) (b []byte, err 
 
 func (t *transport) Deliver(c context.Context, b []byte, to *url.URL) (err error) {
 	var fromUUID string
-	fromUUID, err = (&ctx{c}).TargetUserUUID()
+	fromUUID, err = (&ctx{c}).UserPathUUID()
 	if err != nil {
 		err = fmt.Errorf("failed to determine user to deliver on behalf of: %s", err)
 		return

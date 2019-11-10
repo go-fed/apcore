@@ -119,7 +119,7 @@ func verifyHttpSignatures(c context.Context,
 	}
 	// 2. Get our user's credentials
 	var userUUID string
-	userUUID, err = ctx.TargetUserUUID()
+	userUUID, err = ctx.UserPathUUID()
 	if err != nil {
 		return
 	}

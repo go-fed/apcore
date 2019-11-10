@@ -24,54 +24,77 @@ import (
 
 	"github.com/go-fed/activity/pub"
 	"github.com/go-fed/activity/streams/vocab"
+	"gopkg.in/oauth2.v3"
 )
 
 const (
 	userPreferencesContextKey    = "userPreferences"
-	targetUserUUIDContextKey     = "targetUserUUID"
+	userPathUUIDContextKey       = "userPathUUID"
+	userAuthUUIDContextKey       = "userAuthUUID"
 	activityIRIContextKey        = "activityIRI"
 	activityTypeContextKey       = "activityType"
 	completeRequestURLContextKey = "completeRequestURL"
 	privateScopeContextKey       = "privateScope"
 )
 
+type Context interface {
+	UserPathUUID() (s string, err error)
+	UserAuthUUID() (s string, err error)
+	ActivityIRI() (u *url.URL, err error)
+	ActivityType() (s string, err error)
+	CompleteRequestURL() (u *url.URL, err error)
+}
+
+var _ Context = &ctx{}
+
 type ctx struct {
 	context.Context
 }
 
-func newRequestContext(scheme, host string, r *http.Request, db *apdb, usernameFromPathFn func(string) (string, error)) (c ctx, err error) {
+func newRequestContext(scheme, host string, w http.ResponseWriter, r *http.Request, db *apdb, oauth *oAuth2Server) (c ctx, err error) {
 	pc := &ctx{r.Context()}
-	var username string
-	if username, err = usernameFromPathFn(r.URL.Path); err != nil {
+	var t oauth2.TokenInfo
+	var auth bool
+	t, auth, err = oauth.ValidateOAuth2AccessToken(w, r)
+	if err != nil {
 		return
 	}
-	var userId string
-	if userId, err = db.UserIdForUsername(c.Context, username); err != nil {
-		return
+	if auth {
+		userId := t.GetUserID()
+		pc.withUserAuthUUID(userId)
+		var u userPreferences
+		if u, err = db.UserPreferences(c.Context, userId); err != nil {
+			return
+		}
+		pc.withUserPreferences(u)
 	}
-	pc.withTargetUserUUID(userId)
-	var u userPreferences
-	if u, err = db.UserPreferences(c.Context, userId); err != nil {
-		return
-	}
-	pc.withUserPreferences(u)
 	pc.withCompleteRequestURL(r, scheme, host)
 	c = *pc
 	return
 }
 
-func newRequestContextForBox(scheme, host string, r *http.Request, db *apdb) (c ctx, err error) {
+func newRequestContextForBox(scheme, host string, w http.ResponseWriter, r *http.Request, db *apdb, oauth *oAuth2Server) (c ctx, err error) {
 	pc := &ctx{r.Context()}
+	var t oauth2.TokenInfo
+	var auth bool
+	t, auth, err = oauth.ValidateOAuth2AccessToken(w, r)
+	if err != nil {
+		return
+	}
+	if auth {
+		userId := t.GetUserID()
+		pc.withUserAuthUUID(userId)
+		var u userPreferences
+		if u, err = db.UserPreferences(c.Context, userId); err != nil {
+			return
+		}
+		pc.withUserPreferences(u)
+	}
 	var userId string
 	if userId, err = db.UserIdForBoxPath(c.Context, r.URL.Path); err != nil {
 		return
 	}
-	pc.withTargetUserUUID(userId)
-	var u userPreferences
-	if u, err = db.UserPreferences(c.Context, userId); err != nil {
-		return
-	}
-	pc.withUserPreferences(u)
+	pc.withUserPathUUID(userId)
 	pc.withCompleteRequestURL(r, scheme, host)
 	c = *pc
 	return
@@ -88,8 +111,12 @@ func (c *ctx) withUserPreferences(u userPreferences) {
 	c.Context = context.WithValue(c.Context, userPreferencesContextKey, u)
 }
 
-func (c *ctx) withTargetUserUUID(s string) {
-	c.Context = context.WithValue(c.Context, targetUserUUIDContextKey, s)
+func (c *ctx) withUserPathUUID(s string) {
+	c.Context = context.WithValue(c.Context, userPathUUIDContextKey, s)
+}
+
+func (c *ctx) withUserAuthUUID(s string) {
+	c.Context = context.WithValue(c.Context, userAuthUUIDContextKey, s)
 }
 
 func (c *ctx) withActivityIRI(u *url.URL) {
@@ -122,13 +149,24 @@ func (c ctx) UserPreferences() (u userPreferences, err error) {
 	return
 }
 
-func (c ctx) TargetUserUUID() (s string, err error) {
-	v := c.Value(targetUserUUIDContextKey)
+func (c ctx) UserPathUUID() (s string, err error) {
+	v := c.Value(userPathUUIDContextKey)
 	var ok bool
 	if v == nil {
-		err = fmt.Errorf("no target user UUID in context")
+		err = fmt.Errorf("no user path UUID in context")
 	} else if s, ok = v.(string); !ok {
-		err = fmt.Errorf("target user UUID in context is not a string")
+		err = fmt.Errorf("user path UUID in context is not a string")
+	}
+	return
+}
+
+func (c ctx) UserAuthUUID() (s string, err error) {
+	v := c.Value(userAuthUUIDContextKey)
+	var ok bool
+	if v == nil {
+		err = fmt.Errorf("no user auth UUID in context")
+	} else if s, ok = v.(string); !ok {
+		err = fmt.Errorf("user auth UUID in context is not a string")
 	}
 	return
 }

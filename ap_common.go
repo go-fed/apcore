@@ -127,7 +127,7 @@ func (a *commonBehavior) GetOutbox(c context.Context, r *http.Request) (ocp voca
 func (a *commonBehavior) NewTransport(c context.Context, actorBoxIRI *url.URL, gofedAgent string) (t pub.Transport, err error) {
 	ctx := ctx{c}
 	var userUUID string
-	userUUID, err = ctx.TargetUserUUID()
+	userUUID, err = ctx.UserPathUUID()
 	if err != nil {
 		return
 	}

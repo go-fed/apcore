@@ -63,7 +63,7 @@ func (f *federatingBehavior) AuthenticatePostInbox(c context.Context, w http.Res
 func (f *federatingBehavior) Blocked(c context.Context, actorIRIs []*url.URL) (blocked bool, err error) {
 	ctx := ctx{c}
 	var targetUserId string
-	if targetUserId, err = ctx.TargetUserUUID(); err != nil {
+	if targetUserId, err = ctx.UserPathUUID(); err != nil {
 		return
 	}
 	var activityIRI *url.URL
@@ -128,7 +128,7 @@ func (f *federatingBehavior) MaxDeliveryRecursionDepth(c context.Context) int {
 func (f *federatingBehavior) FilterForwarding(c context.Context, potentialRecipients []*url.URL, a pub.Activity) (filteredRecipients []*url.URL, err error) {
 	ctx := ctx{c}
 	var userUUID string
-	userUUID, err = ctx.TargetUserUUID()
+	userUUID, err = ctx.UserPathUUID()
 	if err != nil {
 		return
 	}

@@ -41,6 +41,8 @@ func main() {
 			"templates/footer.html",
 			"templates/header.html",
 			"templates/home.html",
+			"templates/login.html",
+			"templates/users.html",
 		},
 	)
 	if e != nil {

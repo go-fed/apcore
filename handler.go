@@ -17,7 +17,6 @@
 package apcore
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -29,14 +28,20 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const (
+	LoginFormEmailKey    = "username"
+	LoginFormPasswordKey = "password"
+)
+
 type handler struct {
 	router *Router
 }
 
-func newHandler(scheme string, c *config, a Application, actor pub.Actor, db *apdb, oauth *oAuth2Server, clock pub.Clock, debug bool) (h *handler, err error) {
+func newHandler(scheme string, c *config, a Application, actor pub.Actor, db *apdb, oauth *oAuth2Server, sl *sessions, clock pub.Clock, debug bool) (h *handler, err error) {
 	mr := mux.NewRouter()
 	mr.NotFoundHandler = a.NotFoundHandler()
 	mr.MethodNotAllowedHandler = a.MethodNotAllowedHandler()
+	internalErrorHandler := a.InternalServerErrorHandler()
 
 	// Static assets
 	if sd := c.ServerConfig.StaticRootDirectory; len(sd) == 0 {
@@ -56,14 +61,14 @@ func newHandler(scheme string, c *config, a Application, actor pub.Actor, db *ap
 		actor,
 		clock,
 		c.ServerConfig.Host,
-		a.InternalServerErrorHandler(),
+		internalErrorHandler,
 		a.BadRequestHandler())
 
 	// Host-meta
 	r.WebOnlyHandleFunc("/.well-known/host-meta", hostMetaHandler(scheme, c.ServerConfig.Host))
 
 	// Webfinger
-	r.WebOnlyHandleFunc("/.well-known/webfinger", webfingerHandler(scheme, c.ServerConfig.Host, a.BadRequestHandler(), a.InternalServerErrorHandler()))
+	r.WebOnlyHandleFunc("/.well-known/webfinger", webfingerHandler(scheme, c.ServerConfig.Host, a.BadRequestHandler(), internalErrorHandler))
 
 	// TODO: Node-info
 	// TODO: Actor routes (public key id)
@@ -84,20 +89,40 @@ func newHandler(scheme string, c *config, a Application, actor pub.Actor, db *ap
 	if a.C2SEnabled() {
 		r.actorPostOutbox(knownUserPaths[outboxPathKey], "https")
 	}
-	noAuthFn := func(c context.Context, w http.ResponseWriter, r *http.Request) (shouldReturn bool, err error) {
-		return false, nil
-	}
-	maybeAddWebFn := func(path string, f http.HandlerFunc) {
-		if f == nil {
-			r.ActivityPubOnlyHandleFunc(path, scheme, noAuthFn, usernameFromKnownUserPath)
+	maybeAddWebFn := func(path string, f func() (http.HandlerFunc, AuthorizeFunc)) {
+		web, authFn := f()
+		if web == nil {
+			r.ActivityPubOnlyHandleFunc(path, scheme, authFn)
 		} else {
-			r.ActivityPubAndWebHandleFunc(path, scheme, noAuthFn, usernameFromKnownUserPath, f)
+			r.ActivityPubAndWebHandleFunc(path, scheme, authFn, web)
 		}
 	}
-	maybeAddWebFn(knownUserPaths[followersPathKey], a.GetFollowersWebHandlerFunc())
-	maybeAddWebFn(knownUserPaths[followingPathKey], a.GetFollowingWebHandlerFunc())
-	maybeAddWebFn(knownUserPaths[likedPathKey], a.GetLikedWebHandlerFunc())
-	maybeAddWebFn(knownUserPaths[userPathKey], a.GetUserWebHandlerFunc())
+	maybeAddWebFn(knownUserPaths[followersPathKey], a.GetFollowersWebHandlerFunc)
+	maybeAddWebFn(knownUserPaths[followingPathKey], a.GetFollowingWebHandlerFunc)
+	maybeAddWebFn(knownUserPaths[likedPathKey], a.GetLikedWebHandlerFunc)
+	maybeAddWebFn(knownUserPaths[userPathKey], a.GetUserWebHandlerFunc)
+
+	// POST Login and GET logout routes
+	r.NewRoute().Path("/login").Methods("POST").HandlerFunc(postLoginFn(sl, db.database, internalErrorHandler))
+	r.NewRoute().Path("/logout").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t, authd, err := oauth.ValidateOAuth2AccessToken(w, r)
+		if err != nil {
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		if authd {
+			if err = oauth.RemoveByAccess(t); err != nil {
+				internalErrorHandler.ServeHTTP(w, r)
+				return
+			}
+		}
+		// TODO: Redirect to login page
+	})
+	r.NewRoute().Path("/authorize").Methods("GET").HandlerFunc(getAuthFn(sl, internalErrorHandler))
+	r.NewRoute().Path("/authorize").Methods("POST").HandlerFunc(postAuthFn(sl, oauth, internalErrorHandler))
+	r.NewRoute().Path("/token").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		oauth.HandleAccessTokenRequest(w, r)
+	})
 
 	// Application-specific routes
 	err = a.BuildRoutes(r, db, newFramework(scheme, c.ServerConfig.Host, oauth, db))
@@ -153,7 +178,7 @@ func hostMetaHandler(scheme, host string) func(w http.ResponseWriter, r *http.Re
 </XRD>`, scheme, host)
 		n, err := w.Write([]byte(hm))
 		if err != nil {
-			ErrorLogger.Errorf("error writing host-meta response:", err)
+			ErrorLogger.Errorf("error writing host-meta response: %s", err)
 		} else if n != len(hm) {
 			ErrorLogger.Errorf("error writing host-meta response: wrote %d of %d bytes", n, len(hm))
 		}
@@ -188,9 +213,96 @@ func webfingerHandler(scheme, host string, badRequestHandler, internalErrorHandl
 		w.WriteHeader(http.StatusOK)
 		n, err := w.Write(b)
 		if err != nil {
-			ErrorLogger.Errorf("error writing webfinger response:", err)
+			ErrorLogger.Errorf("error writing webfinger response: %s", err)
 		} else if n != len(b) {
 			ErrorLogger.Errorf("error writing webfinger response: wrote %d of %d bytes", n, len(b))
 		}
+	}
+}
+
+func postLoginFn(sl *sessions, db *database, internalErrorHandler http.Handler) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		s, err := sl.Get(r)
+		if err != nil {
+			ErrorLogger.Errorf("error getting session for POST login: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		if r.Form == nil {
+			err = r.ParseForm()
+			if err != nil {
+				// TODO: Malformed form
+			}
+		}
+		emailV, ok := r.Form[LoginFormEmailKey]
+		if !ok || len(emailV) != 1 {
+			// TODO: Malformed form
+		}
+		email := emailV[0]
+		passV, ok := r.Form[LoginFormPasswordKey]
+		if !ok || len(passV) != 1 {
+			// TODO: Malformed form
+		}
+		pass := passV[0]
+		u, err := db.UserIDFromEmail(r.Context(), email)
+		if err != nil {
+			ErrorLogger.Errorf("error getting userID for email in POST login: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		valid, err := db.Valid(r.Context(), u, pass)
+		if err != nil {
+			ErrorLogger.Errorf("error determining password validity in POST login: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		} else if !valid {
+			// TODO: Invalid username/password
+		}
+		s.SetUserID(u)
+		err = s.Save(r, w)
+		if err != nil {
+			ErrorLogger.Errorf("error saving session in POST login: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		// TODO: Redirect to GET auth fn
+	}
+}
+
+func getAuthFn(sl *sessions, internalErrorHandler http.Handler) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		s, err := sl.Get(r)
+		if err != nil {
+			ErrorLogger.Errorf("error getting session in GET authorize: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		_, err = s.UserID()
+		if err != nil {
+			// TODO: Redirect to login
+		}
+		// TODO: Call authorization handler
+	}
+}
+
+func postAuthFn(sl *sessions, oa *oAuth2Server, internalErrorHandler http.Handler) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		s, err := sl.Get(r)
+		if err != nil {
+			ErrorLogger.Errorf("error getting session in POST authorize: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		if v, ok := s.OAuthRedirectFormValues(); ok {
+			r.Form = v
+			s.DeleteOAuthRedirectFormValues()
+			err = s.Save(r, w)
+			if err != nil {
+				ErrorLogger.Errorf("error saving session in POST authorize: %s", err)
+				internalErrorHandler.ServeHTTP(w, r)
+				return
+			}
+		}
+		oa.HandleAuthorizationRequest(w, r)
 	}
 }

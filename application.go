@@ -137,37 +137,53 @@ type Application interface {
 	// framework has no authorization requirements to view a user's
 	// followers collection.
 	//
+	// Also returns for the corresponding AuthorizeFunc handler, which will
+	// be applied to both ActivityPub and web requests.
+	//
 	// Always called regardless whether C2SEnabled or S2SEnabled is true.
 	//
 	// Returning a nil handler is allowed, and doing so results in only
-	// ActivityStreams content being served.
-	GetFollowersWebHandlerFunc() http.HandlerFunc
+	// ActivityStreams content being served. Returning a nil AuthorizeFunc
+	// results in public access.
+	GetFollowersWebHandlerFunc() (http.HandlerFunc, AuthorizeFunc)
 	// Web handler for a call to GET an actor's following collection. The
 	// framework has no authorization requirements to view a user's
 	// following collection.
 	//
+	// Also returns for the corresponding AuthorizeFunc handler, which will
+	// be applied to both ActivityPub and web requests.
+	//
 	// Always called regardless whether C2SEnabled or S2SEnabled is true.
 	//
 	// Returning a nil handler is allowed, and doing so results in only
-	// ActivityStreams content being served.
-	GetFollowingWebHandlerFunc() http.HandlerFunc
+	// ActivityStreams content being served. Returning a nil AuthorizeFunc
+	// results in public access.
+	GetFollowingWebHandlerFunc() (http.HandlerFunc, AuthorizeFunc)
 	// Web handler for a call to GET an actor's liked collection. The
 	// framework has no authorization requirements to view a user's
 	// liked collection.
 	//
+	// Also returns for the corresponding AuthorizeFunc handler, which will
+	// be applied to both ActivityPub and web requests.
+	//
 	// Always called regardless whether C2SEnabled or S2SEnabled is true.
 	//
 	// Returning a nil handler is allowed, and doing so results in only
-	// ActivityStreams content being served.
-	GetLikedWebHandlerFunc() http.HandlerFunc
+	// ActivityStreams content being served. Returning a nil AuthorizeFunc
+	// results in public access.
+	GetLikedWebHandlerFunc() (http.HandlerFunc, AuthorizeFunc)
 	// Web handler for a call to GET an actor. The framework has no
 	// authorization requirements to view a user, like a profile.
 	//
+	// Also returns for the corresponding AuthorizeFunc handler, which will
+	// be applied to both ActivityPub and web requests.
+	//
 	// Always called regardless whether C2SEnabled or S2SEnabled is true.
 	//
 	// Returning a nil handler is allowed, and doing so results in only
-	// ActivityStreams content being served.
-	GetUserWebHandlerFunc() http.HandlerFunc
+	// ActivityStreams content being served. Returning a nil AuthorizeFunc
+	// results in public access.
+	GetUserWebHandlerFunc() (http.HandlerFunc, AuthorizeFunc)
 
 	// Builds the HTTP and ActivityPub routes specific for this application.
 	//

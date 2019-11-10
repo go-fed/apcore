@@ -106,7 +106,7 @@ func newServer(configFileName string, a Application, debug bool, scheme string) 
 
 	// Build application routes
 	var h *handler
-	h, err = newHandler(scheme, c, a, actor, apdb, oa, clock, debug)
+	h, err = newHandler(scheme, c, a, actor, apdb, oa, ses, clock, debug)
 	if err != nil {
 		return
 	}

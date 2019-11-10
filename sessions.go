@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 
 	gs "github.com/gorilla/sessions"
 )
@@ -81,7 +82,8 @@ type session struct {
 }
 
 const (
-	userIDSessionKey = "userid"
+	userIDSessionKey           = "userid"
+	oAuthRedirectFormValuesKey = "oauth_redir"
 )
 
 func (s *session) SetUserID(uuid string) {
@@ -98,6 +100,24 @@ func (s *session) UserID() (uuid string, err error) {
 		return
 	}
 	return
+}
+
+func (s *session) SetOAuthRedirectFormValues(f url.Values) {
+	s.gs.Values[oAuthRedirectFormValuesKey] = f
+	return
+}
+
+func (s *session) OAuthRedirectFormValues() (v url.Values, ok bool) {
+	var i interface{}
+	if i, ok = s.gs.Values[oAuthRedirectFormValuesKey]; !ok {
+		return
+	}
+	v, ok = i.(url.Values)
+	return
+}
+
+func (s *session) DeleteOAuthRedirectFormValues() {
+	delete(s.gs.Values, oAuthRedirectFormValuesKey)
 }
 
 func (s *session) Save(r *http.Request, w http.ResponseWriter) error {

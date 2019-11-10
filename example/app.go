@@ -162,27 +162,27 @@ func (a *App) GetOutboxWebHandlerFunc() func(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-func (a *App) GetFollowersWebHandlerFunc() http.HandlerFunc {
+func (a *App) GetFollowersWebHandlerFunc() (http.HandlerFunc, apcore.AuthorizeFunc) {
 	// TODO
-	return nil
+	return nil, nil
 }
 
-func (a *App) GetFollowingWebHandlerFunc() http.HandlerFunc {
+func (a *App) GetFollowingWebHandlerFunc() (http.HandlerFunc, apcore.AuthorizeFunc) {
 	// TODO
-	return nil
+	return nil, nil
 }
 
 // GetLikedWebHandlerFunc would have us fetch the user's liked collection and
 // then display it in a webpage. Instead, we return null so there's no way to
-// view the content as a webpage, but instead it is only obtainable as
+// view the content as a webpage, but instead it is only obtainable as public
 // ActivityStreams data.
-func (a *App) GetLikedWebHandlerFunc() http.HandlerFunc {
-	return nil
+func (a *App) GetLikedWebHandlerFunc() (http.HandlerFunc, apcore.AuthorizeFunc) {
+	return nil, nil
 }
 
-func (a *App) GetUserWebHandlerFunc() http.HandlerFunc {
+func (a *App) GetUserWebHandlerFunc() (http.HandlerFunc, apcore.AuthorizeFunc) {
 	// TODO
-	return nil
+	return nil, nil
 }
 
 // BuildRoutes takes a Router and builds the endpoint http.Handler core.
@@ -199,6 +199,17 @@ func (a *App) BuildRoutes(r *apcore.Router, db apcore.Database, f apcore.Framewo
 	// liked collections. If you want to use web handlers at these
 	// endpoints, other App interface functions allow you to do so.
 	//
+	// The framework also provides out-of-the-box OAuth2 supporting
+	// endpoints:
+	//
+	//     /login (POST)
+	//     /logout (GET)
+	//     /authorize (GET & POST)
+	//     /token (GET)
+	//
+	// This means your application still needs to specify a web handler for
+	// a GET request to "/login" to display a login page.
+	//
 	// The framework also handles registering webfinger and host-meta
 	// routes:
 	//
@@ -209,9 +220,30 @@ func (a *App) BuildRoutes(r *apcore.Router, db apcore.Database, f apcore.Framewo
 
 	// This is a helper function to generate common data needed in the web
 	// templates.
-	getTemplateData := func() interface{} {
-		// TODO
-		return nil
+	getTemplateData := func() map[string]interface{} {
+		return map[string]interface{}{
+			"Nav": []struct {
+				Href string
+				Name string
+			}{
+				{
+					Href: "/",
+					Name: "home",
+				},
+				{
+					Href: "/login",
+					Name: "login",
+				},
+				{
+					Href: "/logout",
+					Name: "logout",
+				},
+				{
+					Href: "/users",
+					Name: "users",
+				},
+			},
+		}
 	}
 	// WebOnlyHandleFunc is a convenience function for endpoints with only
 	// web content available; no ActivityStreams content exists at this
@@ -223,15 +255,41 @@ func (a *App) BuildRoutes(r *apcore.Router, db apcore.Database, f apcore.Framewo
 	})
 	// You can use familiar mux methods to route requests appropriately.
 	//
-	// This handler displays the login page.
+	// This handler displays the login page. The rest of the handlers
+	// provide some basic navigational functionality.
 	r.NewRoute().Path("/login").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a.templates.ExecuteTemplate(w, "login.html", getTemplateData())
 	})
-	r.NewRoute().Path("/login").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// TODO
+	r.WebOnlyHandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
+		// TODO: List users
+		d := getTemplateData()
+		a.templates.ExecuteTemplate(w, "users.html", d)
 	})
-	// TODO: Build routes
-	// TODO: Include login page that sets "loggedin" scope
+
+	// Finally, add a handler for the new ActivityStream Notes we will
+	// be creating.
+	r.NewRoute().Path("/notes").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// TODO: View list of existing public (and maybe private) notes
+		// with pagination.
+	})
+	// First, we need an authentication function to make sure whoever views
+	// the ActivityStreams data has proper credentials to view the web or
+	// ActivityStreams data.
+	authFn := func(c apcore.Context, w http.ResponseWriter, r *http.Request, db apcore.Database) (permit bool, err error) {
+		// TODO: Based on the note and any auth, permit or deny
+		return false, nil
+	}
+	r.ActivityPubAndWebHandleFunc("/notes/{note}", "https", authFn, func(w http.ResponseWriter, r *http.Request) {
+		// TODO: View note in web page, if authorized.
+	})
+	// Next, a webpage to handle creating, updating, and deleting notes.
+	// This is NOT via C2S, but is done natively in our application.
+	r.NewRoute().Path("/notes/create").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// TODO: View form for creating note.
+	})
+	r.NewRoute().Path("/notes/create").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// TODO: Send out new federated info.
+	})
 	return nil
 }
 

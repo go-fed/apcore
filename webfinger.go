@@ -43,7 +43,7 @@ func toWebfinger(scheme, host, username, idPath string) (w webfinger, err error)
 			{
 				Rel:  "self",
 				Type: "application/activity+json",
-				Href: fmt.Sprintf("scheme://%s%s", scheme, host, idPath),
+				Href: fmt.Sprintf("%s://%s%s", scheme, host, idPath),
 			},
 		},
 	}

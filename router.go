@@ -25,6 +25,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
+type AuthorizeFunc func(c Context, w http.ResponseWriter, r *http.Request, db Database) (permit bool, err error)
+
 type Router struct {
 	router            *mux.Router
 	db                *apdb
@@ -86,12 +88,12 @@ func (r *Router) actorGetOutbox(path, scheme string, web func(http.ResponseWrite
 	return r.wrap(r.router.NewRoute()).actorGetOutbox(path, scheme, web)
 }
 
-func (r *Router) ActivityPubOnlyHandleFunc(path, scheme string, authFn pub.AuthenticateFunc, usernameForPathFn func(string) (string, error)) *Route {
-	return r.wrap(r.router.NewRoute()).ActivityPubOnlyHandleFunc(path, scheme, authFn, usernameForPathFn)
+func (r *Router) ActivityPubOnlyHandleFunc(path, scheme string, authFn AuthorizeFunc) *Route {
+	return r.wrap(r.router.NewRoute()).ActivityPubOnlyHandleFunc(path, scheme, authFn)
 }
 
-func (r *Router) ActivityPubAndWebHandleFunc(path, scheme string, authFn pub.AuthenticateFunc, usernameForPathFn func(string) (string, error), f func(http.ResponseWriter, *http.Request)) *Route {
-	return r.wrap(r.router.NewRoute()).ActivityPubAndWebHandleFunc(path, scheme, authFn, usernameForPathFn, f)
+func (r *Router) ActivityPubAndWebHandleFunc(path, scheme string, authFn AuthorizeFunc, f func(http.ResponseWriter, *http.Request)) *Route {
+	return r.wrap(r.router.NewRoute()).ActivityPubAndWebHandleFunc(path, scheme, authFn, f)
 }
 
 func (r *Router) HandleAuthorizationRequest(path string) *Route {
@@ -181,7 +183,7 @@ type Route struct {
 func (r *Route) actorPostInbox(path, scheme string) *Route {
 	r.route = r.route.Path(path).Schemes(scheme).Methods("POST").HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
-			c, err := newRequestContextForBox(scheme, r.host, req, r.db)
+			c, err := newRequestContextForBox(scheme, r.host, w, req, r.db, r.oauth)
 			if err != nil {
 				ErrorLogger.Errorf("Error building context for ActorPostInbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
@@ -204,7 +206,7 @@ func (r *Route) actorPostInbox(path, scheme string) *Route {
 func (r *Route) actorPostOutbox(path, scheme string) *Route {
 	r.route = r.route.Path(path).Schemes(scheme).Methods("POST").HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
-			c, err := newRequestContextForBox(scheme, r.host, req, r.db)
+			c, err := newRequestContextForBox(scheme, r.host, w, req, r.db, r.oauth)
 			if err != nil {
 				ErrorLogger.Errorf("Error building context for ActorPostOutbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
@@ -227,7 +229,7 @@ func (r *Route) actorPostOutbox(path, scheme string) *Route {
 func (r *Route) actorGetInbox(path, scheme string, web func(w http.ResponseWriter, r *http.Request, inbox vocab.ActivityStreamsOrderedCollectionPage)) *Route {
 	r.route = r.route.Path(path).Schemes(scheme).Methods("GET").HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
-			c, err := newRequestContextForBox(scheme, r.host, req, r.db)
+			c, err := newRequestContextForBox(scheme, r.host, w, req, r.db, r.oauth)
 			if err != nil {
 				ErrorLogger.Errorf("Error building context for ActorGetInbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
@@ -264,7 +266,7 @@ func (r *Route) actorGetInbox(path, scheme string, web func(w http.ResponseWrite
 func (r *Route) actorGetOutbox(path, scheme string, web func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage)) *Route {
 	r.route = r.route.Path(path).Schemes(scheme).Methods("GET").HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
-			c, err := newRequestContextForBox(scheme, r.host, req, r.db)
+			c, err := newRequestContextForBox(scheme, r.host, w, req, r.db, r.oauth)
 			if err != nil {
 				ErrorLogger.Errorf("Error building context for ActorGetOutbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
@@ -298,11 +300,22 @@ func (r *Route) actorGetOutbox(path, scheme string, web func(w http.ResponseWrit
 	return r
 }
 
-func (r *Route) ActivityPubOnlyHandleFunc(path, scheme string, authFn pub.AuthenticateFunc, usernameFromPathFn func(string) (string, error)) *Route {
-	apHandler := pub.NewActivityStreamsHandler(authFn, r.db, r.clock)
+func (r *Route) ActivityPubOnlyHandleFunc(path, scheme string, authFn AuthorizeFunc) *Route {
+	apHandler := pub.NewActivityStreamsHandler(r.db, r.clock)
 	r.route = r.route.Path(path).Schemes(scheme).HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
-			c, err := newRequestContext(scheme, r.host, req, r.db, usernameFromPathFn)
+			c, err := newRequestContext(scheme, r.host, w, req, r.db, r.oauth)
+			permit := true
+			if authFn != nil {
+				permit, err = authFn(c, w, req, r.db)
+			}
+			if err != nil {
+				// TODO
+				return
+			} else if !permit {
+				// TODO
+				return
+			}
 			isASRequest, err := apHandler(c, w, req)
 			if err != nil {
 				ErrorLogger.Errorf("Error in ActivityPubOnlyHandleFunc: %s", err)
@@ -318,11 +331,22 @@ func (r *Route) ActivityPubOnlyHandleFunc(path, scheme string, authFn pub.Authen
 	return r
 }
 
-func (r *Route) ActivityPubAndWebHandleFunc(path, scheme string, authFn pub.AuthenticateFunc, usernameFromPathFn func(string) (string, error), f func(http.ResponseWriter, *http.Request)) *Route {
-	apHandler := pub.NewActivityStreamsHandler(authFn, r.db, r.clock)
+func (r *Route) ActivityPubAndWebHandleFunc(path, scheme string, authFn AuthorizeFunc, f func(http.ResponseWriter, *http.Request)) *Route {
+	apHandler := pub.NewActivityStreamsHandler(r.db, r.clock)
 	r.route = r.route.Path(path).Schemes(scheme).HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
-			c, err := newRequestContext(scheme, r.host, req, r.db, usernameFromPathFn)
+			c, err := newRequestContext(scheme, r.host, w, req, r.db, r.oauth)
+			permit := true
+			if authFn != nil {
+				permit, err = authFn(c, w, req, r.db)
+			}
+			if err != nil {
+				// TODO
+				return
+			} else if !permit {
+				// TODO
+				return
+			}
 			isASRequest, err := apHandler(c, w, req)
 			if err != nil {
 				ErrorLogger.Errorf("Error in ActivityPubAndWebHandleFunc: %s", err)

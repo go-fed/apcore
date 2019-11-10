@@ -81,12 +81,13 @@ func newOAuth2Server(c *config, d *database, k *sessions) (s *oAuth2Server, err 
 		// Allow:
 		// - Authorization Code (for third parties)
 		// - Refreshing Tokens
-		// - Resource owner secrets
 		// - Client secrets
+		//
+		// Deny:
+		// - Resource owner secrets (password grant)
 		AllowedGrantTypes: []oauth2.GrantType{
 			oauth2.AuthorizationCode,
 			oauth2.Refreshing,
-			oauth2.PasswordCredentials,
 			oauth2.ClientCredentials,
 		},
 	}, m)
@@ -99,18 +100,33 @@ func newOAuth2Server(c *config, d *database, k *sessions) (s *oAuth2Server, err 
 	srv.SetUserAuthorizationHandler(func(w http.ResponseWriter, r *http.Request) (userID string, err error) {
 		var s *session
 		if s, err = k.Get(r); err != nil {
-			err = nil
-			InfoLogger.Infof("OAuth redirect to login")
-			// TODO: Redirect to Login URL
+			// TODO: Internal error
 			return
 		}
 		if userID, err = s.UserID(); err != nil {
+			if r.Form == nil {
+				err = r.ParseForm()
+				if err != nil {
+					// TODO: Malformed form
+				}
+			}
+			s.SetOAuthRedirectFormValues(r.Form)
+			err = s.Save(r, w)
+			if err != nil {
+				// TODO: Internal Error
+				return
+			}
+			// TODO: Redirect to login
 			return
 		}
 		// User is already logged in
 		return
 	})
-	// Called when requesting a token through the password credential grant flow.
+	// Called when requesting a token through the password credential grant
+	// flow.
+	//
+	// NOTE: This grant type is currently not supported, but the handler is
+	// here if it were to be enabled.
 	srv.SetPasswordAuthorizationHandler(func(email, password string) (userID string, err error) {
 		// TODO: Fix oauth2 to support request contexts.
 		userID, err = d.UserIDFromEmail(context.Background(), email)
@@ -148,6 +164,8 @@ func newOAuth2Server(c *config, d *database, k *sessions) (s *oAuth2Server, err 
 	return
 }
 
+// TODO: Scopes
+
 func (o *oAuth2Server) HandleAuthorizationRequest(w http.ResponseWriter, r *http.Request) {
 	if err := o.s.HandleAuthorizeRequest(w, r); err != nil {
 		// oauth2 library would already have written headers by now.
@@ -170,4 +188,8 @@ func (o *oAuth2Server) ValidateOAuth2AccessToken(w http.ResponseWriter, r *http.
 		err = nil
 	}
 	return
+}
+
+func (o *oAuth2Server) RemoveByAccess(t oauth2.TokenInfo) error {
+	return o.m.RemoveAccessToken(t.GetAccess())
 }
