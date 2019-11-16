@@ -1,0 +1,10 @@
+{{template "header.html" .}}
+<h1>Create A Note</h1>
+<form method="post">
+	<table>
+		<tr><td>Summary:</td><td><input type="text" name="note_summary"></td></tr>
+		<tr><td>Content:</td><td><textarea name="note_content" rows="10" cols="50"></textarea></td></tr>
+		<tr><td colspan="2"><button type="submit" name="note_publish">Publish</button></td></tr>
+	</table>
+</form>
+{{template "footer.html" .}}

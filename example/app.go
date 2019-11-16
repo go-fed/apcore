@@ -233,6 +233,9 @@ func (a *App) BuildRoutes(r *apcore.Router, db apcore.Database, f apcore.Framewo
 	//     /.well-known/webfinger
 	//
 	// And supports using Webfinger to find actors on this server.
+	//
+	// Here we save copeies of our error handlers.
+	internalErrorHandler := a.InternalServerErrorHandler()
 
 	// WebOnlyHandleFunc is a convenience function for endpoints with only
 	// web content available; no ActivityStreams content exists at this
@@ -259,6 +262,8 @@ func (a *App) BuildRoutes(r *apcore.Router, db apcore.Database, f apcore.Framewo
 	// the ActivityStreams data has proper credentials to view the web or
 	// ActivityStreams data.
 	authFn := func(c apcore.Context, w http.ResponseWriter, r *http.Request, db apcore.Database) (permit bool, err error) {
+		vars := mux.Vars(r)
+		noteID := vars["note"]
 		// TODO: Based on the note and any auth, permit or deny
 		return false, nil
 	}
@@ -268,7 +273,19 @@ func (a *App) BuildRoutes(r *apcore.Router, db apcore.Database, f apcore.Framewo
 	// Next, a webpage to handle creating, updating, and deleting notes.
 	// This is NOT via C2S, but is done natively in our application.
 	r.NewRoute().Path("/notes/create").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// TODO: View form for creating note.
+		// Ensure the user is logged in.
+		_, authd, err := f.ValidateOAuth2AccessToken(w, r)
+		if err != nil {
+			apcore.ErrorLogger.Errorf("error validating oauth2 token in /notes/create: %s", err)
+			internalErrorHandler(w, r)
+			return
+		}
+		if !authd {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+		d := a.getTemplateData()
+		a.templates.ExecuteTemplate(w, "create_note.html", d)
 	})
 	r.NewRoute().Path("/notes/create").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Send out new federated info.
