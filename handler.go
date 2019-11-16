@@ -42,6 +42,9 @@ func newHandler(scheme string, c *config, a Application, actor pub.Actor, db *ap
 	mr.NotFoundHandler = a.NotFoundHandler()
 	mr.MethodNotAllowedHandler = a.MethodNotAllowedHandler()
 	internalErrorHandler := a.InternalServerErrorHandler()
+	badRequestHandler := a.BadRequestHandler()
+	getAuthWebHandler := a.GetAuthWebHandlerFunc()
+	getLoginWebHandler := a.GetLoginWebHandlerFunc()
 
 	// Static assets
 	if sd := c.ServerConfig.StaticRootDirectory; len(sd) == 0 {
@@ -62,13 +65,13 @@ func newHandler(scheme string, c *config, a Application, actor pub.Actor, db *ap
 		clock,
 		c.ServerConfig.Host,
 		internalErrorHandler,
-		a.BadRequestHandler())
+		badRequestHandler)
 
 	// Host-meta
 	r.WebOnlyHandleFunc("/.well-known/host-meta", hostMetaHandler(scheme, c.ServerConfig.Host))
 
 	// Webfinger
-	r.WebOnlyHandleFunc("/.well-known/webfinger", webfingerHandler(scheme, c.ServerConfig.Host, a.BadRequestHandler(), internalErrorHandler))
+	r.WebOnlyHandleFunc("/.well-known/webfinger", webfingerHandler(scheme, c.ServerConfig.Host, badRequestHandler, internalErrorHandler))
 
 	// TODO: Node-info
 	// TODO: Actor routes (public key id)
@@ -103,7 +106,8 @@ func newHandler(scheme string, c *config, a Application, actor pub.Actor, db *ap
 	maybeAddWebFn(knownUserPaths[userPathKey], a.GetUserWebHandlerFunc)
 
 	// POST Login and GET logout routes
-	r.NewRoute().Path("/login").Methods("POST").HandlerFunc(postLoginFn(sl, db.database, internalErrorHandler))
+	r.NewRoute().Path("/login").Methods("POST").HandlerFunc(postLoginFn(sl, db.database, badRequestHandler, internalErrorHandler))
+	r.NewRoute().Path("/login").Methods("GET").HandlerFunc(getLoginWebHandler)
 	r.NewRoute().Path("/logout").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t, authd, err := oauth.ValidateOAuth2AccessToken(w, r)
 		if err != nil {
@@ -116,9 +120,9 @@ func newHandler(scheme string, c *config, a Application, actor pub.Actor, db *ap
 				return
 			}
 		}
-		// TODO: Redirect to login page
+		http.Redirect(w, r, "/login", http.StatusFound)
 	})
-	r.NewRoute().Path("/authorize").Methods("GET").HandlerFunc(getAuthFn(sl, internalErrorHandler))
+	r.NewRoute().Path("/authorize").Methods("GET").HandlerFunc(getAuthFn(sl, internalErrorHandler, getAuthWebHandler))
 	r.NewRoute().Path("/authorize").Methods("POST").HandlerFunc(postAuthFn(sl, oauth, internalErrorHandler))
 	r.NewRoute().Path("/token").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		oauth.HandleAccessTokenRequest(w, r)
@@ -220,7 +224,7 @@ func webfingerHandler(scheme, host string, badRequestHandler, internalErrorHandl
 	}
 }
 
-func postLoginFn(sl *sessions, db *database, internalErrorHandler http.Handler) func(w http.ResponseWriter, r *http.Request) {
+func postLoginFn(sl *sessions, db *database, badRequestHandler, internalErrorHandler http.Handler) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		s, err := sl.Get(r)
 		if err != nil {
@@ -231,17 +235,20 @@ func postLoginFn(sl *sessions, db *database, internalErrorHandler http.Handler) 
 		if r.Form == nil {
 			err = r.ParseForm()
 			if err != nil {
-				// TODO: Malformed form
+				badRequestHandler.ServeHTTP(w, r)
+				return
 			}
 		}
 		emailV, ok := r.Form[LoginFormEmailKey]
 		if !ok || len(emailV) != 1 {
-			// TODO: Malformed form
+			badRequestHandler.ServeHTTP(w, r)
+			return
 		}
 		email := emailV[0]
 		passV, ok := r.Form[LoginFormPasswordKey]
 		if !ok || len(passV) != 1 {
-			// TODO: Malformed form
+			badRequestHandler.ServeHTTP(w, r)
+			return
 		}
 		pass := passV[0]
 		u, err := db.UserIDFromEmail(r.Context(), email)
@@ -256,7 +263,8 @@ func postLoginFn(sl *sessions, db *database, internalErrorHandler http.Handler) 
 			internalErrorHandler.ServeHTTP(w, r)
 			return
 		} else if !valid {
-			// TODO: Invalid username/password
+			http.Redirect(w, r, "/login?login_error=true", http.StatusFound)
+			return
 		}
 		s.SetUserID(u)
 		err = s.Save(r, w)
@@ -265,11 +273,11 @@ func postLoginFn(sl *sessions, db *database, internalErrorHandler http.Handler) 
 			internalErrorHandler.ServeHTTP(w, r)
 			return
 		}
-		// TODO: Redirect to GET auth fn
+		http.Redirect(w, r, "/authorize", http.StatusFound)
 	}
 }
 
-func getAuthFn(sl *sessions, internalErrorHandler http.Handler) func(w http.ResponseWriter, r *http.Request) {
+func getAuthFn(sl *sessions, internalErrorHandler http.Handler, authWebHandler http.HandlerFunc) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		s, err := sl.Get(r)
 		if err != nil {
@@ -279,9 +287,10 @@ func getAuthFn(sl *sessions, internalErrorHandler http.Handler) func(w http.Resp
 		}
 		_, err = s.UserID()
 		if err != nil {
-			// TODO: Redirect to login
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
 		}
-		// TODO: Call authorization handler
+		authWebHandler(w, r)
 	}
 }
 

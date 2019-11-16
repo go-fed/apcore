@@ -144,6 +144,25 @@ func (a *App) BadRequestHandler() http.Handler {
 	})
 }
 
+// GetLoginWebHandlerFunc returns a handler that renders the login page for
+// the user.
+//
+// The form should POST to "/login", and if the query parameter "login_error"
+// is "true" then it should also render the "email or password incorrect" error
+// message.
+func (a *App) GetLoginWebHandlerFunc() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		a.templates.ExecuteTemplate(w, "login.html", a.getTemplateData())
+	}
+}
+
+// GetAuthWebHandlerFunc returns a handler that renders the authorization page
+// for the user to approve in the OAuth2 flow.
+func (a *App) GetAuthWebHandlerFunc() http.HandlerFunc {
+	// TODO
+	return nil
+}
+
 // GetInboxWebHandlerFunc returns a function rendering the outbox. The framework
 // passes in a public-only or private view of the outbox, depending on the
 // authorization of the incoming request.
@@ -202,13 +221,10 @@ func (a *App) BuildRoutes(r *apcore.Router, db apcore.Database, f apcore.Framewo
 	// The framework also provides out-of-the-box OAuth2 supporting
 	// endpoints:
 	//
-	//     /login (POST)
+	//     /login (GET & POST)
 	//     /logout (GET)
 	//     /authorize (GET & POST)
 	//     /token (GET)
-	//
-	// This means your application still needs to specify a web handler for
-	// a GET request to "/login" to display a login page.
 	//
 	// The framework also handles registering webfinger and host-meta
 	// routes:
@@ -218,54 +234,21 @@ func (a *App) BuildRoutes(r *apcore.Router, db apcore.Database, f apcore.Framewo
 	//
 	// And supports using Webfinger to find actors on this server.
 
-	// This is a helper function to generate common data needed in the web
-	// templates.
-	getTemplateData := func() map[string]interface{} {
-		return map[string]interface{}{
-			"Nav": []struct {
-				Href string
-				Name string
-			}{
-				{
-					Href: "/",
-					Name: "home",
-				},
-				{
-					Href: "/login",
-					Name: "login",
-				},
-				{
-					Href: "/logout",
-					Name: "logout",
-				},
-				{
-					Href: "/users",
-					Name: "users",
-				},
-			},
-		}
-	}
 	// WebOnlyHandleFunc is a convenience function for endpoints with only
 	// web content available; no ActivityStreams content exists at this
 	// endpoint.
 	//
 	// It is sugar for Path(...).HandlerFunc(...)
 	r.WebOnlyHandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		a.templates.ExecuteTemplate(w, "home.html", getTemplateData())
-	})
-	// You can use familiar mux methods to route requests appropriately.
-	//
-	// This handler displays the login page. The rest of the handlers
-	// provide some basic navigational functionality.
-	r.NewRoute().Path("/login").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a.templates.ExecuteTemplate(w, "login.html", getTemplateData())
+		a.templates.ExecuteTemplate(w, "home.html", a.getTemplateData())
 	})
 	r.WebOnlyHandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
 		// TODO: List users
-		d := getTemplateData()
+		d := a.getTemplateData()
 		a.templates.ExecuteTemplate(w, "users.html", d)
 	})
-
+	// You can use familiar mux methods to route requests appropriately.
+	//
 	// Finally, add a handler for the new ActivityStream Notes we will
 	// be creating.
 	r.NewRoute().Path("/notes").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -363,5 +346,33 @@ func (a *App) Software() apcore.Software {
 		MajorVersion: 0,
 		MinorVersion: 1,
 		PatchVersion: 0,
+	}
+}
+
+// This is a helper function to generate common data needed in the web
+// templates.
+func (a *App) getTemplateData() map[string]interface{} {
+	return map[string]interface{}{
+		"Nav": []struct {
+			Href string
+			Name string
+		}{
+			{
+				Href: "/",
+				Name: "home",
+			},
+			{
+				Href: "/login",
+				Name: "login",
+			},
+			{
+				Href: "/logout",
+				Name: "logout",
+			},
+			{
+				Href: "/users",
+				Name: "users",
+			},
+		},
 	}
 }

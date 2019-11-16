@@ -36,7 +36,7 @@ type oAuth2Server struct {
 	s *oaserver.Server
 }
 
-func newOAuth2Server(c *config, d *database, k *sessions) (s *oAuth2Server, err error) {
+func newOAuth2Server(c *config, a Application, d *database, k *sessions) (s *oAuth2Server, err error) {
 	m := manage.NewDefaultManager()
 	// Configure Access token and Refresh token refresh.
 	if c.OAuthConfig.AccessTokenExpiry <= 0 {
@@ -97,26 +97,31 @@ func newOAuth2Server(c *config, d *database, k *sessions) (s *oAuth2Server, err 
 	// no user is present, then they have not yet logged in and need to do
 	// so. Note that an empty string userID plus no error will magically
 	// cause the library to stop processing.
+	badRequestHandler := a.BadRequestHandler()
+	internalErrorHandler := a.InternalServerErrorHandler()
 	srv.SetUserAuthorizationHandler(func(w http.ResponseWriter, r *http.Request) (userID string, err error) {
 		var s *session
 		if s, err = k.Get(r); err != nil {
-			// TODO: Internal error
+			ErrorLogger.Errorf("error getting session in OAuth2 SetUserAuthorizationHandler: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
 			return
 		}
 		if userID, err = s.UserID(); err != nil {
 			if r.Form == nil {
 				err = r.ParseForm()
 				if err != nil {
-					// TODO: Malformed form
+					badRequestHandler.ServeHTTP(w, r)
+					return
 				}
 			}
 			s.SetOAuthRedirectFormValues(r.Form)
 			err = s.Save(r, w)
 			if err != nil {
-				// TODO: Internal Error
+				ErrorLogger.Errorf("error saving session in OAuth2 SetUserAuthorizationHandler: %s", err)
+				internalErrorHandler.ServeHTTP(w, r)
 				return
 			}
-			// TODO: Redirect to login
+			http.Redirect(w, r, "/login", http.StatusFound)
 			return
 		}
 		// User is already logged in

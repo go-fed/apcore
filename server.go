@@ -71,7 +71,7 @@ func newServer(configFileName string, a Application, debug bool, scheme string) 
 
 	// Prepare OAuth2 server
 	var oa *oAuth2Server
-	oa, err = newOAuth2Server(c, db, ses)
+	oa, err = newOAuth2Server(c, a, db, ses)
 	if err != nil {
 		return
 	}

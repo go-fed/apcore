@@ -305,15 +305,22 @@ func (r *Route) ActivityPubOnlyHandleFunc(path, scheme string, authFn AuthorizeF
 	r.route = r.route.Path(path).Schemes(scheme).HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
 			c, err := newRequestContext(scheme, r.host, w, req, r.db, r.oauth)
+			if err != nil {
+				ErrorLogger.Errorf("Error in ActivityPubOnlyHandleFunc newRequestContext: %s", err)
+				r.errorHandler.ServeHTTP(w, req)
+				return
+			}
 			permit := true
 			if authFn != nil {
 				permit, err = authFn(c, w, req, r.db)
+				if err != nil {
+					ErrorLogger.Errorf("Error in ActivityPubOnlyHandleFunc authFn: %s", err)
+					r.errorHandler.ServeHTTP(w, req)
+					return
+				}
 			}
-			if err != nil {
-				// TODO
-				return
-			} else if !permit {
-				// TODO
+			if !permit {
+				r.notFoundHandler.ServeHTTP(w, req)
 				return
 			}
 			isASRequest, err := apHandler(c, w, req)
@@ -336,15 +343,22 @@ func (r *Route) ActivityPubAndWebHandleFunc(path, scheme string, authFn Authoriz
 	r.route = r.route.Path(path).Schemes(scheme).HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
 			c, err := newRequestContext(scheme, r.host, w, req, r.db, r.oauth)
+			if err != nil {
+				ErrorLogger.Errorf("Error in ActivityPubOnlyHandleFunc newRequestContext: %s", err)
+				r.errorHandler.ServeHTTP(w, req)
+				return
+			}
 			permit := true
 			if authFn != nil {
 				permit, err = authFn(c, w, req, r.db)
+				if err != nil {
+					ErrorLogger.Errorf("Error in ActivityPubOnlyHandleFunc authFn: %s", err)
+					r.errorHandler.ServeHTTP(w, req)
+					return
+				}
 			}
-			if err != nil {
-				// TODO
-				return
-			} else if !permit {
-				// TODO
+			if !permit {
+				r.notFoundHandler.ServeHTTP(w, req)
 				return
 			}
 			isASRequest, err := apHandler(c, w, req)

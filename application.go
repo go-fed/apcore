@@ -111,6 +111,27 @@ type Application interface {
 	InternalServerErrorHandler() http.Handler
 	// The handler for a bad request.
 	BadRequestHandler() http.Handler
+
+	// Web handlers for the application server
+
+	// Web handler for a GET call to the login page.
+	//
+	// It should render a login page that POSTs to the "/login" endpoint.
+	//
+	// If the URL contains a query parameter "login_error" with a value of
+	// "true", then it should convey to the user that the email or password
+	// previously entered was incorrect.
+	GetLoginWebHandlerFunc() http.HandlerFunc
+	// Web handler for a GET call to the OAuth2 authorization page.
+	//
+	// It should render UX that informs the user that the other application
+	// is requesting to be authorized as that user to obtain certain scopes.
+	//
+	// See the OAuth2 RFC 6749 for more information.
+	GetAuthWebHandlerFunc() http.HandlerFunc
+
+	// Web handlers for ActivityPub related data
+
 	// Web handler for a call to GET an actor's inbox. The framework applies
 	// OAuth2 authorizations to fetch a public-only or private snapshot of
 	// the inbox, and passes it into this handler function.
