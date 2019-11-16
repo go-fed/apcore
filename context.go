@@ -38,6 +38,8 @@ const (
 )
 
 type Context interface {
+	context.Context
+
 	UserPathUUID() (s string, err error)
 	UserAuthUUID() (s string, err error)
 	ActivityIRI() (u *url.URL, err error)

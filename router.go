@@ -34,6 +34,7 @@ type Router struct {
 	actor             pub.Actor
 	clock             pub.Clock
 	host              string
+	scheme            string
 	errorHandler      http.Handler
 	badRequestHandler http.Handler
 }
@@ -44,6 +45,7 @@ func newRouter(router *mux.Router,
 	actor pub.Actor,
 	clock pub.Clock,
 	host string,
+	scheme string,
 	errorHandler http.Handler,
 	badRequestHandler http.Handler) *Router {
 	return &Router{
@@ -53,6 +55,7 @@ func newRouter(router *mux.Router,
 		actor:             actor,
 		clock:             clock,
 		host:              host,
+		scheme:            scheme,
 		errorHandler:      errorHandler,
 		badRequestHandler: badRequestHandler,
 	}
@@ -66,6 +69,7 @@ func (r *Router) wrap(route *mux.Route) *Route {
 		actor:             r.actor,
 		clock:             r.clock,
 		host:              r.host,
+		scheme:            r.scheme,
 		errorHandler:      r.errorHandler,
 		badRequestHandler: r.badRequestHandler,
 		notFoundHandler:   r.router.NotFoundHandler,
@@ -88,12 +92,12 @@ func (r *Router) actorGetOutbox(path, scheme string, web func(http.ResponseWrite
 	return r.wrap(r.router.NewRoute()).actorGetOutbox(path, scheme, web)
 }
 
-func (r *Router) ActivityPubOnlyHandleFunc(path, scheme string, authFn AuthorizeFunc) *Route {
-	return r.wrap(r.router.NewRoute()).ActivityPubOnlyHandleFunc(path, scheme, authFn)
+func (r *Router) ActivityPubOnlyHandleFunc(path string, authFn AuthorizeFunc) *Route {
+	return r.wrap(r.router.NewRoute()).ActivityPubOnlyHandleFunc(path, authFn)
 }
 
-func (r *Router) ActivityPubAndWebHandleFunc(path, scheme string, authFn AuthorizeFunc, f func(http.ResponseWriter, *http.Request)) *Route {
-	return r.wrap(r.router.NewRoute()).ActivityPubAndWebHandleFunc(path, scheme, authFn, f)
+func (r *Router) ActivityPubAndWebHandleFunc(path string, authFn AuthorizeFunc, f func(http.ResponseWriter, *http.Request)) *Route {
+	return r.wrap(r.router.NewRoute()).ActivityPubAndWebHandleFunc(path, authFn, f)
 }
 
 func (r *Router) HandleAuthorizationRequest(path string) *Route {
@@ -175,6 +179,7 @@ type Route struct {
 	actor             pub.Actor
 	clock             pub.Clock
 	host              string
+	scheme            string
 	errorHandler      http.Handler
 	badRequestHandler http.Handler
 	notFoundHandler   http.Handler
@@ -300,11 +305,11 @@ func (r *Route) actorGetOutbox(path, scheme string, web func(w http.ResponseWrit
 	return r
 }
 
-func (r *Route) ActivityPubOnlyHandleFunc(path, scheme string, authFn AuthorizeFunc) *Route {
+func (r *Route) ActivityPubOnlyHandleFunc(path string, authFn AuthorizeFunc) *Route {
 	apHandler := pub.NewActivityStreamsHandler(r.db, r.clock)
-	r.route = r.route.Path(path).Schemes(scheme).HandlerFunc(
+	r.route = r.route.Path(path).Schemes(r.scheme).HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
-			c, err := newRequestContext(scheme, r.host, w, req, r.db, r.oauth)
+			c, err := newRequestContext(r.scheme, r.host, w, req, r.db, r.oauth)
 			if err != nil {
 				ErrorLogger.Errorf("Error in ActivityPubOnlyHandleFunc newRequestContext: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
@@ -338,13 +343,13 @@ func (r *Route) ActivityPubOnlyHandleFunc(path, scheme string, authFn AuthorizeF
 	return r
 }
 
-func (r *Route) ActivityPubAndWebHandleFunc(path, scheme string, authFn AuthorizeFunc, f func(http.ResponseWriter, *http.Request)) *Route {
+func (r *Route) ActivityPubAndWebHandleFunc(path string, authFn AuthorizeFunc, f func(http.ResponseWriter, *http.Request)) *Route {
 	apHandler := pub.NewActivityStreamsHandler(r.db, r.clock)
-	r.route = r.route.Path(path).Schemes(scheme).HandlerFunc(
+	r.route = r.route.Path(path).Schemes(r.scheme).HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
-			c, err := newRequestContext(scheme, r.host, w, req, r.db, r.oauth)
+			c, err := newRequestContext(r.scheme, r.host, w, req, r.db, r.oauth)
 			if err != nil {
-				ErrorLogger.Errorf("Error in ActivityPubOnlyHandleFunc newRequestContext: %s", err)
+				ErrorLogger.Errorf("Error in ActivityPubAndWebHandleFunc newRequestContext: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
 				return
 			}
@@ -352,7 +357,7 @@ func (r *Route) ActivityPubAndWebHandleFunc(path, scheme string, authFn Authoriz
 			if authFn != nil {
 				permit, err = authFn(c, w, req, r.db)
 				if err != nil {
-					ErrorLogger.Errorf("Error in ActivityPubOnlyHandleFunc authFn: %s", err)
+					ErrorLogger.Errorf("Error in ActivityPubAndWebHandleFunc authFn: %s", err)
 					r.errorHandler.ServeHTTP(w, req)
 					return
 				}

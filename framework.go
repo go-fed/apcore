@@ -18,8 +18,12 @@ package apcore
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"net/url"
 
+	"github.com/go-fed/activity/pub"
+	"github.com/go-fed/activity/streams/vocab"
 	"gopkg.in/oauth2.v3"
 )
 
@@ -38,23 +42,34 @@ type Framework interface {
 	// You may use the token to further enforce the scope, depending on the
 	// application and handler's use case.
 	ValidateOAuth2AccessToken(w http.ResponseWriter, r *http.Request) (token oauth2.TokenInfo, authenticated bool, err error)
+
+	// Send will send an Activity or Object on behalf of the user
+	// represented by the outbox IRI.
+	//
+	// Note that a new ID is not needed on the activity and/or objects that
+	// are being sent; they will be generated as needed.
+	Send(c context.Context, outbox *url.URL, toSend vocab.Type) error
 }
 
 var _ Framework = &framework{}
 
 type framework struct {
-	scheme string
-	host   string
-	o      *oAuth2Server
-	db     *apdb
+	scheme            string
+	host              string
+	o                 *oAuth2Server
+	db                *apdb
+	actor             pub.Actor
+	federationEnabled bool
 }
 
-func newFramework(scheme string, host string, o *oAuth2Server, db *apdb) *framework {
+func newFramework(scheme string, host string, o *oAuth2Server, db *apdb, actor pub.Actor, federationEnabled bool) *framework {
 	return &framework{
-		scheme: scheme,
-		host:   host,
-		o:      o,
-		db:     db,
+		scheme:            scheme,
+		host:              host,
+		o:                 o,
+		db:                db,
+		actor:             actor,
+		federationEnabled: federationEnabled,
 	}
 }
 
@@ -62,6 +77,13 @@ func (f *framework) ValidateOAuth2AccessToken(w http.ResponseWriter, r *http.Req
 	return f.o.ValidateOAuth2AccessToken(w, r)
 }
 
-func (f *framework) NewRequestContext(w http.ResponseWriter, r *http.Request) (context.Context, error) {
-	return newRequestContext(f.scheme, f.host, w, r, f.db, f.o)
+func (f *framework) Send(c context.Context, outbox *url.URL, t vocab.Type) error {
+	if !f.federationEnabled {
+		return fmt.Errorf("cannot Send: Framework.Send called when federation is not enabled")
+	} else if fa, ok := f.actor.(pub.FederatingActor); !ok {
+		return fmt.Errorf("cannot Send: pub.Actor is not a pub.FederatingActor with federation enabled")
+	} else {
+		_, err := fa.Send(c, outbox, t)
+		return err
+	}
 }

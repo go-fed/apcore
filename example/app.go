@@ -250,6 +250,12 @@ func (a *App) BuildRoutes(r *apcore.Router, db apcore.Database, f apcore.Framewo
 		d := a.getTemplateData()
 		a.templates.ExecuteTemplate(w, "users.html", d)
 	})
+	// ActivityPubHandleFunc is a convenience function for endpoints with
+	// only ActivityPub content; no web content exists at this endpoint.
+	r.ActivityPubOnlyHandleFunc("/activities/{activity}", func(c apcore.Context, w http.ResponseWriter, r *http.Request, db apcore.Database) (permit bool, err error) {
+		// TODO: Based on activity and any auth, permit or deny
+		return false, nil
+	})
 	// You can use familiar mux methods to route requests appropriately.
 	//
 	// Finally, add a handler for the new ActivityStream Notes we will
@@ -262,12 +268,12 @@ func (a *App) BuildRoutes(r *apcore.Router, db apcore.Database, f apcore.Framewo
 	// the ActivityStreams data has proper credentials to view the web or
 	// ActivityStreams data.
 	authFn := func(c apcore.Context, w http.ResponseWriter, r *http.Request, db apcore.Database) (permit bool, err error) {
-		vars := mux.Vars(r)
-		noteID := vars["note"]
+		vars := apcore.Vars(r)
+		_ = vars["note"]
 		// TODO: Based on the note and any auth, permit or deny
 		return false, nil
 	}
-	r.ActivityPubAndWebHandleFunc("/notes/{note}", "https", authFn, func(w http.ResponseWriter, r *http.Request) {
+	r.ActivityPubAndWebHandleFunc("/notes/{note}", authFn, func(w http.ResponseWriter, r *http.Request) {
 		// TODO: View note in web page, if authorized.
 	})
 	// Next, a webpage to handle creating, updating, and deleting notes.
@@ -276,19 +282,40 @@ func (a *App) BuildRoutes(r *apcore.Router, db apcore.Database, f apcore.Framewo
 		// Ensure the user is logged in.
 		_, authd, err := f.ValidateOAuth2AccessToken(w, r)
 		if err != nil {
-			apcore.ErrorLogger.Errorf("error validating oauth2 token in /notes/create: %s", err)
-			internalErrorHandler(w, r)
+			apcore.ErrorLogger.Errorf("error validating oauth2 token in GET /notes/create: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
 			return
 		}
 		if !authd {
 			http.Redirect(w, r, "/login", http.StatusFound)
 			return
 		}
+		// Render the webpage.
 		d := a.getTemplateData()
 		a.templates.ExecuteTemplate(w, "create_note.html", d)
 	})
 	r.NewRoute().Path("/notes/create").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Send out new federated info.
+		// Ensure the user is logged in.
+		_, authd, err := f.ValidateOAuth2AccessToken(w, r)
+		if err != nil {
+			apcore.ErrorLogger.Errorf("error validating oauth2 token in POST /notes/create: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		if !authd {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+		// TODO: Determine the user here
+		var outboxURI *url.URL
+		// TODO: Determine the user's outbox URI
+		var create vocab.ActivityStreamsCreate
+		// TODO: Build a new Create activity here
+		if err := f.Send(r.Context(), outboxURI, create); err != nil {
+			apcore.ErrorLogger.Errorf("error sending when creating note")
+			internalErrorHandler.ServeHTTP(w, r)
+		}
+		http.Redirect(w, r, "/notes", http.StatusFound)
 	})
 	return nil
 }

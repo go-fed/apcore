@@ -64,6 +64,7 @@ func newHandler(scheme string, c *config, a Application, actor pub.Actor, db *ap
 		actor,
 		clock,
 		c.ServerConfig.Host,
+		scheme,
 		internalErrorHandler,
 		badRequestHandler)
 
@@ -85,19 +86,19 @@ func newHandler(scheme string, c *config, a Application, actor pub.Actor, db *ap
 	// - Following
 	// - Liked
 	if a.S2SEnabled() {
-		r.actorPostInbox(knownUserPaths[inboxPathKey], "https")
-		r.actorGetInbox(knownUserPaths[inboxPathKey], "https", a.GetInboxWebHandlerFunc())
+		r.actorPostInbox(knownUserPaths[inboxPathKey], scheme)
+		r.actorGetInbox(knownUserPaths[inboxPathKey], scheme, a.GetInboxWebHandlerFunc())
 	}
-	r.actorGetOutbox(knownUserPaths[outboxPathKey], "https", a.GetOutboxWebHandlerFunc())
+	r.actorGetOutbox(knownUserPaths[outboxPathKey], scheme, a.GetOutboxWebHandlerFunc())
 	if a.C2SEnabled() {
-		r.actorPostOutbox(knownUserPaths[outboxPathKey], "https")
+		r.actorPostOutbox(knownUserPaths[outboxPathKey], scheme)
 	}
 	maybeAddWebFn := func(path string, f func() (http.HandlerFunc, AuthorizeFunc)) {
 		web, authFn := f()
 		if web == nil {
-			r.ActivityPubOnlyHandleFunc(path, scheme, authFn)
+			r.ActivityPubOnlyHandleFunc(path, authFn)
 		} else {
-			r.ActivityPubAndWebHandleFunc(path, scheme, authFn, web)
+			r.ActivityPubAndWebHandleFunc(path, authFn, web)
 		}
 	}
 	maybeAddWebFn(knownUserPaths[followersPathKey], a.GetFollowersWebHandlerFunc)
@@ -129,7 +130,7 @@ func newHandler(scheme string, c *config, a Application, actor pub.Actor, db *ap
 	})
 
 	// Application-specific routes
-	err = a.BuildRoutes(r, db, newFramework(scheme, c.ServerConfig.Host, oauth, db))
+	err = a.BuildRoutes(r, db, newFramework(scheme, c.ServerConfig.Host, oauth, db, actor, a.S2SEnabled()))
 	if err != nil {
 		return
 	}
