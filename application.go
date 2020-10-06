@@ -227,14 +227,14 @@ type Application interface {
 	// These calls are made when the server is handling requests, but are
 	// not called during server initialization.
 
-	// NewId creates a new id IRI for the content being created.
+	// NewID creates a new id IRI for the content being created.
 	//
 	// A peer making a GET request to this IRI on this server should then
 	// serve the ActivityPub value provided in this call.
 	//
-	// Ensure the route returned by NewId will be servable by a handler
+	// Ensure the route returned by NewID will be servable by a handler
 	// created in the BuildRoutes call.
-	NewId(c context.Context, t vocab.Type) (id *url.URL, err error)
+	NewID(c context.Context, t vocab.Type) (id *url.URL, err error)
 	// ApplyFederatingCallbacks injects ActivityPub specific behaviors for
 	// federated data.
 	//

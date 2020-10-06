@@ -90,7 +90,7 @@ func (f *federatingBehavior) Blocked(c context.Context, actorIRIs []*url.URL) (b
 	return
 }
 
-func (f *federatingBehavior) Callbacks(c context.Context) (wrapped pub.FederatingWrappedCallbacks, other []interface{}, err error) {
+func (f *federatingBehavior) FederatingCallbacks(c context.Context) (wrapped pub.FederatingWrappedCallbacks, other []interface{}, err error) {
 	ctx := ctx{c}
 	var u userPreferences
 	if u, err = ctx.UserPreferences(); err != nil {

@@ -82,6 +82,6 @@ func (a *apdb) Unlock(c context.Context, id *url.URL) error {
 	}
 }
 
-func (a *apdb) NewId(c context.Context, t vocab.Type) (id *url.URL, err error) {
-	return a.app.NewId(c, t)
+func (a *apdb) NewID(c context.Context, t vocab.Type) (id *url.URL, err error) {
+	return a.app.NewID(c, t)
 }
