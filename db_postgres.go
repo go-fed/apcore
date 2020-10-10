@@ -203,18 +203,18 @@ func (p *pgV0) usersInboxTable() string {
 CREATE TABLE IF NOT EXISTS ` + p.schema + `users_inbox
 (
   id bigserial PRIMARY KEY,
-  user_id uuid REFERENCES ` + p.schema + `users (id) NOT NULL ON DELETE RESTRICT,
-  federated_id uuid REFERENCES ` + p.schema + `fed_data (id) NOT NULL ON DELETE CASCADE,
+  user_id uuid REFERENCES ` + p.schema + `users (id) ON DELETE RESTRICT NOT NULL,
+  federated_id uuid REFERENCES ` + p.schema + `fed_data (id) ON DELETE CASCADE NOT NULL
 );`
 }
 
 func (p *pgV0) usersOutboxTable() string {
 	return `
-CREATE TABLE IF NOT EXISTS ` + p.schema + `users_inbox
+CREATE TABLE IF NOT EXISTS ` + p.schema + `users_outbox
 (
   id bigserial PRIMARY KEY,
-  user_id uuid REFERENCES ` + p.schema + `users (id) NOT NULL ON DELETE RESTRICT,
-  local_id uuid REFERENCES ` + p.schema + `local_data (id) NOT NULL ON DELETE CASCADE,
+  user_id uuid REFERENCES ` + p.schema + `users (id) ON DELETE RESTRICT NOT NULL,
+  local_id uuid REFERENCES ` + p.schema + `local_data (id) ON DELETE CASCADE NOT NULL
 );`
 }
 
@@ -223,7 +223,7 @@ func (p *pgV0) userPrivilegesTable() string {
 CREATE TABLE IF NOT EXISTS ` + p.schema + `user_privileges
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES ` + p.schema + `users (id) NOT NULL ON DELETE CASCADE,
+  user_id uuid REFERENCES ` + p.schema + `users (id) ON DELETE CASCADE NOT NULL,
   admin boolean NOT NULL
 );`
 }
@@ -233,7 +233,7 @@ func (p *pgV0) userPreferencesTable() string {
 CREATE TABLE IF NOT EXISTS ` + p.schema + `user_preferences
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES ` + p.schema + `users (id) NOT NULL ON DELETE CASCADE,
+  user_id uuid REFERENCES ` + p.schema + `users (id) ON DELETE CASCADE NOT NULL,
   on_follow text NOT NULL
 );`
 }
@@ -244,7 +244,7 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `instance_policies
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   create_time timestamp with time zone DEFAULT current_timestamp,
-  order integer NOT NULL CONSTRAINT unique_order UNIQUE DEFERRABLE INITIALLY DEFERRED,
+  ordinal integer NOT NULL CONSTRAINT unique_order UNIQUE DEFERRABLE INITIALLY DEFERRED,
   description text NOT NULL,
   subject text NOT NULL,
   kind text NOT NULL
@@ -257,12 +257,12 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `user_policies
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   create_time timestamp with time zone DEFAULT current_timestamp,
-  user_id uuid REFERENCES ` + p.schema + `users (id) NOT NULL ON DELETE CASCADE,
-  order integer NOT NULL,
+  user_id uuid REFERENCES ` + p.schema + `users (id) ON DELETE CASCADE NOT NULL,
+  ordinal integer NOT NULL,
   description text NOT NULL,
   subject text NOT NULL,
   kind text NOT NULL,
-  CONSTRAINT user_unique_order UNIQUE (user_id, order) DEFERRABLE INITIALLY DEFERRED
+  CONSTRAINT user_unique_order UNIQUE (user_id, ordinal) DEFERRABLE INITIALLY DEFERRED
 );`
 }
 
@@ -272,13 +272,13 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `resolutions
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   create_time timestamp with time zone DEFAULT current_timestamp,
-  order integer NOT NULL,
-  user_id uuid REFERENCES ` + p.schema + `users (id) NOT NULL ON DELETE CASCADE,
-  permitted string NOT NULL,
+  ordinal integer NOT NULL,
+  user_id uuid REFERENCES ` + p.schema + `users (id) ON DELETE CASCADE NOT NULL,
+  permitted text NOT NULL,
   activity_iri text NOT NULL,
   is_public boolean NOT NULL,
-  reason text NOT NULL
-  CONSTRAINT activity_unique_order UNIQUE (activity_iri, order) DEFERRABLE INITIALLY DEFERRED
+  reason text NOT NULL,
+  CONSTRAINT activity_unique_order UNIQUE (activity_iri, ordinal) DEFERRABLE INITIALLY DEFERRED
 );`
 }
 
@@ -286,8 +286,8 @@ func (p *pgV0) resolutionInstancePolicyJoinTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `resolutions_instance_policies
 (
-  resolution_id uuid REFERENCES ` + p.schema + `resolutions (id) NOT NULL ON DELETE CASCADE,
-  instance_policy_id uuid REFERENCES ` + p.schema + `instance_policies (id) NOT NULL ON DELETE CASCADE
+  resolution_id uuid REFERENCES ` + p.schema + `resolutions (id) ON DELETE CASCADE NOT NULL,
+  instance_policy_id uuid REFERENCES ` + p.schema + `instance_policies (id) ON DELETE CASCADE NOT NULL
 );`
 }
 
@@ -295,8 +295,8 @@ func (p *pgV0) resolutionUserPolicyJoinTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `resolutions_user_policies
 (
-  resolution_id uuid REFERENCES ` + p.schema + `resolutions (id) NOT NULL ON DELETE CASCADE,
-  user_policy_id uuid REFERENCES ` + p.schema + `user_policies (id) NOT NULL ON DELETE CASCADE
+  resolution_id uuid REFERENCES ` + p.schema + `resolutions (id) ON DELETE CASCADE NOT NULL,
+  user_policy_id uuid REFERENCES ` + p.schema + `user_policies (id) ON DELETE CASCADE NOT NULL
 );`
 }
 
@@ -306,8 +306,8 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `delivery_attempts
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   create_time timestamp with time zone DEFAULT current_timestamp,
-  from_id uuid REFERENCES ` + p.schema + `users (id) NOT NULL ON DELETE CASCADE,
-  to text NOT NULL,
+  from_id uuid REFERENCES ` + p.schema + `users (id) ON DELETE CASCADE NOT NULL,
+  deliver_to text NOT NULL,
   payload bytea NOT NULL,
   state text NOT NULL
 );`
@@ -318,7 +318,7 @@ func (p *pgV0) privateKeyTable() string {
 CREATE TABLE IF NOT EXISTS ` + p.schema + `private_keys
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES ` + p.schema + `users(id) NOT NULL ON DELETE CASCADE,
+  user_id uuid REFERENCES ` + p.schema + `users(id) ON DELETE CASCADE NOT NULL,
   create_time timestamp with time zone DEFAULT current_timestamp,
   priv_key bytea NOT NULL
 );`
@@ -363,7 +363,7 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `oauth_clients
   id text PRIMARY KEY,
   secret text NOT NULL,
   domain text NOT NULL,
-  user_id uuid REFERENCES ` + p.schema + `users(id) NOT NULL ON DELETE CASCADE
+  user_id uuid REFERENCES ` + p.schema + `users(id) ON DELETE CASCADE NOT NULL
 );`
 }
 
