@@ -31,8 +31,6 @@ const (
 	userPreferencesContextKey    = "userPreferences"
 	userPathUUIDContextKey       = "userPathUUID"
 	userAuthUUIDContextKey       = "userAuthUUID"
-	activityIRIContextKey        = "activityIRI"
-	activityTypeContextKey       = "activityType"
 	completeRequestURLContextKey = "completeRequestURL"
 	privateScopeContextKey       = "privateScope"
 )

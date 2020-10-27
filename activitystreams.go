@@ -17,7 +17,6 @@
 package apcore
 
 import (
-	"crypto"
 	"net/url"
 	"strconv"
 
@@ -82,97 +81,5 @@ func toOrderedCollectionPage(id *url.URL, ids []string, current, length int) (oc
 	tlProp := streams.NewActivityStreamsTotalItemsProperty()
 	tlProp.Set(oiProp.Len())
 	ocp.SetActivityStreamsTotalItems(tlProp)
-	return
-}
-
-func toPersonActor(a Application,
-	scheme, host, username, preferredUsername, summary string,
-	pubKey crypto.PublicKey) (p vocab.ActivityStreamsPerson, err error) {
-	p = streams.NewActivityStreamsPerson()
-	// id
-	idProp := streams.NewJSONLDIdProperty()
-	idIRI := knownUserIRIFor(scheme, host, userPathKey, username)
-	idProp.SetIRI(idIRI)
-	p.SetJSONLDId(idProp)
-
-	// inbox
-	inboxProp := streams.NewActivityStreamsInboxProperty()
-	inboxIRI := knownUserIRIFor(scheme, host, inboxPathKey, username)
-	inboxProp.SetIRI(inboxIRI)
-	p.SetActivityStreamsInbox(inboxProp)
-
-	// outbox
-	outboxProp := streams.NewActivityStreamsOutboxProperty()
-	outboxIRI := knownUserIRIFor(scheme, host, outboxPathKey, username)
-	outboxProp.SetIRI(outboxIRI)
-	p.SetActivityStreamsOutbox(outboxProp)
-
-	// followers
-	followersProp := streams.NewActivityStreamsFollowersProperty()
-	followersIRI := knownUserIRIFor(scheme, host, followersPathKey, username)
-	followersProp.SetIRI(followersIRI)
-	p.SetActivityStreamsFollowers(followersProp)
-
-	// following
-	followingProp := streams.NewActivityStreamsFollowingProperty()
-	followingIRI := knownUserIRIFor(scheme, host, followingPathKey, username)
-	followingProp.SetIRI(followingIRI)
-	p.SetActivityStreamsFollowing(followingProp)
-
-	// liked
-	likedProp := streams.NewActivityStreamsLikedProperty()
-	likedIRI := knownUserIRIFor(scheme, host, likedPathKey, username)
-	likedProp.SetIRI(likedIRI)
-	p.SetActivityStreamsLiked(likedProp)
-
-	// name
-	nameProp := streams.NewActivityStreamsNameProperty()
-	nameProp.AppendXMLSchemaString(username)
-	p.SetActivityStreamsName(nameProp)
-
-	// preferredUsername
-	preferredUsernameProp := streams.NewActivityStreamsPreferredUsernameProperty()
-	preferredUsernameProp.SetXMLSchemaString(preferredUsername)
-	p.SetActivityStreamsPreferredUsername(preferredUsernameProp)
-
-	// url
-	urlProp := streams.NewActivityStreamsUrlProperty()
-	urlProp.AppendIRI(idIRI)
-	p.SetActivityStreamsUrl(urlProp)
-
-	// summary
-	summaryProp := streams.NewActivityStreamsSummaryProperty()
-	summaryProp.AppendXMLSchemaString(summary)
-	p.SetActivityStreamsSummary(summaryProp)
-
-	// publicKey property
-	publicKeyProp := streams.NewW3IDSecurityV1PublicKeyProperty()
-
-	// publicKey type
-	publicKeyType := streams.NewW3IDSecurityV1PublicKey()
-
-	// publicKey id
-	pubKeyIdProp := streams.NewJSONLDIdProperty()
-	pubKeyIRI := knownUserIRIFor(scheme, host, pubKeyKey, username)
-	pubKeyIdProp.SetIRI(pubKeyIRI)
-	publicKeyType.SetJSONLDId(pubKeyIdProp)
-
-	// publicKey owner
-	ownerProp := streams.NewW3IDSecurityV1OwnerProperty()
-	ownerProp.SetIRI(idIRI)
-	publicKeyType.SetW3IDSecurityV1Owner(ownerProp)
-
-	// publicKey publicKeyPem
-	publicKeyPemProp := streams.NewW3IDSecurityV1PublicKeyPemProperty()
-	var pubStr string
-	pubStr, err = marshalPublicKey(pubKey)
-	if err != nil {
-		return
-	}
-	publicKeyPemProp.Set(pubStr)
-	publicKeyType.SetW3IDSecurityV1PublicKeyPem(publicKeyPemProp)
-
-	publicKeyProp.AppendW3IDSecurityV1PublicKey(publicKeyType)
-	p.SetW3IDSecurityV1PublicKey(publicKeyProp)
 	return
 }
