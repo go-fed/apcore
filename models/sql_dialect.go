@@ -137,7 +137,7 @@ type SqlDialect interface {
 	//   InboxID     string
 	//   Item        string
 	//  Returns
-	//   Bool        bool
+	//   Contains    bool
 	InboxContains() string
 	// GetInbox:
 	//  Params
@@ -146,6 +146,7 @@ type SqlDialect interface {
 	//   Max         int
 	//  Returns
 	//   Page        []byte
+	//   IsEnd       bool
 	GetInbox() string
 	// GetPublicInbox:
 	//  Params
@@ -154,6 +155,7 @@ type SqlDialect interface {
 	//   Max         int
 	//  Returns
 	//   Page        []byte
+	//   IsEnd       bool
 	GetPublicInbox() string
 	// GetInboxLastPage:
 	//  Params
@@ -202,7 +204,7 @@ type SqlDialect interface {
 	//   OutboxID    string
 	//   Item        string
 	//  Returns
-	//   Bool        bool
+	//   Contains    bool
 	OutboxContains() string
 	// GetOutbox:
 	//  Params
@@ -211,6 +213,7 @@ type SqlDialect interface {
 	//   Max         int
 	//  Returns
 	//   Page        []byte
+	//   IsEnd       bool
 	GetOutbox() string
 	// GetPublicOutbox:
 	//  Params
@@ -219,6 +222,7 @@ type SqlDialect interface {
 	//   Max         int
 	//  Returns
 	//   Page        []byte
+	//   IsEnd       bool
 	GetPublicOutbox() string
 	// GetOutboxLastPage:
 	//  Params

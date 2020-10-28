@@ -351,9 +351,10 @@ func (p *pgV0) GetInbox() string {
         'min',
 	$2::jsonb,
         'max',
-	$3::jsonb)) AS page
-    FROM ` + p.schema + `inboxes
-    WHERE inbox->'id' ? $1
+	$3::jsonb)) AS page,
+    $3::integer + 1 >= jsonb_path_query(inbox, '$.orderedItems.size()')::numeric AS isEnd
+  FROM ` + p.schema + `inboxes
+  WHERE inbox->'id' ? $1
 )
 SELECT
   inbox ||
@@ -363,7 +364,8 @@ SELECT
       'totalItems',
       jsonb_path_query(page, '$.size()'),
       'type',
-      'OrderedCollectionPage')
+      'OrderedCollectionPage') AS page,
+  isEnd
   FROM page`
 }
 
@@ -378,9 +380,10 @@ func (p *pgV0) GetOutbox() string {
         'min',
 	$2::jsonb,
         'max',
-	$3::jsonb)) AS page
-    FROM ` + p.schema + `outboxes
-    WHERE outbox->'id' ? $1
+	$3::jsonb)) AS page,
+    $3::integer + 1 >= jsonb_path_query(outbox, '$.orderedItems.size()')::numeric AS isEnd
+  FROM ` + p.schema + `outboxes
+  WHERE outbox->'id' ? $1
 )
 SELECT
   outbox ||
@@ -390,14 +393,15 @@ SELECT
       'totalItems',
       jsonb_path_query(page, '$.size()'),
       'type',
-      'OrderedCollectionPage')
+      'OrderedCollectionPage') AS page,
+  isEnd
   FROM page`
 }
 
 func (p *pgV0) GetPublicInbox() string {
 	return `WITH inbox AS (
   SELECT inbox
-  FROM modeltest.inboxes
+  FROM ` + p.schema + `inboxes
   WHERE inbox->'id' ? $1
 ),
 page_elements AS (
@@ -411,7 +415,7 @@ page_elements AS (
 fed_public AS (
   SELECT pd.page AS page
   FROM page_elements AS pd
-  LEFT JOIN modeltest.fed_data AS fd
+  LEFT JOIN ` + p.schema + `fed_data AS fd
   ON pd.page = fd.payload->'id'
   WHERE
     fd.payload->'to' ? 'https://www.w3.org/ns/activitystreams#Public'
@@ -420,7 +424,7 @@ fed_public AS (
 local_public AS (
   SELECT pd.page AS page
   FROM page_elements AS pd
-  LEFT JOIN modeltest.local_data AS ld
+  LEFT JOIN ` + p.schema + `local_data AS ld
   ON pd.page = ld.payload->'id'
   WHERE
     ld.payload->'to' ? 'https://www.w3.org/ns/activitystreams#Public'
@@ -433,9 +437,10 @@ only_public AS (
       '$[$min to $max]',
       jsonb_build_object(
         'min',
-        $2::jsonb,
+	$2::jsonb,
         'max',
-        $3::jsonb)) AS page
+	$3::jsonb)) AS page,
+    $3::integer + 1 >= jsonb_path_query(jsonb_agg(i.page), '$.size()')::numeric AS isEnd
   FROM (
     SELECT
       *
@@ -453,14 +458,15 @@ SELECT
       'totalItems',
       jsonb_path_query(op.page, '$.size()'),
       'type',
-      'OrderedCollectionPage')
+      'OrderedCollectionPage') AS page,
+  op.isEnd
   FROM inbox AS i, only_public AS op`
 }
 
 func (p *pgV0) GetPublicOutbox() string {
 	return `WITH outbox AS (
   SELECT outbox
-  FROM modeltest.outboxes
+  FROM ` + p.schema + `outboxes
   WHERE outbox->'id' ? $1
 ),
 page_elements AS (
@@ -474,7 +480,7 @@ page_elements AS (
 fed_public AS (
   SELECT pd.page AS page
   FROM page_elements AS pd
-  LEFT JOIN modeltest.fed_data AS fd
+  LEFT JOIN ` + p.schema + `fed_data AS fd
   ON pd.page = fd.payload->'id'
   WHERE
     fd.payload->'to' ? 'https://www.w3.org/ns/activitystreams#Public'
@@ -483,7 +489,7 @@ fed_public AS (
 local_public AS (
   SELECT pd.page AS page
   FROM page_elements AS pd
-  LEFT JOIN modeltest.local_data AS ld
+  LEFT JOIN ` + p.schema + `local_data AS ld
   ON pd.page = ld.payload->'id'
   WHERE
     ld.payload->'to' ? 'https://www.w3.org/ns/activitystreams#Public'
@@ -496,9 +502,10 @@ only_public AS (
       '$[$min to $max]',
       jsonb_build_object(
         'min',
-        $2::jsonb,
+	$2::jsonb,
         'max',
-        $3::jsonb)) AS page
+	$3::jsonb)) AS page,
+    $3::integer + 1 >= jsonb_path_query(jsonb_agg(i.page), '$.size()')::numeric AS isEnd
   FROM (
     SELECT
       *
@@ -516,7 +523,8 @@ SELECT
       'totalItems',
       jsonb_path_query(op.page, '$.size()'),
       'type',
-      'OrderedCollectionPage')
+      'OrderedCollectionPage') AS page,
+  op.isEnd
   FROM outbox AS i, only_public AS op`
 }
 
@@ -526,7 +534,7 @@ func (p *pgV0) GetInboxLastPage() string {
     inbox,
     GREATEST(0,
       jsonb_path_query(inbox, '$.orderedItems.size()')::numeric - $2) AS startIndex
-  FROM modeltest.inboxes
+  FROM ` + p.schema + `inboxes
   WHERE inbox->'id' ? $1
 ),
 page AS (
@@ -560,7 +568,7 @@ func (p *pgV0) GetOutboxLastPage() string {
     outbox,
     GREATEST(0,
       jsonb_path_query(outbox, '$.orderedItems.size()')::numeric - $2) AS startIndex
-  FROM modeltest.outboxes
+  FROM ` + p.schema + `outboxes
   WHERE outbox->'id' ? $1
 ),
 page AS (
@@ -591,7 +599,7 @@ FROM page`
 func (p *pgV0) GetPublicInboxLastPage() string {
 	return `WITH inbox AS (
   SELECT inbox
-  FROM modeltest.inboxes
+  FROM ` + p.schema + `inboxes
   WHERE inbox->'id' ? $1
 ),
 page_elements AS (
@@ -605,7 +613,7 @@ page_elements AS (
 fed_public AS (
   SELECT pd.page AS page
   FROM page_elements AS pd
-  LEFT JOIN modeltest.fed_data AS fd
+  LEFT JOIN ` + p.schema + `fed_data AS fd
   ON pd.page = fd.payload->'id'
   WHERE
     fd.payload->'to' ? 'https://www.w3.org/ns/activitystreams#Public'
@@ -614,7 +622,7 @@ fed_public AS (
 local_public AS (
   SELECT pd.page AS page
   FROM page_elements AS pd
-  LEFT JOIN modeltest.local_data AS ld
+  LEFT JOIN ` + p.schema + `local_data AS ld
   ON pd.page = ld.payload->'id'
   WHERE
     ld.payload->'to' ? 'https://www.w3.org/ns/activitystreams#Public'
@@ -660,7 +668,7 @@ FROM inbox AS i, only_public AS op`
 func (p *pgV0) GetPublicOutboxLastPage() string {
 	return `WITH outbox AS (
   SELECT outbox
-  FROM modeltest.outboxes
+  FROM ` + p.schema + `outboxes
   WHERE outbox->'id' ? $1
 ),
 page_elements AS (
@@ -674,7 +682,7 @@ page_elements AS (
 fed_public AS (
   SELECT pd.page AS page
   FROM page_elements AS pd
-  LEFT JOIN modeltest.fed_data AS fd
+  LEFT JOIN ` + p.schema + `fed_data AS fd
   ON pd.page = fd.payload->'id'
   WHERE
     fd.payload->'to' ? 'https://www.w3.org/ns/activitystreams#Public'
@@ -683,7 +691,7 @@ fed_public AS (
 local_public AS (
   SELECT pd.page AS page
   FROM page_elements AS pd
-  LEFT JOIN modeltest.local_data AS ld
+  LEFT JOIN ` + p.schema + `local_data AS ld
   ON pd.page = ld.payload->'id'
   WHERE
     ld.payload->'to' ? 'https://www.w3.org/ns/activitystreams#Public'
@@ -727,7 +735,7 @@ FROM outbox AS i, only_public AS op`
 }
 
 func (p *pgV0) PrependInboxItem() string {
-	return `UPDATE modeltest.inboxes
+	return `UPDATE ` + p.schema + `inboxes
 SET inbox = inbox || jsonb_build_object(
   'orderedItems',
   jsonb_build_array($2::text) || (inbox->'orderedItems'),
@@ -737,7 +745,7 @@ WHERE inbox->'id' ? $1`
 }
 
 func (p *pgV0) PrependOutboxItem() string {
-	return `UPDATE modeltest.outboxes
+	return `UPDATE ` + p.schema + `outboxes
 SET outbox = outbox || jsonb_build_object(
   'orderedItems',
   jsonb_build_array($2::text) || (outbox->'orderedItems'),
@@ -747,7 +755,7 @@ WHERE outbox->'id' ? $1`
 }
 
 func (p *pgV0) DeleteInboxItem() string {
-	return `UPDATE modeltest.inboxes
+	return `UPDATE ` + p.schema + `inboxes
 SET inbox = jsonb_set(
   inbox,
   '{orderedItems}',
@@ -759,7 +767,7 @@ WHERE inbox->'id' ? $1`
 }
 
 func (p *pgV0) DeleteOutboxItem() string {
-	return `UPDATE modeltest.outboxes
+	return `UPDATE ` + p.schema + `outboxes
 SET outbox = jsonb_set(
   outbox,
   '{orderedItems}',

@@ -91,15 +91,15 @@ func (i *Inboxes) Contains(c util.Context, tx *sql.Tx, inbox, item *url.URL) (b 
 // GetPage returns an OrderedCollectionPage of the Inbox.
 //
 // The range of elements retrieved are [min, max).
-func (i *Inboxes) GetPage(c util.Context, tx *sql.Tx, inbox *url.URL, min, max int) (page ActivityStreamsOrderedCollectionPage, err error) {
+func (i *Inboxes) GetPage(c util.Context, tx *sql.Tx, inbox *url.URL, min, max int) (page ActivityStreamsOrderedCollectionPage, isEnd bool, err error) {
 	var rows *sql.Rows
 	rows, err = tx.Stmt(i.getInbox).QueryContext(c, inbox.String(), min, max-1)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
-	return page, enforceOneRow(rows, "Inboxes.GetPage", func(r singleRow) error {
-		return r.Scan(&page)
+	return page, isEnd, enforceOneRow(rows, "Inboxes.GetPage", func(r singleRow) error {
+		return r.Scan(&page, &isEnd)
 	})
 }
 
@@ -107,15 +107,15 @@ func (i *Inboxes) GetPage(c util.Context, tx *sql.Tx, inbox *url.URL, min, max i
 // public only.
 //
 // The range of elements retrieved are [min, max).
-func (i *Inboxes) GetPublicPage(c util.Context, tx *sql.Tx, inbox *url.URL, min, max int) (page ActivityStreamsOrderedCollectionPage, err error) {
+func (i *Inboxes) GetPublicPage(c util.Context, tx *sql.Tx, inbox *url.URL, min, max int) (page ActivityStreamsOrderedCollectionPage, isEnd bool, err error) {
 	var rows *sql.Rows
 	rows, err = tx.Stmt(i.getPublicInbox).QueryContext(c, inbox.String(), min, max-1)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
-	return page, enforceOneRow(rows, "Inboxes.GetPublicPage", func(r singleRow) error {
-		return r.Scan(&page)
+	return page, isEnd, enforceOneRow(rows, "Inboxes.GetPublicPage", func(r singleRow) error {
+		return r.Scan(&page, &isEnd)
 	})
 }
 

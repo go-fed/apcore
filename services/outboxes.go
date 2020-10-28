@@ -31,29 +31,45 @@ type Outboxes struct {
 
 func (i *Outboxes) GetPage(c util.Context, outbox *url.URL, min, n int) (page models.ActivityStreamsOrderedCollectionPage, err error) {
 	return page, doInTx(c, i.DB, func(tx *sql.Tx) error {
-		page, err = i.Outboxes.GetPage(c, tx, outbox, min, min+n)
-		return err
+		var isEnd bool
+		page, isEnd, err = i.Outboxes.GetPage(c, tx, outbox, min, min+n)
+		if err != nil {
+			return err
+		}
+		return addNextPrev(page, min, n, isEnd)
 	})
 }
 
 func (i *Outboxes) GetPublicPage(c util.Context, outbox *url.URL, min, n int) (page models.ActivityStreamsOrderedCollectionPage, err error) {
 	return page, doInTx(c, i.DB, func(tx *sql.Tx) error {
-		page, err = i.Outboxes.GetPublicPage(c, tx, outbox, min, min+n)
-		return err
+		var isEnd bool
+		page, isEnd, err = i.Outboxes.GetPublicPage(c, tx, outbox, min, min+n)
+		if err != nil {
+			return err
+		}
+		return addNextPrev(page, min, n, isEnd)
 	})
 }
 
 func (i *Outboxes) GetLastPage(c util.Context, outbox *url.URL, n int) (page models.ActivityStreamsOrderedCollectionPage, err error) {
 	return page, doInTx(c, i.DB, func(tx *sql.Tx) error {
-		page, err = i.Outboxes.GetLastPage(c, tx, outbox, n)
-		return err
+		var startIdx int
+		page, startIdx, err = i.Outboxes.GetLastPage(c, tx, outbox, n)
+		if err != nil {
+			return err
+		}
+		return addNextPrev(page, startIdx, n, true)
 	})
 }
 
 func (i *Outboxes) GetPublicLastPage(c util.Context, outbox *url.URL, n int) (page models.ActivityStreamsOrderedCollectionPage, err error) {
 	return page, doInTx(c, i.DB, func(tx *sql.Tx) error {
-		page, err = i.Outboxes.GetPublicLastPage(c, tx, outbox, n)
-		return err
+		var startIdx int
+		page, startIdx, err = i.Outboxes.GetPublicLastPage(c, tx, outbox, n)
+		if err != nil {
+			return err
+		}
+		return addNextPrev(page, startIdx, n, true)
 	})
 }
 

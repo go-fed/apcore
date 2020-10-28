@@ -31,31 +31,47 @@ type Inboxes struct {
 
 func (i *Inboxes) GetPage(c util.Context, inbox *url.URL, min, n int) (page models.ActivityStreamsOrderedCollectionPage, err error) {
 	err = doInTx(c, i.DB, func(tx *sql.Tx) error {
-		page, err = i.Inboxes.GetPage(c, tx, inbox, min, min+n)
-		return err
+		var isEnd bool
+		page, isEnd, err = i.Inboxes.GetPage(c, tx, inbox, min, min+n)
+		if err != nil {
+			return err
+		}
+		return addNextPrev(page, min, n, isEnd)
 	})
 	return
 }
 
 func (i *Inboxes) GetPublicPage(c util.Context, inbox *url.URL, min, n int) (page models.ActivityStreamsOrderedCollectionPage, err error) {
 	err = doInTx(c, i.DB, func(tx *sql.Tx) error {
-		page, err = i.Inboxes.GetPublicPage(c, tx, inbox, min, min+n)
-		return err
+		var isEnd bool
+		page, isEnd, err = i.Inboxes.GetPublicPage(c, tx, inbox, min, min+n)
+		if err != nil {
+			return err
+		}
+		return addNextPrev(page, min, n, isEnd)
 	})
 	return
 }
 
 func (i *Inboxes) GetLastPage(c util.Context, inbox *url.URL, n int) (page models.ActivityStreamsOrderedCollectionPage, err error) {
 	err = doInTx(c, i.DB, func(tx *sql.Tx) error {
-		page, err = i.Inboxes.GetLastPage(c, tx, inbox, n)
-		return err
+		var startIdx int
+		page, startIdx, err = i.Inboxes.GetLastPage(c, tx, inbox, n)
+		if err != nil {
+			return err
+		}
+		return addNextPrev(page, startIdx, n, true)
 	})
 	return
 }
 func (i *Inboxes) GetPublicLastPage(c util.Context, inbox *url.URL, n int) (page models.ActivityStreamsOrderedCollectionPage, err error) {
 	err = doInTx(c, i.DB, func(tx *sql.Tx) error {
-		page, err = i.Inboxes.GetPublicLastPage(c, tx, inbox, n)
-		return err
+		var startIdx int
+		page, startIdx, err = i.Inboxes.GetPublicLastPage(c, tx, inbox, n)
+		if err != nil {
+			return err
+		}
+		return addNextPrev(page, startIdx, n, true)
 	})
 	return
 }

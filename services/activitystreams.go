@@ -19,11 +19,37 @@ package services
 import (
 	"net/url"
 
+	"github.com/go-fed/activity/pub"
 	"github.com/go-fed/activity/streams"
 	"github.com/go-fed/activity/streams/vocab"
 	"github.com/go-fed/apcore/app"
 	"github.com/go-fed/apcore/paths"
 )
+
+// addNextPrev adds the 'next' and 'prev' properties onto a page, if required.
+func addNextPrev(page vocab.ActivityStreamsOrderedCollectionPage, start, n int, isEnd bool) error {
+	iri, err := pub.GetId(page)
+	if err != nil {
+		return err
+	}
+	// Prev
+	if start > 0 {
+		pStart := start - n
+		if pStart < 0 {
+			pStart = 0
+		}
+		prev := streams.NewActivityStreamsPrevProperty()
+		prev.SetIRI(paths.AddPageParams(iri, pStart, n))
+		page.SetActivityStreamsPrev(prev)
+	}
+	// Next
+	if !isEnd {
+		next := streams.NewActivityStreamsNextProperty()
+		next.SetIRI(paths.AddPageParams(iri, start+n, n))
+		page.SetActivityStreamsNext(next)
+	}
+	return nil
+}
 
 func toPersonActor(a app.Application,
 	scheme, host, username, preferredUsername, summary string,

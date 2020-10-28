@@ -17,6 +17,7 @@
 package paths
 
 import (
+	"fmt"
 	"net/url"
 	"strconv"
 )
@@ -28,6 +29,20 @@ const (
 	queryOffset         = "offset"
 	queryNum            = "n"
 )
+
+// AddPageParams overwrites the query string of a base URL and returns a copy
+// with the pagination parameters set.
+func AddPageParams(base *url.URL, offset, n int) *url.URL {
+	c := *base
+	c.RawQuery = fmt.Sprintf("%s=%s&%s=%d&%s=%d",
+		queryCollectionPage,
+		queryTrue,
+		queryOffset,
+		offset,
+		queryNum,
+		n)
+	return &c
+}
 
 // IsGetCollectionPage returns true when the IRI requests pagination for an
 // OrderedCollection-style of IRI.
