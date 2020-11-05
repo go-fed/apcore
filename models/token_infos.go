@@ -244,7 +244,7 @@ func (t *TokenInfos) Close() {
 
 // Create saves the new token information.
 func (t *TokenInfos) Create(c util.Context, tx *sql.Tx, info oauth2.TokenInfo) error {
-	_, err := tx.Stmt(t.createTokenInfo).ExecContext(c,
+	r, err := tx.Stmt(t.createTokenInfo).ExecContext(c,
 		info.GetClientID(),
 		info.GetUserID(),
 		info.GetRedirectURI(),
@@ -259,25 +259,25 @@ func (t *TokenInfos) Create(c util.Context, tx *sql.Tx, info oauth2.TokenInfo) e
 		info.GetRefreshCreateAt(),
 		info.GetRefreshExpiresIn(),
 	)
-	return err
+	return mustChangeOneRow(r, err, "TokenInfos.Create")
 }
 
 // RemoveByCode deletes the token information based on the authorization code.
 func (t *TokenInfos) RemoveByCode(c util.Context, tx *sql.Tx, code string) error {
-	_, err := tx.Stmt(t.removeByCode).ExecContext(c, code)
-	return err
+	r, err := tx.Stmt(t.removeByCode).ExecContext(c, code)
+	return mustChangeOneRow(r, err, "TokenInfos.RemoveByCode")
 }
 
 // RemoveByAccess deletes the token information based on the access token.
 func (t *TokenInfos) RemoveByAccess(c util.Context, tx *sql.Tx, access string) error {
-	_, err := tx.Stmt(t.removeByAccess).ExecContext(c, access)
-	return err
+	r, err := tx.Stmt(t.removeByAccess).ExecContext(c, access)
+	return mustChangeOneRow(r, err, "TokenInfos.RemoveByAccess")
 }
 
 // RemoveByRefresh deletes the token information based on the refresh token.
 func (t *TokenInfos) RemoveByRefresh(c util.Context, tx *sql.Tx, refresh string) error {
-	_, err := tx.Stmt(t.removeByRefresh).ExecContext(c, refresh)
-	return err
+	r, err := tx.Stmt(t.removeByRefresh).ExecContext(c, refresh)
+	return mustChangeOneRow(r, err, "TokenInfos.RemoveByRefresh")
 }
 
 // GetByCode fetches tokens based on the authorization code.

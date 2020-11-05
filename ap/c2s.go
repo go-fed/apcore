@@ -47,7 +47,7 @@ func newSocialBehavior(app app.Application, db *database, o *oauth2.Server) *soc
 
 func (s *socialBehavior) PostOutboxRequestBodyHook(c context.Context, r *http.Request, data vocab.Type) (out context.Context, err error) {
 	ctx := util.Context{c}
-	ctx.WithActivityStreamsValue(data)
+	ctx.WithActivityStream(data)
 	out = ctx.Context
 	return
 }
@@ -71,10 +71,5 @@ func (s *socialBehavior) SocialCallbacks(c context.Context) (wrapped pub.SocialW
 }
 
 func (s *socialBehavior) DefaultCallback(c context.Context, activity pub.Activity) error {
-	ctx := util.Context{c}
-	t, err := ctx.ActivityType()
-	if err != nil {
-		return err
-	}
-	return fmt.Errorf("Unhandled client Activity of type: %s", t)
+	return fmt.Errorf("Unhandled client Activity of type: %s", activity.GetTypeName())
 }

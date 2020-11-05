@@ -14,44 +14,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package paths
+package framework
 
 import (
-	"fmt"
-	"net/url"
+	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
-const (
-	pubKeyFragmentPrefix = "key-"
-	usersRoute           = "/users"
-)
-
-type Paths struct {
-	scheme string
-	host   string
-}
-
-func NewPaths(scheme, host string) *Paths {
-	return &Paths{
-		scheme: scheme,
-		host:   host,
-	}
-}
-
-func (p *Paths) getBase() string {
-	return fmt.Sprintf("%s://%s", p.scheme, p.host)
-}
-
-func (p *Paths) UsersPath(userUUID string) (u *url.URL, err error) {
-	u, err = url.Parse(p.getBase() + usersRoute)
-	return
-}
-
-func (p *Paths) PublicKeyPath(userUUID, keyUUID string) (u *url.URL, err error) {
-	u, err = p.UsersPath(userUUID)
-	if err != nil {
-		return
-	}
-	u.Fragment = fmt.Sprintf("%s%s", pubKeyFragmentPrefix, keyUUID)
-	return
+// Vars returns the route variables for the current request, if any.
+func Vars(r *http.Request) map[string]string {
+	return mux.Vars(r)
 }

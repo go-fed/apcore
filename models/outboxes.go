@@ -59,10 +59,10 @@ func (i *Outboxes) Close() {
 
 // Create a new outbox for the given actor.
 func (i *Outboxes) Create(c util.Context, tx *sql.Tx, actor *url.URL, outbox ActivityStreamsOrderedCollection) error {
-	_, err := tx.Stmt(i.insertOutbox).ExecContext(c,
+	r, err := tx.Stmt(i.insertOutbox).ExecContext(c,
 		actor.String(),
 		outbox)
-	return err
+	return mustChangeOneRow(r, err, "Outboxes.Create")
 }
 
 // ContainsForActor returns true if the item is in the actor's outbox's collection.
@@ -151,14 +151,14 @@ func (i *Outboxes) GetPublicLastPage(c util.Context, tx *sql.Tx, outbox *url.URL
 
 // PrependOutboxItem prepends the item to the outbox's ordered items list.
 func (i *Outboxes) PrependOutboxItem(c util.Context, tx *sql.Tx, outbox, item *url.URL) error {
-	_, err := tx.Stmt(i.prependOutboxItem).ExecContext(c, outbox.String(), item.String())
-	return err
+	r, err := tx.Stmt(i.prependOutboxItem).ExecContext(c, outbox.String(), item.String())
+	return mustChangeOneRow(r, err, "Outboxes.PrependOutboxItem")
 }
 
 // DeleteOutboxItem removes the item from the outbox's ordered items list.
 func (i *Outboxes) DeleteOutboxItem(c util.Context, tx *sql.Tx, outbox, item *url.URL) error {
-	_, err := tx.Stmt(i.deleteOutboxItem).ExecContext(c, outbox.String(), item.String())
-	return err
+	r, err := tx.Stmt(i.deleteOutboxItem).ExecContext(c, outbox.String(), item.String())
+	return mustChangeOneRow(r, err, "Outboxes.DeleteOutboxItem")
 }
 
 // OutboxForInbox returns the outbox for the inbox.

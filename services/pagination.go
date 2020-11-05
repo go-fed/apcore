@@ -4,16 +4,15 @@ import (
 	"net/url"
 
 	"github.com/go-fed/activity/streams/vocab"
-	"github.com/go-fed/apcore/models"
 	"github.com/go-fed/apcore/paths"
 	"github.com/go-fed/apcore/util"
 )
 
 // AnyOCPageFn fetches any arbitrary OrderedCollectionPage
-type AnyOCPageFn func(c util.Context, iri *url.URL, min, n int) (models.ActivityStreamsOrderedCollectionPage, error)
+type AnyOCPageFn func(c util.Context, iri *url.URL, min, n int) (vocab.ActivityStreamsOrderedCollectionPage, error)
 
 // LastOCPageFn fetches the last page of an OrderedCollection.
-type LastOCPageFn func(c util.Context, iri *url.URL) (models.ActivityStreamsOrderedCollectionPage, error)
+type LastOCPageFn func(c util.Context, iri *url.URL, n int) (vocab.ActivityStreamsOrderedCollectionPage, error)
 
 // DoPagination examines the query parameters of an IRI, and uses it to either
 // fetch the bare ordered collection without values, the very last ordered
@@ -22,13 +21,8 @@ type LastOCPageFn func(c util.Context, iri *url.URL) (models.ActivityStreamsOrde
 func DoOrderedCollectionPagination(c util.Context, iri *url.URL, defaultSize, maxSize int, any AnyOCPageFn, last LastOCPageFn) (p vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	if paths.IsGetCollectionPage(iri) && paths.IsGetCollectionEnd(iri) {
 		// The last page was requested
-		var page models.ActivityStreamsOrderedCollectionPage
-		page, err = last(c, paths.Normalize(iri))
-		if err != nil {
-			return
-		}
-		p = page.ActivityStreamsOrderedCollectionPage
-		// TODO: Add prev and/or next property
+		n := paths.GetNumOrDefault(iri, defaultSize, maxSize)
+		p, err = last(c, paths.Normalize(iri), n)
 		return
 	} else {
 		// The first page, or an arbitrary page, was requested
@@ -38,13 +32,7 @@ func DoOrderedCollectionPagination(c util.Context, iri *url.URL, defaultSize, ma
 			offset = paths.GetOffsetOrDefault(iri, 0)
 			n = paths.GetNumOrDefault(iri, defaultSize, maxSize)
 		}
-		var page models.ActivityStreamsOrderedCollectionPage
-		page, err = any(c, paths.Normalize(iri), offset, n)
-		if err != nil {
-			return
-		}
-		p = page.ActivityStreamsOrderedCollectionPage
-		// TODO: Add prev and/or next property
+		p, err = any(c, paths.Normalize(iri), offset, n)
 		return
 	}
 }

@@ -20,9 +20,11 @@ import (
 	"database/sql"
 	"net/url"
 
+	"github.com/go-fed/activity/streams"
 	"github.com/go-fed/activity/streams/vocab"
 	"github.com/go-fed/apcore/app"
 	"github.com/go-fed/apcore/models"
+	"github.com/go-fed/apcore/paths"
 	"github.com/go-fed/apcore/util"
 )
 
@@ -43,6 +45,9 @@ type Users struct {
 	PrivateKeys *models.PrivateKeys
 	Inboxes     *models.Inboxes
 	Outboxes    *models.Outboxes
+	Followers   *models.Followers
+	Following   *models.Following
+	Liked       *models.Liked
 }
 
 func (u *Users) CreateUser(c util.Context, params CreateUserParameters, password string) (userID string, err error) {
@@ -75,23 +80,6 @@ func (u *Users) createUser(c util.Context, params CreateUserParameters, password
 	if err != nil {
 		return
 	}
-	// Create ActivityStreams `actor`, `inbox`, `outbox`, etc.
-	actor, actorID := toPersonActor(u.App,
-		params.Scheme,
-		params.Host,
-		params.Username,
-		params.Username, // preferredUsername
-		"",              // summary
-		pubKey)
-	var inbox, outbox vocab.ActivityStreamsOrderedCollection
-	inbox, err = emptyInbox(actorID)
-	if err != nil {
-		return
-	}
-	outbox, err = emptyOutbox(actorID)
-	if err != nil {
-		return
-	}
 
 	return userID, doInTx(c, u.DB, func(tx *sql.Tx) error {
 		// Insert into users table
@@ -99,11 +87,47 @@ func (u *Users) createUser(c util.Context, params CreateUserParameters, password
 			Email:       params.Email,
 			Hashpass:    hashpass,
 			Salt:        salt,
-			Actor:       models.ActivityStreamsPerson{actor},
+			Actor:       models.ActivityStreamsPerson{streams.NewActivityStreamsPerson()}, // Placeholder
 			Privileges:  roles,
 			Preferences: prefs,
 		}
 		userID, err = u.Users.Create(c, tx, cu)
+		if err != nil {
+			return err
+		}
+		// Create the ActivityStreams collections based on the userID.
+		actor, actorID := toPersonActor(u.App,
+			paths.UUID(userID),
+			params.Scheme,
+			params.Host,
+			params.Username,
+			params.Username, // preferredUsername
+			"",              // summary
+			pubKey)
+		var inbox, outbox vocab.ActivityStreamsOrderedCollection
+		inbox, err = emptyInbox(actorID)
+		if err != nil {
+			return err
+		}
+		outbox, err = emptyOutbox(actorID)
+		if err != nil {
+			return err
+		}
+		var followers, following, liked vocab.ActivityStreamsCollection
+		followers, err = emptyFollowers(actorID)
+		if err != nil {
+			return err
+		}
+		following, err = emptyFollowing(actorID)
+		if err != nil {
+			return err
+		}
+		liked, err = emptyLiked(actorID)
+		if err != nil {
+			return err
+		}
+		// Update the created user with the filled-in actor
+		err = u.Users.UpdateActor(c, tx, userID, models.ActivityStreamsPerson{actor})
 		if err != nil {
 			return err
 		}
@@ -112,27 +136,47 @@ func (u *Users) createUser(c util.Context, params CreateUserParameters, password
 		if err != nil {
 			return err
 		}
-		// Insert into inbox & outbox
+		// Insert empty inbox, outbox, followers, following, liked
 		err = u.Inboxes.Create(c, tx, actorID, models.ActivityStreamsOrderedCollection{inbox})
 		if err != nil {
 			return err
 		}
-		return u.Outboxes.Create(c, tx, actorID, models.ActivityStreamsOrderedCollection{outbox})
-		// TODO: Followers, following, liked
+		err = u.Outboxes.Create(c, tx, actorID, models.ActivityStreamsOrderedCollection{outbox})
+		if err != nil {
+			return err
+		}
+		err = u.Followers.Create(c, tx, actorID, models.ActivityStreamsCollection{followers})
+		if err != nil {
+			return err
+		}
+		err = u.Following.Create(c, tx, actorID, models.ActivityStreamsCollection{following})
+		if err != nil {
+			return err
+		}
+		return u.Liked.Create(c, tx, actorID, models.ActivityStreamsCollection{liked})
 	})
 }
 
-// TODO: stop leaking models.URL & other model datatypes out of service layer
-func (u *Users) ActorIDForOutbox(c util.Context, outboxIRI *url.URL) (actorIRI models.URL, err error) {
+func (u *Users) ActorIDForOutbox(c util.Context, outboxIRI *url.URL) (actorIRI *url.URL, err error) {
 	return actorIRI, doInTx(c, u.DB, func(tx *sql.Tx) error {
-		actorIRI, err = u.Users.ActorIDForOutbox(c, tx, outboxIRI)
-		return err
+		var a models.URL
+		a, err = u.Users.ActorIDForOutbox(c, tx, outboxIRI)
+		if err != nil {
+			return err
+		}
+		actorIRI = a.URL
+		return nil
 	})
 }
 
-func (u *Users) ActorIDForInbox(c util.Context, inboxIRI *url.URL) (actorIRI models.URL, err error) {
+func (u *Users) ActorIDForInbox(c util.Context, inboxIRI *url.URL) (actorIRI *url.URL, err error) {
 	return actorIRI, doInTx(c, u.DB, func(tx *sql.Tx) error {
-		actorIRI, err = u.Users.ActorIDForInbox(c, tx, inboxIRI)
-		return err
+		var a models.URL
+		a, err = u.Users.ActorIDForInbox(c, tx, inboxIRI)
+		if err != nil {
+			return err
+		}
+		actorIRI = a.URL
+		return nil
 	})
 }

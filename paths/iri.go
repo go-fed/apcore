@@ -40,53 +40,73 @@ func NormalizeAsIRI(s string) (*url.URL, error) {
 type PathKey string
 
 const (
-	UserPathKey        PathKey = "users"
-	InboxPathKey               = "inbox"
-	InboxFirstPathKey          = "inboxFirst"
-	InboxLastPathKey           = "inboxLast"
-	OutboxPathKey              = "outbox"
-	OutboxFirstPathKey         = "outboxFirst"
-	OutboxLastPathKey          = "outboxLast"
-	FollowersPathKey           = "followers"
-	FollowingPathKey           = "following"
-	LikedPathKey               = "liked"
-	HttpSigPubKeyKey           = "httpsigPubKey"
+	UserPathKey           PathKey = "users"
+	InboxPathKey                  = "inbox"
+	InboxFirstPathKey             = "inboxFirst"
+	InboxLastPathKey              = "inboxLast"
+	OutboxPathKey                 = "outbox"
+	OutboxFirstPathKey            = "outboxFirst"
+	OutboxLastPathKey             = "outboxLast"
+	FollowersPathKey              = "followers"
+	FollowersFirstPathKey         = "followersFirst"
+	FollowersLastPathKey          = "followersLast"
+	FollowingPathKey              = "following"
+	FollowingFirstPathKey         = "followingFirst"
+	FollowingLastPathKey          = "followingLast"
+	LikedPathKey                  = "liked"
+	LikedFirstPathKey             = "likedFirst"
+	LikedLastPathKey              = "likedLast"
+	HttpSigPubKeyKey              = "httpsigPubKey"
 )
 
 var knownUserPaths map[PathKey]string = map[PathKey]string{
-	UserPathKey:        "/users/{user}",
-	InboxPathKey:       "/users/{user}/inbox",
-	InboxFirstPathKey:  "/users/{user}/inbox",
-	InboxLastPathKey:   "/users/{user}/inbox",
-	OutboxPathKey:      "/users/{user}/outbox",
-	OutboxFirstPathKey: "/users/{user}/outbox",
-	OutboxLastPathKey:  "/users/{user}/outbox",
-	FollowersPathKey:   "/users/{user}/followers",
-	FollowingPathKey:   "/users/{user}/following",
-	LikedPathKey:       "/users/{user}/liked",
-	HttpSigPubKeyKey:   "/users/{user}/publicKeys/httpsig",
+	UserPathKey:           "/users/{user}",
+	InboxPathKey:          "/users/{user}/inbox",
+	InboxFirstPathKey:     "/users/{user}/inbox",
+	InboxLastPathKey:      "/users/{user}/inbox",
+	OutboxPathKey:         "/users/{user}/outbox",
+	OutboxFirstPathKey:    "/users/{user}/outbox",
+	OutboxLastPathKey:     "/users/{user}/outbox",
+	FollowersPathKey:      "/users/{user}/followers",
+	FollowersFirstPathKey: "/users/{user}/followers",
+	FollowersLastPathKey:  "/users/{user}/followers",
+	FollowingPathKey:      "/users/{user}/following",
+	FollowingFirstPathKey: "/users/{user}/following",
+	FollowingLastPathKey:  "/users/{user}/following",
+	LikedPathKey:          "/users/{user}/liked",
+	LikedFirstPathKey:     "/users/{user}/liked",
+	LikedLastPathKey:      "/users/{user}/liked",
+	HttpSigPubKeyKey:      "/users/{user}/publicKeys/httpsig",
 }
 
 var knownUserPathQuery map[PathKey]string = map[PathKey]string{
-	InboxFirstPathKey:  fmt.Sprintf("%s=%s", queryCollectionPage, queryTrue),
-	InboxLastPathKey:   fmt.Sprintf("%s=%s&%s=%s", queryCollectionPage, queryTrue, queryCollectionEnd, queryTrue),
-	OutboxFirstPathKey: fmt.Sprintf("%s=%s", queryCollectionPage, queryTrue),
-	OutboxLastPathKey:  fmt.Sprintf("%s=%s&%s=%s", queryCollectionPage, queryTrue, queryCollectionEnd, queryTrue),
+	InboxFirstPathKey:     fmt.Sprintf("%s=%s", queryCollectionPage, queryTrue),
+	InboxLastPathKey:      fmt.Sprintf("%s=%s&%s=%s", queryCollectionPage, queryTrue, queryCollectionEnd, queryTrue),
+	OutboxFirstPathKey:    fmt.Sprintf("%s=%s", queryCollectionPage, queryTrue),
+	OutboxLastPathKey:     fmt.Sprintf("%s=%s&%s=%s", queryCollectionPage, queryTrue, queryCollectionEnd, queryTrue),
+	FollowersFirstPathKey: fmt.Sprintf("%s=%s", queryCollectionPage, queryTrue),
+	FollowersLastPathKey:  fmt.Sprintf("%s=%s&%s=%s", queryCollectionPage, queryTrue, queryCollectionEnd, queryTrue),
+	FollowingFirstPathKey: fmt.Sprintf("%s=%s", queryCollectionPage, queryTrue),
+	FollowingLastPathKey:  fmt.Sprintf("%s=%s&%s=%s", queryCollectionPage, queryTrue, queryCollectionEnd, queryTrue),
+	LikedFirstPathKey:     fmt.Sprintf("%s=%s", queryCollectionPage, queryTrue),
+	LikedLastPathKey:      fmt.Sprintf("%s=%s&%s=%s", queryCollectionPage, queryTrue, queryCollectionEnd, queryTrue),
 }
 
-func UsernameFromUserPath(path string) (string, error) {
+type UUID string
+
+func UUIDFromUserPath(path string) (string, error) {
 	s := strings.Split(path, "/")
 	if len(s) < 3 {
-		return "", fmt.Errorf("known user path does not contain username: %s", path)
+		return "", fmt.Errorf("known user path does not contain uuid: %s", path)
 	}
 	return s[2], nil
 }
 
-func UserPathFor(k PathKey, username string) string {
-	return strings.ReplaceAll(knownUserPaths[k], "{user}", username)
+func UUIDPathFor(k PathKey, uuid UUID) string {
+	return strings.ReplaceAll(knownUserPaths[k], "{user}", string(uuid))
 }
 
-func userPathQueryFor(k PathKey) string {
+func uuidPathQueryFor(k PathKey) string {
 	pq, ok := knownUserPathQuery[k]
 	if !ok {
 		return ""
@@ -94,30 +114,29 @@ func userPathQueryFor(k PathKey) string {
 	return pq
 }
 
-func UserIRIFor(scheme string, host string, k PathKey, username string) *url.URL {
+func UUIDIRIFor(scheme string, host string, k PathKey, uuid UUID) *url.URL {
 	u := &url.URL{
 		Scheme:   scheme,
 		Host:     host,
-		Path:     UserPathFor(k, username),
-		RawQuery: userPathQueryFor(k),
+		Path:     UUIDPathFor(k, uuid),
+		RawQuery: uuidPathQueryFor(k),
 	}
 	return u
 }
 
-func usernameFromActorID(actorID *url.URL) (string, error) {
-	return UsernameFromUserPath(actorID.Path)
+func uuidFromActorID(actorID *url.URL) (string, error) {
+	return UUIDFromUserPath(actorID.Path)
 }
 
 func IRIForActorID(k PathKey, actorID *url.URL) (*url.URL, error) {
-	username, err := usernameFromActorID(actorID)
+	uuid, err := uuidFromActorID(actorID)
 	if err != nil {
 		return nil, err
 	}
 	return &url.URL{
 		Scheme:   actorID.Scheme,
 		Host:     actorID.Host,
-		Path:     strings.ReplaceAll(knownUserPaths[k], "{user}", username),
-		RawQuery: userPathQueryFor(k),
+		Path:     strings.ReplaceAll(knownUserPaths[k], "{user}", string(uuid)),
+		RawQuery: uuidPathQueryFor(k),
 	}, nil
-
 }

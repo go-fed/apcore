@@ -10,9 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 
 	"github.com/go-fed/apcore/models"
+	"github.com/go-fed/apcore/paths"
 	"github.com/go-fed/apcore/util"
 )
 
@@ -25,11 +27,13 @@ const (
 )
 
 type PrivateKeys struct {
+	Scheme      string
+	Host        string
 	DB          *sql.DB
 	PrivateKeys *models.PrivateKeys
 }
 
-func (p *PrivateKeys) GetUserHTTPSignatureKey(c util.Context, userID string) (k *rsa.PrivateKey, err error) {
+func (p *PrivateKeys) GetUserHTTPSignatureKey(c util.Context, userID string) (k *rsa.PrivateKey, iri *url.URL, err error) {
 	var kb []byte
 	err = doInTx(c, p.DB, func(tx *sql.Tx) error {
 		kb, err = p.PrivateKeys.GetByUserID(c, tx, userID, pKeyHttpSigPurpose)
@@ -46,6 +50,7 @@ func (p *PrivateKeys) GetUserHTTPSignatureKey(c util.Context, userID string) (k 
 		err = errors.New("private key is not of type *rsa.PrivateKey")
 		return
 	}
+	iri = paths.UUIDIRIFor(p.Scheme, p.Host, paths.HttpSigPubKeyKey, paths.UUID(userID))
 	return
 }
 

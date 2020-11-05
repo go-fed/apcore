@@ -214,6 +214,10 @@ func (p *pgV0) InsertUser() string {
 	return `INSERT INTO ` + p.schema + `users (email, hashpass, salt, actor, privileges, preferences) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
 }
 
+func (p *pgV0) UpdateUserActor() string {
+	return `UPDATE ` + p.schema + `users SET actor = $2 WHERE id = $1`
+}
+
 func (p *pgV0) SensitiveUserByEmail() string {
 	return "SELECT id, hashpass, salt FROM " + p.schema + "users WHERE email = $1"
 }
@@ -242,6 +246,21 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `fed_data
 );`
 }
 
+func (p *pgV0) FedExists() string {
+	return `SELECT EXISTS (
+  SELECT 1
+  FROM ` + p.schema + `fed_data
+  WHERE payload->'id' ? $1
+  LIMIT 1
+)`
+}
+
+func (p *pgV0) FedGet() string {
+	return `SELECT payload
+FROM ` + p.schema + `fed_data
+WHERE payload->'id' ? $1`
+}
+
 func (p *pgV0) FedCreate() string {
 	return `INSERT INTO ` + p.schema + `fed_data (payload) VALUES ($1)`
 }
@@ -262,6 +281,21 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `local_data
   create_time timestamp with time zone NOT NULL DEFAULT current_timestamp,
   payload jsonb NOT NULL
 );`
+}
+
+func (p *pgV0) LocalExists() string {
+	return `SELECT EXISTS (
+  SELECT 1
+  FROM ` + p.schema + `local_data
+  WHERE payload->'id' ? $1
+  LIMIT 1
+)`
+}
+
+func (p *pgV0) LocalGet() string {
+	return `SELECT payload
+FROM ` + p.schema + `local_data
+WHERE payload->'id' ? $1`
 }
 
 func (p *pgV0) LocalCreate() string {
@@ -738,7 +772,7 @@ func (p *pgV0) PrependInboxItem() string {
 	return `UPDATE ` + p.schema + `inboxes
 SET inbox = inbox || jsonb_build_object(
   'orderedItems',
-  jsonb_build_array($2::text) || (inbox->'orderedItems'),
+  jsonb_build_array($2::text) || COALESCE(inbox->'orderedItems', '[]'::jsonb),
   'totalItems',
   (COALESCE(inbox->>'totalItems','0')::int + 1)::text::jsonb)
 WHERE inbox->'id' ? $1`
@@ -748,7 +782,7 @@ func (p *pgV0) PrependOutboxItem() string {
 	return `UPDATE ` + p.schema + `outboxes
 SET outbox = outbox || jsonb_build_object(
   'orderedItems',
-  jsonb_build_array($2::text) || (outbox->'orderedItems'),
+  jsonb_build_array($2::text) || COALESCE(outbox->'orderedItems', '[]'::jsonb),
   'totalItems',
   (COALESCE(outbox->>'totalItems','0')::int + 1)::text::jsonb)
 WHERE outbox->'id' ? $1`
@@ -963,4 +997,245 @@ func (p *pgV0) GetTokenInfoByRefresh() string {
   refresh_create_at,
   refresh_expires_in
 FROM ` + p.schema + "oauth_tokens WHERE refresh = $1"
+}
+
+/* Collection prototype queries */
+
+func (p *pgV0) createCollectionTable(name string) string {
+	return `
+CREATE TABLE IF NOT EXISTS ` + p.schema + name + `
+(
+  id text PRIMARY KEY DEFAULT gen_random_uuid(),
+  actor_id text NOT NULL,
+  ` + name + ` jsonb NOT NULL
+)`
+}
+
+func (p *pgV0) insertCollection(name string) string {
+	return `INSERT INTO ` + p.schema + name + ` (actor_id, ` + name + `) VALUES ($1, $2)`
+}
+
+func (p *pgV0) collectionContainsForActor(name string) string {
+	return `SELECT EXISTS (
+  SELECT 1
+  FROM ` + p.schema + name + `
+  WHERE actor_id = $1 AND ` + name + `->'items' ? $2
+  LIMIT 1
+)`
+}
+
+func (p *pgV0) collectionContains(name string) string {
+	return `SELECT EXISTS (
+  SELECT 1
+  FROM ` + p.schema + name + `
+  WHERE ` + name + `->'id' ? $1 AND ` + name + `->'items' ? $2
+  LIMIT 1
+)`
+}
+
+func (p *pgV0) getCollection(name string) string {
+	return `WITH page AS (
+  SELECT
+    ` + name + `,
+    jsonb_path_query_array(
+      ` + name + `,
+      '$.items[$min to $max]',
+      jsonb_build_object(
+        'min',
+	$2::jsonb,
+        'max',
+	$3::jsonb)) AS page,
+    $3::integer + 1 >= jsonb_path_query(` + name + `, '$.items.size()')::numeric AS isEnd
+  FROM ` + p.schema + name + `
+  WHERE ` + name + `->'id' ? $1
+)
+SELECT
+  ` + name + `||
+    jsonb_build_object(
+      'items',
+      page,
+      'totalItems',
+      jsonb_path_query(page, '$.size()'),
+      'type',
+      'CollectionPage') AS page,
+  isEnd
+  FROM page`
+}
+
+func (p *pgV0) getCollectionLastPage(name string) string {
+	return `WITH stats AS (
+  SELECT
+    ` + name + `,
+    GREATEST(0,
+      jsonb_path_query(` + name + `, '$.items.size()')::numeric - $2) AS startIndex
+  FROM ` + p.schema + name + `
+  WHERE ` + name + `->'id' ? $1
+),
+page AS (
+  SELECT
+    ` + name + `,
+    startIndex,
+    jsonb_path_query_array(
+      ` + name + `,
+      '$.items[$min to last]',
+      jsonb_build_object(
+        'min',
+        startIndex)) AS page
+  FROM stats
+)
+SELECT
+  ` + name + `||
+    jsonb_build_object(
+    'items',
+    page,
+    'totalItems',
+    jsonb_path_query(page, '$.size()'),
+    'type',
+    'CollectionPage') AS ` + name + `,
+  startIndex
+FROM page`
+}
+
+func (p *pgV0) prependCollectionItem(name string) string {
+	return `UPDATE ` + p.schema + name + `
+SET ` + name + ` = ` + name + ` || jsonb_build_object(
+  'items',
+  jsonb_build_array($2::text) || COALESCE(` + name + `->'items', '[]'::jsonb),
+  'totalItems',
+  (COALESCE(` + name + `->>'totalItems','0')::int + 1)::text::jsonb)
+WHERE ` + name + `->'id' ? $1`
+}
+
+func (p *pgV0) deleteCollectionItem(name string) string {
+	return `UPDATE ` + p.schema + name + `
+SET ` + name + `= jsonb_set(
+  ` + name + `,
+  '{items}',
+  (` + name + `->'items') - $2) ||
+  jsonb_build_object(
+  'totalItems',
+  (COALESCE(` + name + `->>'totalItems','0')::int - 1)::text::jsonb)
+WHERE ` + name + `->'id' ? $1`
+}
+
+func (p *pgV0) getAllCollectionForActor(name string) string {
+	return `SELECT ` + name + `
+FROM ` + p.schema + name + `
+WHERE actor_id = $1`
+}
+
+/* Collections */
+
+const (
+	v0Followers = "followers"
+	v0Following = "following"
+	v0Liked     = "liked"
+)
+
+func (p *pgV0) CreateFollowersTable() string {
+	return p.createCollectionTable(v0Followers)
+}
+
+func (p *pgV0) InsertFollowers() string {
+	return p.insertCollection(v0Followers)
+}
+
+func (p *pgV0) FollowersContainsForActor() string {
+	return p.collectionContainsForActor(v0Followers)
+}
+
+func (p *pgV0) FollowersContains() string {
+	return p.collectionContains(v0Followers)
+}
+
+func (p *pgV0) GetFollowers() string {
+	return p.getCollection(v0Followers)
+}
+
+func (p *pgV0) GetFollowersLastPage() string {
+	return p.getCollectionLastPage(v0Followers)
+}
+
+func (p *pgV0) PrependFollowersItem() string {
+	return p.prependCollectionItem(v0Followers)
+}
+
+func (p *pgV0) DeleteFollowersItem() string {
+	return p.deleteCollectionItem(v0Followers)
+}
+
+func (p *pgV0) GetAllFollowersForActor() string {
+	return p.getAllCollectionForActor(v0Followers)
+}
+
+func (p *pgV0) CreateFollowingTable() string {
+	return p.createCollectionTable(v0Following)
+}
+
+func (p *pgV0) InsertFollowing() string {
+	return p.insertCollection(v0Following)
+}
+
+func (p *pgV0) FollowingContainsForActor() string {
+	return p.collectionContainsForActor(v0Following)
+}
+
+func (p *pgV0) FollowingContains() string {
+	return p.collectionContains(v0Following)
+}
+
+func (p *pgV0) GetFollowing() string {
+	return p.getCollection(v0Following)
+}
+
+func (p *pgV0) GetFollowingLastPage() string {
+	return p.getCollectionLastPage(v0Following)
+}
+
+func (p *pgV0) PrependFollowingItem() string {
+	return p.prependCollectionItem(v0Following)
+}
+
+func (p *pgV0) DeleteFollowingItem() string {
+	return p.deleteCollectionItem(v0Following)
+}
+
+func (p *pgV0) GetAllFollowingForActor() string {
+	return p.getAllCollectionForActor(v0Following)
+}
+
+func (p *pgV0) CreateLikedTable() string {
+	return p.createCollectionTable(v0Liked)
+}
+
+func (p *pgV0) InsertLiked() string {
+	return p.insertCollection(v0Liked)
+}
+
+func (p *pgV0) LikedContainsForActor() string {
+	return p.collectionContainsForActor(v0Liked)
+}
+
+func (p *pgV0) LikedContains() string {
+	return p.collectionContains(v0Liked)
+}
+
+func (p *pgV0) GetLiked() string {
+	return p.getCollection(v0Liked)
+}
+
+func (p *pgV0) GetLikedLastPage() string {
+	return p.getCollectionLastPage(v0Liked)
+}
+
+func (p *pgV0) PrependLikedItem() string {
+	return p.prependCollectionItem(v0Liked)
+}
+
+func (p *pgV0) DeleteLikedItem() string {
+	return p.deleteCollectionItem(v0Liked)
+}
+
+func (p *pgV0) GetAllLikedForActor() string {
+	return p.getAllCollectionForActor(v0Liked)
 }

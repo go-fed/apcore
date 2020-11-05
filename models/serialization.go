@@ -66,6 +66,20 @@ func enforceOneRow(r *sql.Rows, debugname string, fn func(r singleRow) error) er
 	return r.Err()
 }
 
+// mustChangeOneRow ensures an Exec SQL statement changes exactly one row, or
+// returns an error.
+func mustChangeOneRow(r sql.Result, existing error, name string) error {
+	if existing != nil {
+		return existing
+	}
+	if n, err := r.RowsAffected(); err != nil {
+		return err
+	} else if n != 1 {
+		return fmt.Errorf("sql query for %s changed %d rows instead of 1 row", name, n)
+	}
+	return nil
+}
+
 var _ driver.Valuer = OnFollowBehavior(0)
 var _ sql.Scanner = (*OnFollowBehavior)(nil)
 
@@ -212,6 +226,64 @@ func (a *ActivityStreamsOrderedCollectionPage) Scan(src interface{}) error {
 	}
 	res, err := streams.NewJSONResolver(func(ctx context.Context, oc vocab.ActivityStreamsOrderedCollectionPage) error {
 		a.ActivityStreamsOrderedCollectionPage = oc
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return res.Resolve(context.Background(), m)
+}
+
+var _ driver.Valuer = ActivityStreamsCollection{nil}
+var _ sql.Scanner = &ActivityStreamsCollection{nil}
+
+// ActivityStreamsCollection is a wrapper around the ActivityStreams type
+// that also knows how to serialize and deserialize itself for SQL database
+// drivers.
+type ActivityStreamsCollection struct {
+	vocab.ActivityStreamsCollection
+}
+
+func (a ActivityStreamsCollection) Value() (driver.Value, error) {
+	return marshal(a)
+}
+
+func (a *ActivityStreamsCollection) Scan(src interface{}) error {
+	var m map[string]interface{}
+	if err := unmarshal(src, &m); err != nil {
+		return err
+	}
+	res, err := streams.NewJSONResolver(func(ctx context.Context, oc vocab.ActivityStreamsCollection) error {
+		a.ActivityStreamsCollection = oc
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return res.Resolve(context.Background(), m)
+}
+
+var _ driver.Valuer = ActivityStreamsCollectionPage{nil}
+var _ sql.Scanner = &ActivityStreamsCollectionPage{nil}
+
+// ActivityStreamsCollectionPage is a wrapper around the ActivityStreams
+// type that also knows how to serialize and deserialize itself for SQL database
+// drivers.
+type ActivityStreamsCollectionPage struct {
+	vocab.ActivityStreamsCollectionPage
+}
+
+func (a ActivityStreamsCollectionPage) Value() (driver.Value, error) {
+	return marshal(a)
+}
+
+func (a *ActivityStreamsCollectionPage) Scan(src interface{}) error {
+	var m map[string]interface{}
+	if err := unmarshal(src, &m); err != nil {
+		return err
+	}
+	res, err := streams.NewJSONResolver(func(ctx context.Context, oc vocab.ActivityStreamsCollectionPage) error {
+		a.ActivityStreamsCollectionPage = oc
 		return nil
 	})
 	if err != nil {

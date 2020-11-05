@@ -40,6 +40,12 @@ type SqlDialect interface {
 	CreateClientInfosTable() string
 	// CreateTokenInfosTable for the TokenInfos model.
 	CreateTokenInfosTable() string
+	// CreateFollowersTable for the Followers model.
+	CreateFollowersTable() string
+	// CreateFollowingTable for the Following model.
+	CreateFollowingTable() string
+	// CreateLikedTable for the Liked model.
+	CreateLikedTable() string
 
 	/* Queries */
 
@@ -54,6 +60,12 @@ type SqlDialect interface {
 	//  Returns
 	//   ID          string
 	InsertUser() string
+	// UpdateUserActor:
+	//  Params
+	//   ID          string
+	//   Actor       []byte
+	//  Returns
+	UpdateUserActor() string
 	// SensitiveUserByEmail:
 	//  Params
 	//   Email       string
@@ -85,6 +97,18 @@ type SqlDialect interface {
 	//   ActorID     string
 	ActorIDForInbox() string
 
+	// FedExists:
+	//  Params
+	//   ID          string
+	//  Returns
+	//   Exists      bool
+	FedExists() string
+	// FedGet:
+	//  Params
+	//   ID          string
+	//  Returns
+	//   Payload     []byte
+	FedGet() string
 	// FedCreate:
 	//  Params
 	//   Payload     []byte
@@ -102,6 +126,18 @@ type SqlDialect interface {
 	//  Returns
 	FedDelete() string
 
+	// LocalExists:
+	//  Params
+	//   ID          string
+	//  Returns
+	//   Exists      bool
+	LocalExists() string
+	// LocalGet:
+	//  Params
+	//   ID          string
+	//  Returns
+	//   Payload     []byte
+	LocalGet() string
 	// LocalCreate:
 	//  Params
 	//   Payload     []byte
@@ -130,7 +166,7 @@ type SqlDialect interface {
 	//   ActorID     string
 	//   Item        string
 	//  Returns
-	//   Bool        bool
+	//   Contains    bool
 	InboxContainsForActor() string
 	// InboxContains:
 	//  Params
@@ -197,7 +233,7 @@ type SqlDialect interface {
 	//   ActorID     string
 	//   Item        string
 	//  Returns
-	//   Bool        bool
+	//   Contains    bool
 	OutboxContainsForActor() string
 	// OutboxContains:
 	//  Params
@@ -398,4 +434,172 @@ type SqlDialect interface {
 	//   RefrCreated time.Time
 	//   RefrExpires time.Duration
 	GetTokenInfoByRefresh() string
+
+	// InsertFollowers:
+	//  Params
+	//   ActorID     string
+	//   Followers   []byte
+	//  Returns
+	InsertFollowers() string
+	// FollowersContainsForActor:
+	//  Params
+	//   ActorID     string
+	//   Item        string
+	//  Returns
+	//   Contains    bool
+	FollowersContainsForActor() string
+	// FollowersContains:
+	//  Params
+	//   Followers   string
+	//   Item        string
+	//  Returns
+	//   Contains    bool
+	FollowersContains() string
+	// GetFollowers:
+	//  Params
+	//   Followers   string
+	//   Min         int
+	//   Max         int
+	//  Returns
+	//   Page        []byte
+	//   IsEnd       bool
+	GetFollowers() string
+	// GetFollowersLastPage:
+	//  Params
+	//   Followers   string
+	//   N           int
+	//  Returns
+	//   Page        []byte
+	//   StartIndex  int
+	GetFollowersLastPage() string
+	// PrependFollowersItem:
+	//  Params
+	//   Followers   string
+	//   Item        string
+	//  Returns
+	PrependFollowersItem() string
+	// DeleteFollowersItem:
+	//  Params
+	//   Followers   string
+	//   Item        string
+	//  Returns
+	DeleteFollowersItem() string
+	// GetAllFollowersForActor:
+	//  Params
+	//   Followers   string
+	//  Returns
+	//   Followers   []byte
+	GetAllFollowersForActor() string
+
+	// InsertFollowing:
+	//  Params
+	//   ActorID     string
+	//   Following   []byte
+	//  Returns
+	InsertFollowing() string
+	// FollowingContainsForActor:
+	//  Params
+	//   ActorID     string
+	//   Item        string
+	//  Returns
+	//   Contains    bool
+	FollowingContainsForActor() string
+	// FollowingContains:
+	//  Params
+	//   Following   string
+	//   Item        string
+	//  Returns
+	//   Contains    bool
+	FollowingContains() string
+	// GetFollowing:
+	//  Params
+	//   Following   string
+	//   Min         int
+	//   Max         int
+	//  Returns
+	//   Page        []byte
+	//   IsEnd       bool
+	GetFollowing() string
+	// GetFollowingLastPage:
+	//  Params
+	//   Following   string
+	//   N           int
+	//  Returns
+	//   Page        []byte
+	//   StartIndex  int
+	GetFollowingLastPage() string
+	// PrependFollowingItem:
+	//  Params
+	//   Following   string
+	//   Item        string
+	//  Returns
+	PrependFollowingItem() string
+	// DeleteFollowingItem:
+	//  Params
+	//   Following   string
+	//   Item        string
+	//  Returns
+	DeleteFollowingItem() string
+	// GetAllFollowingForActor:
+	//  Params
+	//   Following   string
+	//  Returns
+	//   Following   []byte
+	GetAllFollowingForActor() string
+
+	// InsertLiked:
+	//  Params
+	//   ActorID     string
+	//   Liked       []byte
+	//  Returns
+	InsertLiked() string
+	// LikedContainsForActor:
+	//  Params
+	//   ActorID     string
+	//   Item        string
+	//  Returns
+	//   Contains    bool
+	LikedContainsForActor() string
+	// LikedContains:
+	//  Params
+	//   Liked       string
+	//   Item        string
+	//  Returns
+	//   Contains    bool
+	LikedContains() string
+	// GetLiked:
+	//  Params
+	//   Liked       string
+	//   Min         int
+	//   Max         int
+	//  Returns
+	//   Page        []byte
+	//   IsEnd       bool
+	GetLiked() string
+	// GetLikedLastPage:
+	//  Params
+	//   Liked       string
+	//   N           int
+	//  Returns
+	//   Page        []byte
+	//   StartIndex  int
+	GetLikedLastPage() string
+	// PrependLikedItem:
+	//  Params
+	//   Liked       string
+	//   Item        string
+	//  Returns
+	PrependLikedItem() string
+	// DeleteLikedItem:
+	//  Params
+	//   Liked       string
+	//   Item        string
+	//  Returns
+	DeleteLikedItem() string
+	// GetAllLikedForActor:
+	//  Params
+	//   Liked       string
+	//  Returns
+	//   Liked       []byte
+	GetAllLikedForActor() string
 }

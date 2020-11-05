@@ -69,6 +69,8 @@ func defaultDatabaseConfig(dbkind string) (d config.DatabaseConfig, err error) {
 		MaxIdleConns: 2,
 		// This default is arbitrarily chosen
 		DefaultCollectionPageSize: 10,
+		// This default is arbitrarily chosen
+		MaxCollectionPageSize: 200,
 	}
 	if dbkind != postgresDB {
 		err = fmt.Errorf("unsupported database kind: %s", dbkind)

@@ -27,7 +27,7 @@ import (
 	"github.com/go-fed/apcore/app"
 	"github.com/go-fed/apcore/framework/conn"
 	"github.com/go-fed/apcore/framework/oauth2"
-	"github.com/go-fed/apcore/paths"
+	"github.com/go-fed/apcore/services"
 	"github.com/go-fed/apcore/util"
 	oa2 "gopkg.in/oauth2.v3"
 )
@@ -36,81 +36,33 @@ var _ pub.CommonBehavior = &commonBehavior{}
 
 type commonBehavior struct {
 	app app.Application
-	p   *paths.Paths
-	db  *database
 	tc  *conn.Controller
 	o   *oauth2.Server
+	db  *database
+	pk  *services.PrivateKeys
 }
 
 func newCommonBehavior(
 	app app.Application,
-	p *paths.Paths,
 	db *database,
 	tc *conn.Controller,
-	o *oauth2.Server) *commonBehavior {
+	o *oauth2.Server,
+	pk *services.PrivateKeys) *commonBehavior {
 	return &commonBehavior{
 		app: app,
-		p:   p,
-		db:  db,
 		tc:  tc,
 		o:   o,
+		db:  db,
+		pk:  pk,
 	}
 }
 
 func (a *commonBehavior) AuthenticateGetInbox(c context.Context, w http.ResponseWriter, r *http.Request) (newCtx context.Context, authenticated bool, err error) {
-	newCtx = c
-	var t oa2.TokenInfo
-	var oAuthAuthenticated bool
-	t, oAuthAuthenticated, err = a.o.ValidateOAuth2AccessToken(w, r)
-	if err != nil {
-		return
-	} else {
-		// With or without OAuth, permit public access
-		authenticated = true
-	}
-	// No OAuth2 means guaranteed denial of private access
-	if !oAuthAuthenticated {
-		return
-	}
-	// Determine if private access permitted by the granted scope.
-	var ok bool
-	ok, err = a.app.ScopePermitsPrivateGetInbox(t.GetScope())
-	if err != nil {
-		return
-	} else {
-		ctx := &util.Context{c}
-		ctx.SetPrivateScope(ok)
-		newCtx = ctx.Context
-	}
-	return
+	return a.authenticateGetRequest(util.Context{c}, w, r)
 }
 
 func (a *commonBehavior) AuthenticateGetOutbox(c context.Context, w http.ResponseWriter, r *http.Request) (newCtx context.Context, authenticated bool, err error) {
-	newCtx = c
-	var t oa2.TokenInfo
-	var oAuthAuthenticated bool
-	t, oAuthAuthenticated, err = a.o.ValidateOAuth2AccessToken(w, r)
-	if err != nil {
-		return
-	} else {
-		// With or without OAuth, permit public access
-		authenticated = true
-	}
-	// No OAuth2 means guaranteed denial of private access
-	if !oAuthAuthenticated {
-		return
-	}
-	// Determine if private access permitted by the granted scope.
-	var ok bool
-	ok, err = a.app.ScopePermitsPrivateGetOutbox(t.GetScope())
-	if err != nil {
-		return
-	} else {
-		ctx := &util.Context{c}
-		ctx.SetPrivateScope(ok)
-		newCtx = ctx.Context
-	}
-	return
+	return a.authenticateGetRequest(util.Context{c}, w, r)
 }
 
 func (a *commonBehavior) GetOutbox(c context.Context, r *http.Request) (ocp vocab.ActivityStreamsOrderedCollectionPage, err error) {
@@ -137,16 +89,38 @@ func (a *commonBehavior) NewTransport(c context.Context, actorBoxIRI *url.URL, g
 		return
 	}
 	var privKey *rsa.PrivateKey
-	var kUUID string
-	kUUID, privKey, err = a.db.GetUserPKey(c, userUUID)
-	if err != nil {
-		return
-	}
 	var pubKeyURL *url.URL
-	pubKeyURL, err = a.p.PublicKeyPath(userUUID, kUUID)
+	privKey, pubKeyURL, err = a.pk.GetUserHTTPSignatureKey(util.Context{c}, userUUID)
 	if err != nil {
 		return
 	}
-	pubKeyId := pubKeyURL.String()
-	return a.tc.Get(privKey, pubKeyId)
+	return a.tc.Get(privKey, pubKeyURL.String())
+}
+
+func (a *commonBehavior) authenticateGetRequest(c util.Context, w http.ResponseWriter, r *http.Request) (newCtx context.Context, authenticated bool, err error) {
+	newCtx = c
+	var t oa2.TokenInfo
+	var oAuthAuthenticated bool
+	t, oAuthAuthenticated, err = a.o.ValidateOAuth2AccessToken(w, r)
+	if err != nil {
+		return
+	} else {
+		// With or without OAuth, permit public access
+		authenticated = true
+	}
+	// No OAuth2 means guaranteed denial of private access
+	if !oAuthAuthenticated {
+		return
+	}
+	// Determine if private access permitted by the granted scope.
+	var ok bool
+	ok, err = a.app.ScopePermitsPrivateGetInbox(t.GetScope())
+	if err != nil {
+		return
+	} else {
+		ctx := &util.Context{c}
+		ctx.WithPrivateScope(ok)
+		newCtx = ctx.Context
+	}
+	return
 }

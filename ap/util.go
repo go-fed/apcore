@@ -31,7 +31,8 @@ import (
 	"github.com/go-fed/activity/streams"
 	"github.com/go-fed/activity/streams/vocab"
 	"github.com/go-fed/apcore/framework/conn"
-	"github.com/go-fed/apcore/paths"
+	"github.com/go-fed/apcore/services"
+	"github.com/go-fed/apcore/util"
 	"github.com/go-fed/httpsig"
 )
 
@@ -99,11 +100,11 @@ func getPublicKeyFromResponse(c context.Context, b []byte, keyId *url.URL) (p cr
 
 func verifyHttpSignatures(c context.Context,
 	r *http.Request,
-	p *paths.Paths,
 	db *database,
+	pk *services.PrivateKeys,
 	tc *conn.Controller) (authenticated bool, err error) {
 	// 1. Figure out what key we need to verify
-	ctx := ctx{c}
+	ctx := util.Context{c}
 	var v httpsig.Verifier
 	v, err = httpsig.NewVerifier(r)
 	if err != nil {
@@ -121,14 +122,9 @@ func verifyHttpSignatures(c context.Context,
 	if err != nil {
 		return
 	}
-	var kUUID string
 	var privKey *rsa.PrivateKey
-	kUUID, privKey, err = db.GetUserPKey(c, userUUID)
-	if err != nil {
-		return
-	}
 	var pubKeyURL *url.URL
-	pubKeyURL, err = p.PublicKeyPath(userUUID, kUUID)
+	privKey, pubKeyURL, err = pk.GetUserHTTPSignatureKey(ctx, userUUID)
 	if err != nil {
 		return
 	}

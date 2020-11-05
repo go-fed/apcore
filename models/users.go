@@ -68,6 +68,7 @@ var _ Model = &Users{}
 // Users type.
 type Users struct {
 	insertUser           *sql.Stmt
+	updateActor          *sql.Stmt
 	sensitiveUserByEmail *sql.Stmt
 	userByID             *sql.Stmt
 	actorIDForOutbox     *sql.Stmt
@@ -78,6 +79,7 @@ func (u *Users) Prepare(db *sql.DB, s SqlDialect) error {
 	return prepareStmtPairs(db,
 		stmtPairs{
 			{&(u.insertUser), s.InsertUser()},
+			{&(u.updateActor), s.UpdateUserActor()},
 			{&(u.sensitiveUserByEmail), s.SensitiveUserByEmail()},
 			{&(u.userByID), s.UserByID()},
 			{&(u.actorIDForOutbox), s.ActorIDForOutbox()},
@@ -92,6 +94,7 @@ func (u *Users) CreateTable(t *sql.Tx, s SqlDialect) error {
 
 func (u *Users) Close() {
 	u.insertUser.Close()
+	u.updateActor.Close()
 	u.sensitiveUserByEmail.Close()
 	u.userByID.Close()
 	u.actorIDForOutbox.Close()
@@ -115,6 +118,12 @@ func (u *Users) Create(c util.Context, tx *sql.Tx, r *CreateUser) (userID string
 	return userID, enforceOneRow(rows, "Users.Create", func(r singleRow) error {
 		return r.Scan(&(userID))
 	})
+}
+
+// UpdateActor updates the Actor for the userID.
+func (u *Users) UpdateActor(c util.Context, tx *sql.Tx, id string, actor ActivityStreamsPerson) error {
+	r, err := tx.Stmt(u.updateActor).ExecContext(c, id, actor)
+	return mustChangeOneRow(r, err, "Users.UpdateActor")
 }
 
 // SensitiveUserByEmail returns the credentials for a given user's email.

@@ -51,43 +51,69 @@ func addNextPrev(page vocab.ActivityStreamsOrderedCollectionPage, start, n int, 
 	return nil
 }
 
+// addNextPrevCol adds the 'next' and 'prev' properties onto a page, if required.
+func addNextPrevCol(page vocab.ActivityStreamsCollectionPage, start, n int, isEnd bool) error {
+	iri, err := pub.GetId(page)
+	if err != nil {
+		return err
+	}
+	// Prev
+	if start > 0 {
+		pStart := start - n
+		if pStart < 0 {
+			pStart = 0
+		}
+		prev := streams.NewActivityStreamsPrevProperty()
+		prev.SetIRI(paths.AddPageParams(iri, pStart, n))
+		page.SetActivityStreamsPrev(prev)
+	}
+	// Next
+	if !isEnd {
+		next := streams.NewActivityStreamsNextProperty()
+		next.SetIRI(paths.AddPageParams(iri, start+n, n))
+		page.SetActivityStreamsNext(next)
+	}
+	return nil
+}
+
 func toPersonActor(a app.Application,
+	uuid paths.UUID,
 	scheme, host, username, preferredUsername, summary string,
 	pubKey string) (vocab.ActivityStreamsPerson, *url.URL) {
 	p := streams.NewActivityStreamsPerson()
 	// id
 	idProp := streams.NewJSONLDIdProperty()
-	idIRI := paths.UserIRIFor(scheme, host, paths.UserPathKey, username)
+	idIRI := paths.UUIDIRIFor(scheme, host, paths.UserPathKey, uuid)
 	idProp.SetIRI(idIRI)
 	p.SetJSONLDId(idProp)
 
 	// inbox
 	inboxProp := streams.NewActivityStreamsInboxProperty()
-	inboxIRI := paths.UserIRIFor(scheme, host, paths.InboxPathKey, username)
+	inboxIRI := paths.UUIDIRIFor(scheme, host, paths.InboxPathKey, uuid)
 	inboxProp.SetIRI(inboxIRI)
 	p.SetActivityStreamsInbox(inboxProp)
 
 	// outbox
 	outboxProp := streams.NewActivityStreamsOutboxProperty()
-	outboxIRI := paths.UserIRIFor(scheme, host, paths.OutboxPathKey, username)
+	outboxIRI := paths.UUIDIRIFor(scheme, host, paths.OutboxPathKey, uuid)
 	outboxProp.SetIRI(outboxIRI)
 	p.SetActivityStreamsOutbox(outboxProp)
 
 	// followers
 	followersProp := streams.NewActivityStreamsFollowersProperty()
-	followersIRI := paths.UserIRIFor(scheme, host, paths.FollowersPathKey, username)
+	followersIRI := paths.UUIDIRIFor(scheme, host, paths.FollowersPathKey, uuid)
 	followersProp.SetIRI(followersIRI)
 	p.SetActivityStreamsFollowers(followersProp)
 
 	// following
 	followingProp := streams.NewActivityStreamsFollowingProperty()
-	followingIRI := paths.UserIRIFor(scheme, host, paths.FollowingPathKey, username)
+	followingIRI := paths.UUIDIRIFor(scheme, host, paths.FollowingPathKey, uuid)
 	followingProp.SetIRI(followingIRI)
 	p.SetActivityStreamsFollowing(followingProp)
 
 	// liked
 	likedProp := streams.NewActivityStreamsLikedProperty()
-	likedIRI := paths.UserIRIFor(scheme, host, paths.LikedPathKey, username)
+	likedIRI := paths.UUIDIRIFor(scheme, host, paths.LikedPathKey, uuid)
 	likedProp.SetIRI(likedIRI)
 	p.SetActivityStreamsLiked(likedProp)
 
@@ -119,7 +145,7 @@ func toPersonActor(a app.Application,
 
 	// publicKey id
 	pubKeyIdProp := streams.NewJSONLDIdProperty()
-	pubKeyIRI := paths.UserIRIFor(scheme, host, paths.HttpSigPubKeyKey, username)
+	pubKeyIRI := paths.UUIDIRIFor(scheme, host, paths.HttpSigPubKeyKey, uuid)
 	pubKeyIdProp.SetIRI(pubKeyIRI)
 	publicKeyType.SetJSONLDId(pubKeyIdProp)
 
@@ -185,6 +211,83 @@ func emptyOrderedCollection(id, first, last *url.URL) vocab.ActivityStreamsOrder
 	// orderedItems
 	oiProp := streams.NewActivityStreamsOrderedItemsProperty()
 	oc.SetActivityStreamsOrderedItems(oiProp)
+
+	// first
+	firstProp := streams.NewActivityStreamsFirstProperty()
+	firstProp.SetIRI(first)
+	oc.SetActivityStreamsFirst(firstProp)
+
+	// last
+	lastProp := streams.NewActivityStreamsLastProperty()
+	lastProp.SetIRI(last)
+	oc.SetActivityStreamsLast(lastProp)
+
+	return oc
+}
+
+func emptyFollowers(actorID *url.URL) (vocab.ActivityStreamsCollection, error) {
+	id, err := paths.IRIForActorID(paths.FollowersPathKey, actorID)
+	if err != nil {
+		return nil, err
+	}
+	first, err := paths.IRIForActorID(paths.FollowersFirstPathKey, actorID)
+	if err != nil {
+		return nil, err
+	}
+	last, err := paths.IRIForActorID(paths.FollowersLastPathKey, actorID)
+	if err != nil {
+		return nil, err
+	}
+	return emptyCollection(id, first, last), nil
+}
+
+func emptyFollowing(actorID *url.URL) (vocab.ActivityStreamsCollection, error) {
+	id, err := paths.IRIForActorID(paths.FollowingPathKey, actorID)
+	if err != nil {
+		return nil, err
+	}
+	first, err := paths.IRIForActorID(paths.FollowingFirstPathKey, actorID)
+	if err != nil {
+		return nil, err
+	}
+	last, err := paths.IRIForActorID(paths.FollowingLastPathKey, actorID)
+	if err != nil {
+		return nil, err
+	}
+	return emptyCollection(id, first, last), nil
+}
+
+func emptyLiked(actorID *url.URL) (vocab.ActivityStreamsCollection, error) {
+	id, err := paths.IRIForActorID(paths.LikedPathKey, actorID)
+	if err != nil {
+		return nil, err
+	}
+	first, err := paths.IRIForActorID(paths.LikedFirstPathKey, actorID)
+	if err != nil {
+		return nil, err
+	}
+	last, err := paths.IRIForActorID(paths.LikedLastPathKey, actorID)
+	if err != nil {
+		return nil, err
+	}
+	return emptyCollection(id, first, last), nil
+}
+
+func emptyCollection(id, first, last *url.URL) vocab.ActivityStreamsCollection {
+	oc := streams.NewActivityStreamsCollection()
+	// id
+	idProp := streams.NewJSONLDIdProperty()
+	idProp.SetIRI(id)
+	oc.SetJSONLDId(idProp)
+
+	// totalItems
+	tiProp := streams.NewActivityStreamsTotalItemsProperty()
+	tiProp.Set(0)
+	oc.SetActivityStreamsTotalItems(tiProp)
+
+	// items
+	oiProp := streams.NewActivityStreamsItemsProperty()
+	oc.SetActivityStreamsItems(oiProp)
 
 	// first
 	firstProp := streams.NewActivityStreamsFirstProperty()

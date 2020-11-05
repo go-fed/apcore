@@ -56,10 +56,10 @@ func (i *Inboxes) Close() {
 
 // Create a new inbox for the given actor.
 func (i *Inboxes) Create(c util.Context, tx *sql.Tx, actor *url.URL, inbox ActivityStreamsOrderedCollection) error {
-	_, err := tx.Stmt(i.insertInbox).ExecContext(c,
+	r, err := tx.Stmt(i.insertInbox).ExecContext(c,
 		actor.String(),
 		inbox)
-	return err
+	return mustChangeOneRow(r, err, "Inboxes.Create")
 }
 
 // ContainsForActor returns true if the item is in the actor's inbox's collection.
@@ -148,12 +148,12 @@ func (i *Inboxes) GetPublicLastPage(c util.Context, tx *sql.Tx, inbox *url.URL, 
 
 // PrependInboxItem prepends the item to the inbox's ordered items list.
 func (i *Inboxes) PrependInboxItem(c util.Context, tx *sql.Tx, inbox, item *url.URL) error {
-	_, err := tx.Stmt(i.prependInboxItem).ExecContext(c, inbox.String(), item.String())
-	return err
+	r, err := tx.Stmt(i.prependInboxItem).ExecContext(c, inbox.String(), item.String())
+	return mustChangeOneRow(r, err, "Inboxes.PrependInboxItem")
 }
 
 // DeleteInboxItem removes the item from the inbox's ordered items list.
 func (i *Inboxes) DeleteInboxItem(c util.Context, tx *sql.Tx, inbox, item *url.URL) error {
-	_, err := tx.Stmt(i.deleteInboxItem).ExecContext(c, inbox.String(), item.String())
-	return err
+	r, err := tx.Stmt(i.deleteInboxItem).ExecContext(c, inbox.String(), item.String())
+	return mustChangeOneRow(r, err, "Inboxes.DeleteInboxItem")
 }

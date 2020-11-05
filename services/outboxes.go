@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"net/url"
 
+	"github.com/go-fed/activity/streams/vocab"
 	"github.com/go-fed/apcore/models"
 	"github.com/go-fed/apcore/util"
 )
@@ -29,7 +30,7 @@ type Outboxes struct {
 	Outboxes *models.Outboxes
 }
 
-func (i *Outboxes) GetPage(c util.Context, outbox *url.URL, min, n int) (page models.ActivityStreamsOrderedCollectionPage, err error) {
+func (i *Outboxes) GetPage(c util.Context, outbox *url.URL, min, n int) (page vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	return page, doInTx(c, i.DB, func(tx *sql.Tx) error {
 		var isEnd bool
 		page, isEnd, err = i.Outboxes.GetPage(c, tx, outbox, min, min+n)
@@ -40,7 +41,7 @@ func (i *Outboxes) GetPage(c util.Context, outbox *url.URL, min, n int) (page mo
 	})
 }
 
-func (i *Outboxes) GetPublicPage(c util.Context, outbox *url.URL, min, n int) (page models.ActivityStreamsOrderedCollectionPage, err error) {
+func (i *Outboxes) GetPublicPage(c util.Context, outbox *url.URL, min, n int) (page vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	return page, doInTx(c, i.DB, func(tx *sql.Tx) error {
 		var isEnd bool
 		page, isEnd, err = i.Outboxes.GetPublicPage(c, tx, outbox, min, min+n)
@@ -51,7 +52,7 @@ func (i *Outboxes) GetPublicPage(c util.Context, outbox *url.URL, min, n int) (p
 	})
 }
 
-func (i *Outboxes) GetLastPage(c util.Context, outbox *url.URL, n int) (page models.ActivityStreamsOrderedCollectionPage, err error) {
+func (i *Outboxes) GetLastPage(c util.Context, outbox *url.URL, n int) (page vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	return page, doInTx(c, i.DB, func(tx *sql.Tx) error {
 		var startIdx int
 		page, startIdx, err = i.Outboxes.GetLastPage(c, tx, outbox, n)
@@ -62,7 +63,7 @@ func (i *Outboxes) GetLastPage(c util.Context, outbox *url.URL, n int) (page mod
 	})
 }
 
-func (i *Outboxes) GetPublicLastPage(c util.Context, outbox *url.URL, n int) (page models.ActivityStreamsOrderedCollectionPage, err error) {
+func (i *Outboxes) GetPublicLastPage(c util.Context, outbox *url.URL, n int) (page vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	return page, doInTx(c, i.DB, func(tx *sql.Tx) error {
 		var startIdx int
 		page, startIdx, err = i.Outboxes.GetPublicLastPage(c, tx, outbox, n)
@@ -73,10 +74,15 @@ func (i *Outboxes) GetPublicLastPage(c util.Context, outbox *url.URL, n int) (pa
 	})
 }
 
-func (i *Outboxes) OutboxForInbox(c util.Context, inboxIRI *url.URL) (outboxIRI models.URL, err error) {
+func (i *Outboxes) OutboxForInbox(c util.Context, inboxIRI *url.URL) (outboxIRI *url.URL, err error) {
 	return outboxIRI, doInTx(c, i.DB, func(tx *sql.Tx) error {
-		outboxIRI, err = i.Outboxes.OutboxForInbox(c, tx, inboxIRI)
-		return err
+		var ob models.URL
+		ob, err = i.Outboxes.OutboxForInbox(c, tx, inboxIRI)
+		if err != nil {
+			return err
+		}
+		outboxIRI = ob.URL
+		return nil
 	})
 }
 

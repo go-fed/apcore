@@ -139,7 +139,7 @@ func (tc *Controller) Get(
 		tc)
 }
 
-func (tc *Controller) getFirstAlgorithm() httpsig.Algorithm {
+func (tc *Controller) GetFirstAlgorithm() httpsig.Algorithm {
 	return tc.algs[0]
 }
 

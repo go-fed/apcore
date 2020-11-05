@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"net/url"
 
+	"github.com/go-fed/activity/streams/vocab"
 	"github.com/go-fed/apcore/models"
 	"github.com/go-fed/apcore/util"
 )
@@ -29,7 +30,7 @@ type Inboxes struct {
 	Inboxes *models.Inboxes
 }
 
-func (i *Inboxes) GetPage(c util.Context, inbox *url.URL, min, n int) (page models.ActivityStreamsOrderedCollectionPage, err error) {
+func (i *Inboxes) GetPage(c util.Context, inbox *url.URL, min, n int) (page vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	err = doInTx(c, i.DB, func(tx *sql.Tx) error {
 		var isEnd bool
 		page, isEnd, err = i.Inboxes.GetPage(c, tx, inbox, min, min+n)
@@ -41,7 +42,7 @@ func (i *Inboxes) GetPage(c util.Context, inbox *url.URL, min, n int) (page mode
 	return
 }
 
-func (i *Inboxes) GetPublicPage(c util.Context, inbox *url.URL, min, n int) (page models.ActivityStreamsOrderedCollectionPage, err error) {
+func (i *Inboxes) GetPublicPage(c util.Context, inbox *url.URL, min, n int) (page vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	err = doInTx(c, i.DB, func(tx *sql.Tx) error {
 		var isEnd bool
 		page, isEnd, err = i.Inboxes.GetPublicPage(c, tx, inbox, min, min+n)
@@ -53,7 +54,7 @@ func (i *Inboxes) GetPublicPage(c util.Context, inbox *url.URL, min, n int) (pag
 	return
 }
 
-func (i *Inboxes) GetLastPage(c util.Context, inbox *url.URL, n int) (page models.ActivityStreamsOrderedCollectionPage, err error) {
+func (i *Inboxes) GetLastPage(c util.Context, inbox *url.URL, n int) (page vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	err = doInTx(c, i.DB, func(tx *sql.Tx) error {
 		var startIdx int
 		page, startIdx, err = i.Inboxes.GetLastPage(c, tx, inbox, n)
@@ -64,7 +65,8 @@ func (i *Inboxes) GetLastPage(c util.Context, inbox *url.URL, n int) (page model
 	})
 	return
 }
-func (i *Inboxes) GetPublicLastPage(c util.Context, inbox *url.URL, n int) (page models.ActivityStreamsOrderedCollectionPage, err error) {
+
+func (i *Inboxes) GetPublicLastPage(c util.Context, inbox *url.URL, n int) (page vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	err = doInTx(c, i.DB, func(tx *sql.Tx) error {
 		var startIdx int
 		page, startIdx, err = i.Inboxes.GetPublicLastPage(c, tx, inbox, n)
@@ -81,7 +83,6 @@ func (i *Inboxes) ContainsForActor(c util.Context, actor, id *url.URL) (has bool
 		has, err = i.Inboxes.ContainsForActor(c, tx, actor, id)
 		return err
 	})
-	return
 }
 
 func (i *Inboxes) Contains(c util.Context, inbox, id *url.URL) (has bool, err error) {
@@ -89,7 +90,6 @@ func (i *Inboxes) Contains(c util.Context, inbox, id *url.URL) (has bool, err er
 		has, err = i.Inboxes.Contains(c, tx, inbox, id)
 		return err
 	})
-	return
 }
 
 func (i *Inboxes) PrependItem(c util.Context, inbox, item *url.URL) error {

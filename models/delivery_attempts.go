@@ -71,17 +71,16 @@ func (d *DeliveryAttempts) Create(c util.Context, tx *sql.Tx, from string, toAct
 
 // MarkSuccessful marks a delivery attempt as successful.
 func (d *DeliveryAttempts) MarkSuccessful(c util.Context, tx *sql.Tx, id string) error {
-	_, err := tx.Stmt(d.markDeliveryAttemptSuccessful).ExecContext(c,
+	r, err := tx.Stmt(d.markDeliveryAttemptSuccessful).ExecContext(c,
 		id,
 		successDeliveryAttempt)
-	return err
-
+	return mustChangeOneRow(r, err, "DeliveryAttempts.MarkSuccessful")
 }
 
 // MarkFailed marks a delivery attempt as failed.
 func (d *DeliveryAttempts) MarkFailed(c util.Context, tx *sql.Tx, id string) error {
-	_, err := tx.Stmt(d.markDeliveryAttemptFailed).ExecContext(c,
+	r, err := tx.Stmt(d.markDeliveryAttemptFailed).ExecContext(c,
 		id,
 		failedDeliveryAttempt)
-	return err
+	return mustChangeOneRow(r, err, "DeliveryAttempts.MarkFailed")
 }

@@ -40,8 +40,8 @@ func (p *PrivateKeys) Close() {
 
 // Create a new private key entry in the database.
 func (p *PrivateKeys) Create(c util.Context, tx *sql.Tx, userID, purpose string, privKey []byte) error {
-	_, err := tx.Stmt(p.createPrivateKey).ExecContext(c, userID, purpose, privKey)
-	return err
+	r, err := tx.Stmt(p.createPrivateKey).ExecContext(c, userID, purpose, privKey)
+	return mustChangeOneRow(r, err, "PrivateKeys.Create")
 }
 
 // GetByUserID fetches a private key by the userID and purpose of the key.
