@@ -14,100 +14,40 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package apcore
+package framework
 
 import (
 	"context"
 	"crypto/tls"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/go-fed/activity/pub"
+	"github.com/go-fed/apcore/app"
+	"github.com/go-fed/apcore/framework/config"
+	"github.com/go-fed/apcore/models"
+	"github.com/go-fed/apcore/util"
 )
 
 type server struct {
 	certFile    string
 	keyFile     string
-	a           Application
-	oa          *oAuth2Server
-	actor       pub.Actor
-	handler     *handler
-	db          *database
-	sessions    *sessions
-	config      *config
+	a           app.Application
+	sqldb       *sql.DB
+	d           models.SqlDialect
+	models      []models.Model
 	httpServer  *http.Server
 	httpsServer *http.Server
 	debug       bool // TODO: http only, no https
 }
 
-func newServer(configFileName string, a Application, debug bool, scheme string) (s *server, err error) {
-	// Load the configuration
-	var c *config
-	c, err = loadConfigFile(configFileName, a, debug)
-	if err != nil {
-		return
-	}
-
+func newServer(c *config.Config, h http.Handler, scheme string, a app.Application, sqldb *sql.DB, d models.SqlDialect, models []models.Model) (s *server, err error) {
+	// TODO: Move to config validator
+	const minKeySize = 1024
 	// Enforce server level configuration
 	if c.ServerConfig.RSAKeySize < minKeySize {
 		err = fmt.Errorf("RSA private key size is configured to be < %d, which is forbidden: %d", minKeySize, c.ServerConfig.RSAKeySize)
-		return
-	}
-
-	// Connect to database
-	var db *database
-	db, err = newDatabase(c, a, debug)
-	if err != nil {
-		return
-	}
-
-	// Prepare sessions
-	var ses *sessions
-	ses, err = newSessions(c)
-	if err != nil {
-		return
-	}
-
-	// Prepare OAuth2 server
-	var oa *oAuth2Server
-	oa, err = newOAuth2Server(c, a, db, ses)
-	if err != nil {
-		return
-	}
-
-	// TODO: Reexamine this.
-	httpClient := &http.Client{}
-
-	// Set up well known paths
-	p := newPaths(scheme, c.ServerConfig.Host)
-
-	// Initialize the ActivityPub portion of the server
-	var clock *clock
-	clock, err = newClock(c.ActivityPubConfig.ClockTimezone)
-	if err != nil {
-		return
-	}
-
-	var apdb *apdb
-	apdb = newApdb(db, a)
-
-	var tc *transportController
-	tc, err = newTransportController(c, a, clock, httpClient, db)
-	if err != nil {
-		return
-	}
-
-	var actor pub.Actor
-	actor, err = newActor(c, a, clock, p, db, apdb, oa, tc)
-	if err != nil {
-		return
-	}
-
-	// Build application routes
-	var h *handler
-	h, err = newHandler(scheme, c, a, actor, apdb, oa, ses, clock, debug)
-	if err != nil {
 		return
 	}
 
@@ -115,7 +55,7 @@ func newServer(configFileName string, a Application, debug bool, scheme string) 
 	// because we're living in the future.
 	httpsServer := &http.Server{
 		Addr:         ":" + scheme,
-		Handler:      h.Handler(),
+		Handler:      h,
 		ReadTimeout:  time.Duration(c.ServerConfig.HttpsReadTimeoutSeconds) * time.Second,
 		WriteTimeout: time.Duration(c.ServerConfig.HttpsWriteTimeoutSeconds) * time.Second,
 		TLSConfig:    createTlsConfig(),
@@ -129,15 +69,10 @@ func newServer(configFileName string, a Application, debug bool, scheme string) 
 		certFile:    c.ServerConfig.CertFile,
 		keyFile:     c.ServerConfig.KeyFile,
 		a:           a,
-		oa:          oa,
-		actor:       actor,
-		handler:     h,
-		db:          db,
-		sessions:    ses,
-		config:      c,
+		sqldb:       sqldb,
+		d:           d,
 		httpServer:  httpServer,
 		httpsServer: httpsServer,
-		debug:       debug,
 	}
 
 	// Post-creation hooks
@@ -163,7 +98,7 @@ func createTlsConfig() *tls.Config {
 	}
 }
 
-func createRedirectServer(c *config) *http.Server {
+func createRedirectServer(c *config.Config) *http.Server {
 	return &http.Server{
 		Addr:         ":http",
 		ReadTimeout:  time.Duration(c.ServerConfig.RedirectReadTimeoutSeconds) * time.Second,
@@ -176,50 +111,52 @@ func createRedirectServer(c *config) *http.Server {
 }
 
 func (s *server) start() error {
-	err := s.db.Open()
-	if err != nil {
-		return err
+	util.InfoLogger.Infof("Preparing models")
+	for _, m := range s.models {
+		if err := m.Prepare(s.sqldb, s.d); err != nil {
+			return err
+		}
 	}
-	InfoLogger.Infof("Starting application")
-	err = s.a.Start()
+	util.InfoLogger.Infof("Starting application")
+	err := s.a.Start()
 	if err != nil {
 		return err
 	}
 	go func() {
-		InfoLogger.Infof("Starting http redirection server")
+		util.InfoLogger.Infof("Starting http redirection server")
 		err := s.httpServer.ListenAndServe()
 		if err != http.ErrServerClosed {
-			ErrorLogger.Errorf("Error shutting down http redirect server: %s", err)
+			util.ErrorLogger.Errorf("Error shutting down http redirect server: %s", err)
 		} else {
-			InfoLogger.Infof("Http redirect server shutdown")
+			util.InfoLogger.Infof("Http redirect server shutdown")
 		}
 	}()
-	InfoLogger.Infof("Launching https server")
+	util.InfoLogger.Infof("Launching https server")
 	err = s.httpsServer.ListenAndServeTLS(
 		s.certFile,
 		s.keyFile)
 	if err != http.ErrServerClosed {
-		ErrorLogger.Errorf("Error shutting down https server: %s", err)
+		util.ErrorLogger.Errorf("Error shutting down https server: %s", err)
 	} else {
-		InfoLogger.Infof("HTTPS server shutdown")
+		util.InfoLogger.Infof("HTTPS server shutdown")
 	}
 	return nil
 }
 
 func (s *server) stop() {
-	InfoLogger.Infof("Shutdown HTTPS server")
+	util.InfoLogger.Infof("Shutdown HTTPS server")
 	s.httpsServer.Shutdown(context.Background())
 }
 
 func (s *server) onStop() {
-	InfoLogger.Infof("Shutdown HTTP server")
+	util.InfoLogger.Infof("Shutdown HTTP server")
 	s.httpServer.Shutdown(context.Background())
-	InfoLogger.Infof("Stop application")
+	util.InfoLogger.Infof("Stop application")
 	if err := s.a.Stop(); err != nil {
-		ErrorLogger.Errorf("Error shutting down application: %s", err)
+		util.ErrorLogger.Errorf("Error shutting down application: %s", err)
 	}
-	InfoLogger.Infof("Close database")
-	if err := s.db.Close(); err != nil {
-		ErrorLogger.Errorf("Error closing database: %s", err)
+	util.InfoLogger.Infof("Closing models")
+	for _, m := range s.models {
+		m.Close()
 	}
 }

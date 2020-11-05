@@ -67,12 +67,13 @@ var _ Model = &Users{}
 // Users is a Model that provides additional database methods for the
 // Users type.
 type Users struct {
-	insertUser           *sql.Stmt
-	updateActor          *sql.Stmt
-	sensitiveUserByEmail *sql.Stmt
-	userByID             *sql.Stmt
-	actorIDForOutbox     *sql.Stmt
-	actorIDForInbox      *sql.Stmt
+	insertUser              *sql.Stmt
+	updateActor             *sql.Stmt
+	sensitiveUserByEmail    *sql.Stmt
+	userByID                *sql.Stmt
+	userByPreferredUsername *sql.Stmt
+	actorIDForOutbox        *sql.Stmt
+	actorIDForInbox         *sql.Stmt
 }
 
 func (u *Users) Prepare(db *sql.DB, s SqlDialect) error {
@@ -82,6 +83,7 @@ func (u *Users) Prepare(db *sql.DB, s SqlDialect) error {
 			{&(u.updateActor), s.UpdateUserActor()},
 			{&(u.sensitiveUserByEmail), s.SensitiveUserByEmail()},
 			{&(u.userByID), s.UserByID()},
+			{&(u.userByPreferredUsername), s.UserByPreferredUsername()},
 			{&(u.actorIDForOutbox), s.ActorIDForOutbox()},
 			{&(u.actorIDForInbox), s.ActorIDForInbox()},
 		})
@@ -97,6 +99,7 @@ func (u *Users) Close() {
 	u.updateActor.Close()
 	u.sensitiveUserByEmail.Close()
 	u.userByID.Close()
+	u.userByPreferredUsername.Close()
 	u.actorIDForOutbox.Close()
 	u.actorIDForInbox.Close()
 }
@@ -144,6 +147,21 @@ func (u *Users) SensitiveUserByEmail(c util.Context, tx *sql.Tx, email string) (
 func (u *Users) UserByID(c util.Context, tx *sql.Tx, id string) (s *User, err error) {
 	var rows *sql.Rows
 	rows, err = tx.Stmt(u.userByID).QueryContext(c, id)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	return s, enforceOneRow(rows, "UserByID", func(r singleRow) error {
+		s = &User{}
+		return r.Scan(&(s.ID), &(s.Email), &(s.Actor), &(s.Privileges), &(s.Preferences))
+	})
+}
+
+// UserByPreferredUsername returns the non-sensitive fields for a User for a
+// given preferredUsername.
+func (u *Users) UserByPreferredUsername(c util.Context, tx *sql.Tx, name string) (s *User, err error) {
+	var rows *sql.Rows
+	rows, err = tx.Stmt(u.userByPreferredUsername).QueryContext(c, name)
 	if err != nil {
 		return
 	}

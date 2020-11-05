@@ -29,30 +29,28 @@ import (
 	oa2 "gopkg.in/oauth2.v3"
 )
 
-var _ pub.SocialProtocol = &socialBehavior{}
+var _ pub.SocialProtocol = &SocialBehavior{}
 
-type socialBehavior struct {
+type SocialBehavior struct {
 	app app.Application
-	db  *database
 	o   *oauth2.Server
 }
 
-func newSocialBehavior(app app.Application, db *database, o *oauth2.Server) *socialBehavior {
-	return &socialBehavior{
+func NewSocialBehavior(app app.Application, o *oauth2.Server) *SocialBehavior {
+	return &SocialBehavior{
 		app: app,
-		db:  db,
 		o:   o,
 	}
 }
 
-func (s *socialBehavior) PostOutboxRequestBodyHook(c context.Context, r *http.Request, data vocab.Type) (out context.Context, err error) {
+func (s *SocialBehavior) PostOutboxRequestBodyHook(c context.Context, r *http.Request, data vocab.Type) (out context.Context, err error) {
 	ctx := util.Context{c}
 	ctx.WithActivityStream(data)
 	out = ctx.Context
 	return
 }
 
-func (s *socialBehavior) AuthenticatePostOutbox(c context.Context, w http.ResponseWriter, r *http.Request) (out context.Context, authenticated bool, err error) {
+func (s *SocialBehavior) AuthenticatePostOutbox(c context.Context, w http.ResponseWriter, r *http.Request) (out context.Context, authenticated bool, err error) {
 	out = c
 	var t oa2.TokenInfo
 	t, authenticated, err = s.o.ValidateOAuth2AccessToken(w, r)
@@ -64,12 +62,12 @@ func (s *socialBehavior) AuthenticatePostOutbox(c context.Context, w http.Respon
 	return
 }
 
-func (s *socialBehavior) SocialCallbacks(c context.Context) (wrapped pub.SocialWrappedCallbacks, other []interface{}, err error) {
+func (s *SocialBehavior) SocialCallbacks(c context.Context) (wrapped pub.SocialWrappedCallbacks, other []interface{}, err error) {
 	wrapped = pub.SocialWrappedCallbacks{}
 	other = s.app.ApplySocialCallbacks(&wrapped)
 	return
 }
 
-func (s *socialBehavior) DefaultCallback(c context.Context, activity pub.Activity) error {
+func (s *SocialBehavior) DefaultCallback(c context.Context, activity pub.Activity) error {
 	return fmt.Errorf("Unhandled client Activity of type: %s", activity.GetTypeName())
 }

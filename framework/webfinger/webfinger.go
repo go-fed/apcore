@@ -20,26 +20,26 @@ import (
 	"fmt"
 )
 
-type link struct {
+type Link struct {
 	Rel      string `json:"rel,omitempty"`
 	Type     string `json:"type,omitempty"`
 	Href     string `json:"href,omitempty"`
 	Template string `json:"template,omitempty"`
 }
 
-type webfinger struct {
+type Webfinger struct {
 	Subject string   `json:"subject,omitempty"`
 	Aliases []string `json:"aliases,omitempty"`
-	Links   []link   `json:"links,omitempty"`
+	Links   []Link   `json:"links,omitempty"`
 }
 
-func toWebfinger(scheme, host, username, idPath string) (w webfinger, err error) {
-	w = webfinger{
+func ToWebfinger(scheme, host, username, idPath string) (w Webfinger, err error) {
+	w = Webfinger{
 		Subject: fmt.Sprintf("acct:%s@%s", username, host),
 		Aliases: []string{
 			fmt.Sprintf("%s://%s%s", scheme, host, idPath),
 		},
-		Links: []link{
+		Links: []Link{
 			{
 				Rel:  "self",
 				Type: "application/activity+json",

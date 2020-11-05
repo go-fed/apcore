@@ -94,12 +94,12 @@ var knownUserPathQuery map[PathKey]string = map[PathKey]string{
 
 type UUID string
 
-func UUIDFromUserPath(path string) (string, error) {
+func UUIDFromUserPath(path string) (UUID, error) {
 	s := strings.Split(path, "/")
 	if len(s) < 3 {
-		return "", fmt.Errorf("known user path does not contain uuid: %s", path)
+		return UUID(""), fmt.Errorf("known user path does not contain uuid: %s", path)
 	}
-	return s[2], nil
+	return UUID(s[2]), nil
 }
 
 func UUIDPathFor(k PathKey, uuid UUID) string {
@@ -124,7 +124,7 @@ func UUIDIRIFor(scheme string, host string, k PathKey, uuid UUID) *url.URL {
 	return u
 }
 
-func uuidFromActorID(actorID *url.URL) (string, error) {
+func uuidFromActorID(actorID *url.URL) (UUID, error) {
 	return UUIDFromUserPath(actorID.Path)
 }
 
@@ -139,4 +139,8 @@ func IRIForActorID(k PathKey, actorID *url.URL) (*url.URL, error) {
 		Path:     strings.ReplaceAll(knownUserPaths[k], "{user}", string(uuid)),
 		RawQuery: uuidPathQueryFor(k),
 	}, nil
+}
+
+func Route(k PathKey) string {
+	return knownUserPaths[k]
 }

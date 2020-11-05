@@ -38,6 +38,12 @@ type CreateUserParameters struct {
 	RSAKeySize int
 }
 
+type User struct {
+	ID    string
+	Email string
+	Actor vocab.ActivityStreamsPerson
+}
+
 type Users struct {
 	App         app.Application
 	DB          *sql.DB
@@ -66,6 +72,7 @@ func (u *Users) CreateAdminUser(c util.Context, params CreateUserParameters, pas
 		models.Preferences{})
 }
 
+// TODO: Also require unique preferredUsername for webfinger functionality.
 func (u *Users) createUser(c util.Context, params CreateUserParameters, password string, roles models.Privileges, prefs models.Preferences) (userID string, err error) {
 	// Prepare Salt & Hashed Password
 	var salt, hashpass []byte
@@ -177,6 +184,24 @@ func (u *Users) ActorIDForInbox(c util.Context, inboxIRI *url.URL) (actorIRI *ur
 			return err
 		}
 		actorIRI = a.URL
+		return nil
+	})
+}
+
+// TODO: If permitting updates to the actor, enforce preferredUsername uniqueness.
+
+func (u *Users) UserByUsername(c util.Context, name string) (s *User, err error) {
+	return s, doInTx(c, u.DB, func(tx *sql.Tx) error {
+		var a *models.User
+		a, err = u.Users.UserByPreferredUsername(c, tx, name)
+		if err != nil {
+			return err
+		}
+		s = &User{
+			ID:    a.ID,
+			Email: a.Email,
+			Actor: a.Actor.ActivityStreamsPerson,
+		}
 		return nil
 	})
 }

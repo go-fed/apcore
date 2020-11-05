@@ -27,10 +27,10 @@ import (
 	"github.com/go-fed/apcore/app"
 )
 
-var _ pub.Database = &apdb{}
+var _ pub.Database = &APDB{}
 
-type apdb struct {
-	*database
+type APDB struct {
+	*Database
 	// Use sync.Map, which is specially optimized:
 	//
 	// "The Map type is optimized [...] when the entry for a given key is
@@ -55,15 +55,15 @@ type apdb struct {
 	app   app.Application
 }
 
-func newApdb(db *database, a app.Application) *apdb {
-	return &apdb{
-		database: db,
+func NewAPDB(db *Database, a app.Application) *APDB {
+	return &APDB{
+		Database: db,
 		locks:    &sync.Map{},
 		app:      a,
 	}
 }
 
-func (a *apdb) Lock(c context.Context, id *url.URL) error {
+func (a *APDB) Lock(c context.Context, id *url.URL) error {
 	mui, _ := a.locks.LoadOrStore(id.String(), &sync.Mutex{})
 	if mu, ok := mui.(*sync.Mutex); !ok {
 		return fmt.Errorf("lock for Lock is not a *sync.Mutex")
@@ -73,7 +73,7 @@ func (a *apdb) Lock(c context.Context, id *url.URL) error {
 	}
 }
 
-func (a *apdb) Unlock(c context.Context, id *url.URL) error {
+func (a *APDB) Unlock(c context.Context, id *url.URL) error {
 	mui, _ := a.locks.Load(id.String())
 	if mu, ok := mui.(*sync.Mutex); !ok {
 		return fmt.Errorf("lock for Unlock is not a *sync.Mutex")
@@ -83,6 +83,6 @@ func (a *apdb) Unlock(c context.Context, id *url.URL) error {
 	}
 }
 
-func (a *apdb) NewID(c context.Context, t vocab.Type) (id *url.URL, err error) {
+func (a *APDB) NewID(c context.Context, t vocab.Type) (id *url.URL, err error) {
 	return a.app.NewID(c, t)
 }

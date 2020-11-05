@@ -35,7 +35,7 @@ type Crypto struct {
 
 // Valid determines whether the provided password is valid for the user
 // associated with the email address.
-func (c *Crypto) Valid(ctx util.Context, email, pass string) (valid bool, err error) {
+func (c *Crypto) Valid(ctx util.Context, email, pass string) (uuid string, valid bool, err error) {
 	var su *models.SensitiveUser
 	err = doInTx(ctx, c.DB, func(tx *sql.Tx) error {
 		su, err = c.Users.SensitiveUserByEmail(ctx, tx, email)
@@ -45,6 +45,7 @@ func (c *Crypto) Valid(ctx util.Context, email, pass string) (valid bool, err er
 		return
 	}
 	valid = passEquals(pass, su.Salt, su.Hashpass)
+	uuid = su.ID
 	return
 }
 

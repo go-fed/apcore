@@ -25,6 +25,22 @@ type Context struct {
 	context.Context
 }
 
+// WithUserAPHTTPContext sets the UserPathUUID, ActorIRI, and CompleteRequestURL.
+func WithUserAPHTTPContext(scheme, host string, r *http.Request, uuid paths.UUID) Context {
+	c := &Context{r.Context()}
+	c.WithUserID(scheme, host, uuid)
+	c.WithActorIRI(paths.UUIDIRIFor(scheme, host, paths.UserPathKey, uuid))
+	c.WithCompleteRequestURL(r, scheme, host)
+	return *c
+}
+
+// WithAPHTTPContext sets the CompleteRequestURL.
+func WithAPHTTPContext(scheme, host string, r *http.Request) Context {
+	c := &Context{r.Context()}
+	c.WithCompleteRequestURL(r, scheme, host)
+	return *c
+}
+
 // WithActivity is used for federating contexts.
 func (c *Context) WithActivity(t pub.Activity) {
 	c.Context = context.WithValue(c.Context, activityContextKey, t)
@@ -35,15 +51,17 @@ func (c *Context) WithActivityStream(t vocab.Type) {
 	c.Context = context.WithValue(c.Context, activityStreamContextKey, t)
 }
 
-// TODO: Which contexts it is available in.
-// WithUserIDs sets both UserPathUUID and ActorIRI
-func (c *Context) WithUserIDs(scheme, host string, uuid paths.UUID) {
+// WithUserID is used for ActivityPub Inbox/Outbox contexts.
+func (c *Context) WithUserID(scheme, host string, uuid paths.UUID) {
 	c.Context = context.WithValue(c.Context, userPathUUIDContextKey, uuid)
-	idIRI := paths.UUIDIRIFor(scheme, host, paths.UserPathKey, uuid)
-	c.Context = context.WithValue(c.Context, actorIRIContextKey, idIRI)
 }
 
-// TODO: Which contexts it is available in.
+// WithActorIRI is used for ActivityPub Inbox/Outbox contexts.
+func (c *Context) WithActorIRI(id *url.URL) {
+	c.Context = context.WithValue(c.Context, actorIRIContextKey, id)
+}
+
+// WithCompleteRequestURL is used for all ActivityPub HTTP contexts.
 func (c *Context) WithCompleteRequestURL(r *http.Request, scheme, host string) {
 	u := *r.URL // Copy
 	u.Host = host
@@ -80,17 +98,17 @@ func (c Context) ActivityStream() (t vocab.Type, err error) {
 	return
 }
 
-// TODO: Which contexts it is available in.
+// UserPathUUID is used for ActivityPub HTTP contexts.
 func (c Context) UserPathUUID() (s string, err error) {
 	return c.toStringValue("user path UUID", userPathUUIDContextKey)
 }
 
-// TODO: Which contexts it is available in.
+// ActorIRI is used for ActivityPub HTTP contexts.
 func (c Context) ActorIRI() (s *url.URL, err error) {
 	return c.toURLValue("actor IRI", actorIRIContextKey)
 }
 
-// TODO: Which contexts it is available in.
+// CompleteRequestURL is used for ActivityPub HTTP contexts.
 func (c Context) CompleteRequestURL() (u *url.URL, err error) {
 	return c.toURLValue("complete Request URL", completeRequestURLContextKey)
 }

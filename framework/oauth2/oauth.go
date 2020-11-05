@@ -131,7 +131,7 @@ func newServer(c *config.Config, a app.Application, d *services.OAuth2, y *servi
 	srv.SetPasswordAuthorizationHandler(func(email, password string) (userID string, err error) {
 		// TODO: Fix oauth2 to support request contexts.
 		var valid bool
-		valid, err = y.Valid(util.Context{context.Background()}, email, password)
+		userID, valid, err = y.Valid(util.Context{context.Background()}, email, password)
 		if err != nil {
 			return
 		} else if !valid {

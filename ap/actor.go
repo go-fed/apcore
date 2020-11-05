@@ -27,23 +27,23 @@ import (
 	"github.com/go-fed/apcore/services"
 )
 
-func newActor(c *config.Config,
+func NewActor(c *config.Config,
 	a app.Application,
-	clock *clock,
-	db *database,
-	apdb *apdb,
+	clock *Clock,
+	db *Database,
+	apdb *APDB,
 	o *oauth2.Server,
 	pk *services.PrivateKeys,
 	po *services.Policies,
 	f *services.Followers,
 	tc *conn.Controller) (actor pub.Actor, err error) {
 
-	common := newCommonBehavior(a, db, tc, o, pk)
+	common := NewCommonBehavior(a, db, tc, o, pk)
 	if cs, ss := a.C2SEnabled(), a.S2SEnabled(); !cs && !ss {
 		err = fmt.Errorf("neither C2S nor S2S are enabled by the Application")
 	} else if cs && ss {
-		c2s := newSocialBehavior(a, db, o)
-		s2s := newFederatingBehavior(c, a, db, po, pk, f, tc)
+		c2s := NewSocialBehavior(a, o)
+		s2s := NewFederatingBehavior(c, a, db, po, pk, f, tc)
 		actor = pub.NewActor(
 			common,
 			c2s,
@@ -51,14 +51,14 @@ func newActor(c *config.Config,
 			apdb,
 			clock)
 	} else if cs {
-		c2s := newSocialBehavior(a, db, o)
+		c2s := NewSocialBehavior(a, o)
 		actor = pub.NewSocialActor(
 			common,
 			c2s,
 			apdb,
 			clock)
 	} else if ss {
-		s2s := newFederatingBehavior(c, a, db, po, pk, f, tc)
+		s2s := NewFederatingBehavior(c, a, db, po, pk, f, tc)
 		actor = pub.NewFederatingActor(
 			common,
 			s2s,

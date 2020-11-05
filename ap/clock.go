@@ -22,19 +22,19 @@ import (
 	"github.com/go-fed/activity/pub"
 )
 
-var _ pub.Clock = &clock{}
+var _ pub.Clock = &Clock{}
 
-type clock struct {
+type Clock struct {
 	loc *time.Location
 }
 
 // Creates new clock with IANA Time Zone database string
-func newClock(location string) (c *clock, err error) {
-	c = &clock{}
+func NewClock(location string) (c *Clock, err error) {
+	c = &Clock{}
 	c.loc, err = time.LoadLocation(location)
 	return
 }
 
-func (c *clock) Now() time.Time {
+func (c *Clock) Now() time.Time {
 	return time.Now().In(c.loc)
 }

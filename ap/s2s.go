@@ -30,27 +30,27 @@ import (
 	"github.com/go-fed/apcore/util"
 )
 
-var _ pub.FederatingProtocol = &federatingBehavior{}
+var _ pub.FederatingProtocol = &FederatingBehavior{}
 
-type federatingBehavior struct {
+type FederatingBehavior struct {
 	maxInboxForwardingDepth int
 	maxDeliveryDepth        int
 	app                     app.Application
-	db                      *database
+	db                      *Database
 	po                      *services.Policies
 	pk                      *services.PrivateKeys
 	f                       *services.Followers
 	tc                      *conn.Controller
 }
 
-func newFederatingBehavior(c *config.Config,
+func NewFederatingBehavior(c *config.Config,
 	a app.Application,
-	db *database,
+	db *Database,
 	po *services.Policies,
 	pk *services.PrivateKeys,
 	f *services.Followers,
-	tc *conn.Controller) *federatingBehavior {
-	return &federatingBehavior{
+	tc *conn.Controller) *FederatingBehavior {
+	return &FederatingBehavior{
 		maxInboxForwardingDepth: c.ActivityPubConfig.MaxInboxForwardingRecursionDepth,
 		maxDeliveryDepth:        c.ActivityPubConfig.MaxDeliveryRecursionDepth,
 		app:                     a,
@@ -62,20 +62,20 @@ func newFederatingBehavior(c *config.Config,
 	}
 }
 
-func (f *federatingBehavior) PostInboxRequestBodyHook(c context.Context, r *http.Request, activity pub.Activity) (out context.Context, err error) {
+func (f *FederatingBehavior) PostInboxRequestBodyHook(c context.Context, r *http.Request, activity pub.Activity) (out context.Context, err error) {
 	ctx := &util.Context{c}
 	ctx.WithActivity(activity)
 	out = ctx.Context
 	return
 }
 
-func (f *federatingBehavior) AuthenticatePostInbox(c context.Context, w http.ResponseWriter, r *http.Request) (out context.Context, authenticated bool, err error) {
+func (f *FederatingBehavior) AuthenticatePostInbox(c context.Context, w http.ResponseWriter, r *http.Request) (out context.Context, authenticated bool, err error) {
 	authenticated, err = verifyHttpSignatures(c, r, f.db, f.pk, f.tc)
 	out = c
 	return
 }
 
-func (f *federatingBehavior) Blocked(c context.Context, actorIRIs []*url.URL) (blocked bool, err error) {
+func (f *FederatingBehavior) Blocked(c context.Context, actorIRIs []*url.URL) (blocked bool, err error) {
 	ctx := util.Context{c}
 	var activity pub.Activity
 	if activity, err = ctx.Activity(); err != nil {
@@ -89,7 +89,7 @@ func (f *federatingBehavior) Blocked(c context.Context, actorIRIs []*url.URL) (b
 	return
 }
 
-func (f *federatingBehavior) FederatingCallbacks(c context.Context) (wrapped pub.FederatingWrappedCallbacks, other []interface{}, err error) {
+func (f *FederatingBehavior) FederatingCallbacks(c context.Context) (wrapped pub.FederatingWrappedCallbacks, other []interface{}, err error) {
 	// TODO: Determine OnFollow from user preferences.
 	wrapped = pub.FederatingWrappedCallbacks{
 		OnFollow: pub.OnFollowDoNothing,
@@ -98,7 +98,7 @@ func (f *federatingBehavior) FederatingCallbacks(c context.Context) (wrapped pub
 	return
 }
 
-func (f *federatingBehavior) DefaultCallback(c context.Context, activity pub.Activity) error {
+func (f *FederatingBehavior) DefaultCallback(c context.Context, activity pub.Activity) error {
 	activityIRI, err := pub.GetId(activity)
 	if err != nil {
 		return err
@@ -107,15 +107,15 @@ func (f *federatingBehavior) DefaultCallback(c context.Context, activity pub.Act
 	return nil
 }
 
-func (f *federatingBehavior) MaxInboxForwardingRecursionDepth(c context.Context) int {
+func (f *FederatingBehavior) MaxInboxForwardingRecursionDepth(c context.Context) int {
 	return f.maxInboxForwardingDepth
 }
 
-func (f *federatingBehavior) MaxDeliveryRecursionDepth(c context.Context) int {
+func (f *FederatingBehavior) MaxDeliveryRecursionDepth(c context.Context) int {
 	return f.maxDeliveryDepth
 }
 
-func (f *federatingBehavior) FilterForwarding(c context.Context, potentialRecipients []*url.URL, a pub.Activity) (filteredRecipients []*url.URL, err error) {
+func (f *FederatingBehavior) FilterForwarding(c context.Context, potentialRecipients []*url.URL, a pub.Activity) (filteredRecipients []*url.URL, err error) {
 	ctx := util.Context{c}
 	var actorIRI *url.URL
 	actorIRI, err = ctx.ActorIRI()
@@ -149,7 +149,7 @@ func (f *federatingBehavior) FilterForwarding(c context.Context, potentialRecipi
 	return
 }
 
-func (f *federatingBehavior) GetInbox(c context.Context, r *http.Request) (ocp vocab.ActivityStreamsOrderedCollectionPage, err error) {
+func (f *FederatingBehavior) GetInbox(c context.Context, r *http.Request) (ocp vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	ctx := util.Context{c}
 	// IfChange
 	var inboxIRI *url.URL

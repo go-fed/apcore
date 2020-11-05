@@ -100,7 +100,7 @@ func getPublicKeyFromResponse(c context.Context, b []byte, keyId *url.URL) (p cr
 
 func verifyHttpSignatures(c context.Context,
 	r *http.Request,
-	db *database,
+	db *Database,
 	pk *services.PrivateKeys,
 	tc *conn.Controller) (authenticated bool, err error) {
 	// 1. Figure out what key we need to verify

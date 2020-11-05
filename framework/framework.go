@@ -30,9 +30,9 @@ import (
 	oa2 "gopkg.in/oauth2.v3"
 )
 
-var _ app.Framework = &framework{}
+var _ app.Framework = &Framework{}
 
-type framework struct {
+type Framework struct {
 	scheme            string
 	host              string
 	o                 *oauth2.Server
@@ -41,8 +41,8 @@ type framework struct {
 	federationEnabled bool
 }
 
-func newFramework(scheme string, host string, o *oauth2.Server, db *sql.DB, actor pub.Actor, federationEnabled bool) *framework {
-	return &framework{
+func NewFramework(scheme string, host string, o *oauth2.Server, db *sql.DB, actor pub.Actor, federationEnabled bool) *Framework {
+	return &Framework{
 		scheme:            scheme,
 		host:              host,
 		o:                 o,
@@ -52,11 +52,11 @@ func newFramework(scheme string, host string, o *oauth2.Server, db *sql.DB, acto
 	}
 }
 
-func (f *framework) ValidateOAuth2AccessToken(w http.ResponseWriter, r *http.Request) (token oa2.TokenInfo, authenticated bool, err error) {
+func (f *Framework) ValidateOAuth2AccessToken(w http.ResponseWriter, r *http.Request) (token oa2.TokenInfo, authenticated bool, err error) {
 	return f.o.ValidateOAuth2AccessToken(w, r)
 }
 
-func (f *framework) Send(c context.Context, outbox *url.URL, t vocab.Type) error {
+func (f *Framework) Send(c context.Context, outbox *url.URL, t vocab.Type) error {
 	if !f.federationEnabled {
 		return fmt.Errorf("cannot Send: Framework.Send called when federation is not enabled")
 	} else if fa, ok := f.actor.(pub.FederatingActor); !ok {

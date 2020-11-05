@@ -88,6 +88,16 @@ type SqlDialect interface {
 	//   Privileges  []byte
 	//   Preferences []byte
 	UserByID() string
+	// UserByPreferredUsername:
+	//  Params
+	//   Name        string
+	//  Returns
+	//   ID          string
+	//   Email       string
+	//   Actor       []byte
+	//   Privileges  []byte
+	//   Preferences []byte
+	UserByPreferredUsername() string
 	// ActorIDForOutbox:
 	//  Params
 	//   OutboxID    string

@@ -85,6 +85,10 @@ func (p *pgV0) UserByID() string {
 	return "SELECT id, email, actor, privileges, preferences FROM " + p.schema + "users WHERE id = $1"
 }
 
+func (p *pgV0) UserByPreferredUsername() string {
+	return "SELECT id, email, actor, privileges, preferences FROM " + p.schema + "users WHERE actor->'preferredUsername' ? $1"
+}
+
 func (p *pgV0) ActorIDForOutbox() string {
 	return `SELECT actor->>'id' FROM ` + p.schema + `users
 WHERE actor->'outbox' ? $1`

@@ -32,23 +32,23 @@ import (
 	oa2 "gopkg.in/oauth2.v3"
 )
 
-var _ pub.CommonBehavior = &commonBehavior{}
+var _ pub.CommonBehavior = &CommonBehavior{}
 
-type commonBehavior struct {
+type CommonBehavior struct {
 	app app.Application
 	tc  *conn.Controller
 	o   *oauth2.Server
-	db  *database
+	db  *Database
 	pk  *services.PrivateKeys
 }
 
-func newCommonBehavior(
+func NewCommonBehavior(
 	app app.Application,
-	db *database,
+	db *Database,
 	tc *conn.Controller,
 	o *oauth2.Server,
-	pk *services.PrivateKeys) *commonBehavior {
-	return &commonBehavior{
+	pk *services.PrivateKeys) *CommonBehavior {
+	return &CommonBehavior{
 		app: app,
 		tc:  tc,
 		o:   o,
@@ -57,15 +57,15 @@ func newCommonBehavior(
 	}
 }
 
-func (a *commonBehavior) AuthenticateGetInbox(c context.Context, w http.ResponseWriter, r *http.Request) (newCtx context.Context, authenticated bool, err error) {
+func (a *CommonBehavior) AuthenticateGetInbox(c context.Context, w http.ResponseWriter, r *http.Request) (newCtx context.Context, authenticated bool, err error) {
 	return a.authenticateGetRequest(util.Context{c}, w, r)
 }
 
-func (a *commonBehavior) AuthenticateGetOutbox(c context.Context, w http.ResponseWriter, r *http.Request) (newCtx context.Context, authenticated bool, err error) {
+func (a *CommonBehavior) AuthenticateGetOutbox(c context.Context, w http.ResponseWriter, r *http.Request) (newCtx context.Context, authenticated bool, err error) {
 	return a.authenticateGetRequest(util.Context{c}, w, r)
 }
 
-func (a *commonBehavior) GetOutbox(c context.Context, r *http.Request) (ocp vocab.ActivityStreamsOrderedCollectionPage, err error) {
+func (a *CommonBehavior) GetOutbox(c context.Context, r *http.Request) (ocp vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	ctx := util.Context{c}
 	// IfChange
 	var outboxIRI *url.URL
@@ -81,7 +81,7 @@ func (a *commonBehavior) GetOutbox(c context.Context, r *http.Request) (ocp voca
 	return
 }
 
-func (a *commonBehavior) NewTransport(c context.Context, actorBoxIRI *url.URL, gofedAgent string) (t pub.Transport, err error) {
+func (a *CommonBehavior) NewTransport(c context.Context, actorBoxIRI *url.URL, gofedAgent string) (t pub.Transport, err error) {
 	ctx := util.Context{c}
 	var userUUID string
 	userUUID, err = ctx.UserPathUUID()
@@ -97,7 +97,7 @@ func (a *commonBehavior) NewTransport(c context.Context, actorBoxIRI *url.URL, g
 	return a.tc.Get(privKey, pubKeyURL.String())
 }
 
-func (a *commonBehavior) authenticateGetRequest(c util.Context, w http.ResponseWriter, r *http.Request) (newCtx context.Context, authenticated bool, err error) {
+func (a *CommonBehavior) authenticateGetRequest(c util.Context, w http.ResponseWriter, r *http.Request) (newCtx context.Context, authenticated bool, err error) {
 	newCtx = c
 	var t oa2.TokenInfo
 	var oAuthAuthenticated bool
