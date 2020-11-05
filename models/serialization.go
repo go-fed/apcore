@@ -66,6 +66,17 @@ func enforceOneRow(r *sql.Rows, debugname string, fn func(r singleRow) error) er
 	return r.Err()
 }
 
+// doForRows iterates over all rows and inspects for any errors.
+func doForRows(r *sql.Rows, debugname string, fn func(r singleRow) error) error {
+	for r.Next() {
+		err := fn(singleRow(r))
+		if err != nil {
+			return err
+		}
+	}
+	return r.Err()
+}
+
 // mustChangeOneRow ensures an Exec SQL statement changes exactly one row, or
 // returns an error.
 func mustChangeOneRow(r sql.Result, existing error, name string) error {

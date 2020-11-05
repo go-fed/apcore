@@ -52,147 +52,6 @@ func (p *pgV0) indexTokenRefresh() string {
 	return `CREATE INDEX IF NOT EXISTS oauth_tokens_refresh_index ON ` + p.schema + `oauth_tokens (refresh);`
 }
 
-/*
-func (p *pgV0) FollowersByUserUUID() string {
-	return `SELECT local_data.payload FROM ` + p.schema + `local_data
-INNER JOIN` + p.schema + `users
-ON users.actor->>'followers' = local_data.payload->>'id'
-WHERE users.id = $1`
-}
-
-func (p *pgV0) RemoveTokenByAccess() string {
-	return "DELETE FROM " + p.schema + "oauth_tokens WHERE access = $1"
-}
-
-func (p *pgV0) RemoveTokenByRefresh() string {
-	return "DELETE FROM " + p.schema + "oauth_tokens WHERE refresh = $1"
-}
-
-func (p *pgV0) GetTokenByAccess() string {
-	return `SELECT
-(
-  client_id,
-  user_id,
-  redirect_uri,
-  scope,
-  code,
-  code_create_at,
-  code_expires_in,
-  access,
-  access_create_at,
-  access_expires_in,
-  refresh,
-  refresh_create_at,
-  refresh_expires_in
-)
-FROM ` + p.schema + "oauth_tokens WHERE access = $1"
-}
-
-func (p *pgV0) GetTokenByRefresh() string {
-	return `SELECT
-(
-  client_id,
-  user_id,
-  redirect_uri,
-  scope,
-  code,
-  code_create_at,
-  code_expires_in,
-  access,
-  access_create_at,
-  access_expires_in,
-  refresh,
-  refresh_create_at,
-  refresh_expires_in
-)
-FROM ` + p.schema + "oauth_tokens WHERE refresh = $1"
-}
-
-func (p *pgV0) SetInboxUpdate() string {
-	return `WITH fed_query AS (
-  SELECT fed_data.id FROM ` + p.schema + `fed_data WHERE fed_data.payload->>'id' = $3
-)
-UPDATE ` + p.schema + `users_outbox
-SET (federated_id) = (fed_query.id)
-FROM fed_query
-WHERE id = $1 AND user_id = $2`
-}
-
-func (p *pgV0) SetInboxInsert() string {
-	return `INSERT INTO ` + p.schema + `users_inbox (user_id, federated_id)
-SELECT users.id, fed_data.id FROM ` + p.schema + `users, ` + p.schema + `fed_data
-WHERE users.actor->>'inbox' = $1 AND fed_data.payload->>'id' = $2`
-}
-
-func (p *pgV0) SetInboxDelete() string {
-	return "DELETE FROM " + p.schema + "users_inbox WHERE id = $1"
-}
-
-func (p *pgV0) Exists() string {
-	return `SELECT EXISTS(
-SELECT 1 FROM ` + p.schema + `fed_data
-WHERE payload->>'id' = $1
-)`
-}
-
-func (p *pgV0) Get() string {
-	return `SELECT payload FROM ` + p.schema + `fed_data WHERE payload->>'id' = $1
-UNION
-SELECT payload FROM ` + p.schema + `local_data WHERE payload->>'id' = $1
-UNION
-SELECT actor FROM ` + p.schema + `users WHERE actor->>'id' = $1`
-}
-
-func (p *pgV0) SetOutboxUpdate() string {
-	return `WITH local_query AS (
-  SELECT local_data.id FROM ` + p.schema + `local_data WHERE local_data.payload->>'id' = $3
-)
-UPDATE ` + p.schema + `users_outbox
-SET (local_id) = (local_query.id)
-FROM local_query
-WHERE id = $1 AND user_id = $2`
-}
-
-func (p *pgV0) SetOutboxInsert() string {
-	return `INSERT INTO ` + p.schema + `users_outbox (user_id, local_id)
-SELECT users.id, local_data.id FROM ` + p.schema + `users, ` + p.schema + `local_data
-WHERE users.actor->>'inbox' = $1 AND local_data.payload->>'id' = $2`
-}
-
-func (p *pgV0) SetOutboxDelete() string {
-	return "DELETE FROM " + p.schema + "users_outbox WHERE id = $1"
-}
-
-func (p *pgV0) Followers() string {
-	return `SELECT local_data.payload FROM ` + p.schema + `local_data
-INNER JOIN` + p.schema + `users
-ON users.actor->>'followers' = local_data.payload->>'id'
-WHERE users.actor->>'id' = $1`
-}
-
-func (p *pgV0) Following() string {
-	return `SELECT local_data.payload FROM ` + p.schema + `local_data
-INNER JOIN` + p.schema + `users
-ON users.actor->>'following' = local_data.payload->>'id'
-WHERE users.actor->>'id' = $1`
-}
-
-func (p *pgV0) Liked() string {
-	return `SELECT local_data.payload FROM ` + p.schema + `local_data
-INNER JOIN` + p.schema + `users
-ON users.actor->>'liked' = local_data.payload->>'id'
-WHERE users.actor->>'id' = $1`
-}
-
-func (p *pgV0) InsertUserPrivileges() string {
-	return `INSERT INTO ` + p.schema + `user_privileges (user_id, admin) VALUES ($1, $2)`
-}
-
-func (p *pgV0) InsertUserPreferences() string {
-	return `INSERT INTO ` + p.schema + `user_preferences (user_id, on_follow) VALUES ($1, $2)`
-}
-*/
-
 /* SqlDialect */
 
 func (p *pgV0) CreateUsersTable() string {
@@ -1238,4 +1097,40 @@ func (p *pgV0) DeleteLikedItem() string {
 
 func (p *pgV0) GetAllLikedForActor() string {
 	return p.getAllCollectionForActor(v0Liked)
+}
+
+func (p *pgV0) CreatePoliciesTable() string {
+	return `CREATE TABLE IF NOT EXISTS ` + p.schema + `policies
+(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  actor_id text NOT NULL,
+  purpose text NOT NULL,
+  policy jsonb NOT NULL
+)`
+}
+
+func (p *pgV0) CreatePolicy() string {
+	return `INSERT INTO ` + p.schema + `policies (actor_id, purpose, policy) VALUES ($1, $2, $3) RETURNING id`
+}
+
+func (p *pgV0) GetPoliciesForActor() string {
+	return `SELECT id, purpose, policy FROM ` + p.schema + `policies WHERE actor_id = $1`
+}
+
+func (p *pgV0) GetPoliciesForActorAndPurpose() string {
+	return `SELECT id, policy FROM ` + p.schema + `policies WHERE actor_id = $1 AND purpose = $2`
+}
+
+func (p *pgV0) CreateResolutionsTable() string {
+	return `CREATE TABLE IF NOT EXISTS ` + p.schema + `resolutions
+(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  policy_id uuid REFERENCES ` + p.schema + `policies(id) ON DELETE CASCADE NOT NULL,
+  data_iri text NOT NULL,
+  resolution jsonb NOT NULL
+)`
+}
+
+func (p *pgV0) CreateResolution() string {
+	return `INSERT INTO ` + p.schema + `resolutions (policy_id, data_iri, resolution) VALUES ($1, $2, $3)`
 }

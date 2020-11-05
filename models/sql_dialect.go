@@ -46,6 +46,10 @@ type SqlDialect interface {
 	CreateFollowingTable() string
 	// CreateLikedTable for the Liked model.
 	CreateLikedTable() string
+	// CreatePoliciesTable for the Policies model.
+	CreatePoliciesTable() string
+	// CreateResolutionsTable for the Resolutions model.
+	CreateResolutionsTable() string
 
 	/* Queries */
 
@@ -602,4 +606,37 @@ type SqlDialect interface {
 	//  Returns
 	//   Liked       []byte
 	GetAllLikedForActor() string
+
+	// CreatePolicy:
+	//  Params
+	//   ActorID     string
+	//   Purpose     string
+	//   Payload     []byte
+	//  Returns
+	//   ID          string
+	CreatePolicy() string
+	// GetPoliciesForActor:
+	//  Params
+	//   ActorID     string
+	//  Returns (Multiple)
+	//   ID          string
+	//   Purpose     string
+	//   Payload     []byte
+	GetPoliciesForActor() string
+	// GetPoliciesForActorAndPurpose:
+	//  Params
+	//   ActorID     string
+	//   Purpose     string
+	//  Returns (Multiple)
+	//   ID          string
+	//   Payload     []byte
+	GetPoliciesForActorAndPurpose() string
+
+	// CreateResolution:
+	//  Params
+	//   PolicyID    string
+	//   DataIRI     string
+	//   Payload     []byte
+	//  Returns
+	CreateResolution() string
 }
