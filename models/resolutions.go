@@ -1,16 +1,16 @@
 package models
 
 import (
+	"database/sql"
 	"fmt"
 	"net/url"
 	"time"
-	"database/sql"
 
 	"github.com/go-fed/apcore/util"
 )
 
 type Resolution struct {
-	Time     time.Time `json:"time",omitempty`
+	Time time.Time `json:"time",omitempty`
 
 	// The following are used by Policies
 	Matched  bool     `json:"matched",omitempty`
@@ -28,7 +28,7 @@ func (r *Resolution) Log(s string) {
 type CreateResolution struct {
 	PolicyID string
 	IRI      *url.URL
-	R Resolution
+	R        Resolution
 }
 
 var _ Model = &Resolutions{}

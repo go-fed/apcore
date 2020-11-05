@@ -81,9 +81,11 @@ func (f *federatingBehavior) Blocked(c context.Context, actorIRIs []*url.URL) (b
 	if activity, err = ctx.Activity(); err != nil {
 		return
 	}
-	var passes bool
-	passes, err = f.po.IsBlocked(ctx, actorIRIs, activity)
-	blocked = !passes
+	var actorID *url.URL
+	if actorID, err = ctx.ActorIRI(); err != nil {
+		return
+	}
+	blocked, err = f.po.IsBlocked(ctx, actorID, activity)
 	return
 }
 

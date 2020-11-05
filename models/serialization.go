@@ -15,8 +15,8 @@ import (
 	"github.com/go-fed/activity/streams/vocab"
 )
 
-// marshal takes any ActivityStreams type and serializes it to JSON.
-func marshal(v vocab.Type) (b []byte, err error) {
+// Marshal takes any ActivityStreams type and serializes it to JSON.
+func Marshal(v vocab.Type) (b []byte, err error) {
 	var m map[string]interface{}
 	m, err = streams.Serialize(v)
 	if err != nil {
@@ -146,7 +146,7 @@ type ActivityStreams struct {
 }
 
 func (a ActivityStreams) Value() (driver.Value, error) {
-	return marshal(a)
+	return Marshal(a)
 }
 
 func (a *ActivityStreams) Scan(src interface{}) error {
@@ -169,7 +169,7 @@ type ActivityStreamsPerson struct {
 }
 
 func (a ActivityStreamsPerson) Value() (driver.Value, error) {
-	return marshal(a)
+	return Marshal(a)
 }
 
 func (a *ActivityStreamsPerson) Scan(src interface{}) error {
@@ -198,7 +198,7 @@ type ActivityStreamsOrderedCollection struct {
 }
 
 func (a ActivityStreamsOrderedCollection) Value() (driver.Value, error) {
-	return marshal(a)
+	return Marshal(a)
 }
 
 func (a *ActivityStreamsOrderedCollection) Scan(src interface{}) error {
@@ -227,7 +227,7 @@ type ActivityStreamsOrderedCollectionPage struct {
 }
 
 func (a ActivityStreamsOrderedCollectionPage) Value() (driver.Value, error) {
-	return marshal(a)
+	return Marshal(a)
 }
 
 func (a *ActivityStreamsOrderedCollectionPage) Scan(src interface{}) error {
@@ -256,7 +256,7 @@ type ActivityStreamsCollection struct {
 }
 
 func (a ActivityStreamsCollection) Value() (driver.Value, error) {
-	return marshal(a)
+	return Marshal(a)
 }
 
 func (a *ActivityStreamsCollection) Scan(src interface{}) error {
@@ -285,7 +285,7 @@ type ActivityStreamsCollectionPage struct {
 }
 
 func (a ActivityStreamsCollectionPage) Value() (driver.Value, error) {
-	return marshal(a)
+	return Marshal(a)
 }
 
 func (a *ActivityStreamsCollectionPage) Scan(src interface{}) error {

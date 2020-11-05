@@ -5,13 +5,13 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
-	"net/url"
 	"fmt"
+	"net/url"
 	"reflect"
 	"strings"
 
-	"github.com/tidwall/gjson"
 	"github.com/go-fed/apcore/util"
+	"github.com/tidwall/gjson"
 )
 
 const (
@@ -278,17 +278,17 @@ func resultsLen(r gjson.Result) int {
 type CreatePolicy struct {
 	ActorID *url.URL
 	Purpose Purpose
-	Policy Policy
+	Policy  Policy
 }
 
 type PolicyAndPurpose struct {
-	ID string
+	ID      string
 	Purpose Purpose
-	Policy Policy
+	Policy  Policy
 }
 
 type PolicyAndID struct {
-	ID string
+	ID     string
 	Policy Policy
 }
 
@@ -297,8 +297,8 @@ var _ Model = &Policies{}
 // Policies is a Model that provides additional database methods for the
 // Policy type.
 type Policies struct {
-	create *sql.Stmt
-	getForActor *sql.Stmt
+	create                *sql.Stmt
+	getForActor           *sql.Stmt
 	getForActorAndPurpose *sql.Stmt
 }
 
