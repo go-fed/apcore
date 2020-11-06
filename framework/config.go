@@ -104,7 +104,7 @@ func defaultPostgresConfig() config.PostgresConfig {
 	return config.PostgresConfig{}
 }
 
-func loadConfigFile(filename string, a app.Application, debug bool) (c *config.Config, err error) {
+func LoadConfigFile(filename string, a app.Application, debug bool) (c *config.Config, err error) {
 	util.InfoLogger.Infof("Loading config file: %s", filename)
 	var cfg *ini.File
 	cfg, err = ini.Load(filename)
@@ -131,7 +131,7 @@ func loadConfigFile(filename string, a app.Application, debug bool) (c *config.C
 	return
 }
 
-func saveConfigFile(filename string, c *config.Config, others ...interface{}) error {
+func SaveConfigFile(filename string, c *config.Config, others ...interface{}) error {
 	util.InfoLogger.Infof("Saving config file: %s", filename)
 	cfg := ini.Empty()
 	err := ini.ReflectFrom(cfg, c)

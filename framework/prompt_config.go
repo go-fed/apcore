@@ -23,8 +23,8 @@ import (
 	"github.com/go-fed/apcore/services"
 )
 
-func promptNewConfig(file string) (c *config.Config, err error) {
-	fmt.Println(clarkeSays(fmt.Sprintf(`
+func PromptNewConfig(file string) (c *config.Config, err error) {
+	fmt.Println(ClarkeSays(fmt.Sprintf(`
 Welcome to the configuration guided flow!
 
 Here we will visit common configuration choices. While not every option is asked
@@ -208,7 +208,7 @@ func promptPostgresConfig(c *config.Config) (err error) {
 		return
 	}
 	if mode := c.DatabaseConfig.PostgresConfig.SSLMode; mode == "require" || mode == "verify-ca" || mode == "verify-full" {
-		fmt.Println(clarkeSays(fmt.Sprintf(`
+		fmt.Println(ClarkeSays(fmt.Sprintf(`
 Hey, Clarke the Cow here, I noticed you chose %q! Be sure to check your
 configuration file for the %q, %q, and/or %q options to get SSL set up properly!
 Toodlemoo~`,

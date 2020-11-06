@@ -34,7 +34,6 @@ import (
 	"github.com/go-fed/apcore/paths"
 	"github.com/go-fed/apcore/services"
 	"github.com/go-fed/apcore/util"
-	"github.com/gorilla/mux"
 )
 
 const (
@@ -42,9 +41,13 @@ const (
 	LoginFormPasswordKey = "password"
 )
 
-func BuildHandler(scheme string,
+func BuildHandler(r *Router,
+	internalErrorHandler http.Handler,
+	badRequestHandler http.Handler,
+	getAuthWebHandler http.Handler,
+	getLoginWebHandler http.Handler,
+	scheme string,
 	c *config.Config,
-	r *Router,
 	a app.Application,
 	actor pub.Actor,
 	db RoutingDatabase,
@@ -56,13 +59,6 @@ func BuildHandler(scheme string,
 	fw *Framework,
 	clock pub.Clock,
 	debug bool) (rt http.Handler, err error) {
-	mr := mux.NewRouter()
-	mr.NotFoundHandler = a.NotFoundHandler()
-	mr.MethodNotAllowedHandler = a.MethodNotAllowedHandler()
-	internalErrorHandler := a.InternalServerErrorHandler()
-	badRequestHandler := a.BadRequestHandler()
-	getAuthWebHandler := a.GetAuthWebHandlerFunc()
-	getLoginWebHandler := a.GetLoginWebHandlerFunc()
 
 	// Static assets
 	if sd := c.ServerConfig.StaticRootDirectory; len(sd) == 0 {
@@ -71,7 +67,7 @@ func BuildHandler(scheme string,
 	} else {
 		util.InfoLogger.Infof("Serving static directory: %s", sd)
 		fs := http.FileServer(http.Dir(sd))
-		mr.PathPrefix("/").Handler(fs)
+		r.PathPrefix("/").Handler(fs)
 	}
 
 	// Dynamic Routes
@@ -117,7 +113,7 @@ func BuildHandler(scheme string,
 
 	// POST Login and GET logout routes
 	r.NewRoute().Path("/login").Methods("POST").HandlerFunc(postLoginFn(sl, db, badRequestHandler, internalErrorHandler, cy))
-	r.NewRoute().Path("/login").Methods("GET").HandlerFunc(getLoginWebHandler)
+	r.NewRoute().Path("/login").Methods("GET").Handler(getLoginWebHandler)
 	r.NewRoute().Path("/logout").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t, authd, err := oauth.ValidateOAuth2AccessToken(w, r)
 		if err != nil {
@@ -282,7 +278,7 @@ func postLoginFn(sl *web.Sessions, db pub.Database, badRequestHandler, internalE
 	}
 }
 
-func getAuthFn(sl *web.Sessions, internalErrorHandler http.Handler, authWebHandler http.HandlerFunc) func(w http.ResponseWriter, r *http.Request) {
+func getAuthFn(sl *web.Sessions, internalErrorHandler http.Handler, authWebHandler http.Handler) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		s, err := sl.Get(r)
 		if err != nil {
@@ -295,7 +291,7 @@ func getAuthFn(sl *web.Sessions, internalErrorHandler http.Handler, authWebHandl
 			http.Redirect(w, r, "/login", http.StatusFound)
 			return
 		}
-		authWebHandler(w, r)
+		authWebHandler.ServeHTTP(w, r)
 	}
 }
 

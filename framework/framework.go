@@ -18,7 +18,6 @@ package framework
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -33,20 +32,14 @@ import (
 var _ app.Framework = &Framework{}
 
 type Framework struct {
-	scheme            string
-	host              string
 	o                 *oauth2.Server
-	db                *sql.DB
 	actor             pub.Actor
 	federationEnabled bool
 }
 
-func NewFramework(scheme string, host string, o *oauth2.Server, db *sql.DB, actor pub.Actor, federationEnabled bool) *Framework {
+func NewFramework(o *oauth2.Server, actor pub.Actor, federationEnabled bool) *Framework {
 	return &Framework{
-		scheme:            scheme,
-		host:              host,
 		o:                 o,
-		db:                db,
 		actor:             actor,
 		federationEnabled: federationEnabled,
 	}

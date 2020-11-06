@@ -26,11 +26,12 @@ import (
 
 	"github.com/go-fed/apcore/app"
 	"github.com/go-fed/apcore/framework/config"
+	"github.com/go-fed/apcore/framework/db"
 	"github.com/go-fed/apcore/models"
 	"github.com/go-fed/apcore/util"
 )
 
-type server struct {
+type Server struct {
 	certFile    string
 	keyFile     string
 	a           app.Application
@@ -42,7 +43,7 @@ type server struct {
 	debug       bool // TODO: http only, no https
 }
 
-func newServer(c *config.Config, h http.Handler, scheme string, a app.Application, sqldb *sql.DB, d models.SqlDialect, models []models.Model) (s *server, err error) {
+func NewServer(c *config.Config, h http.Handler, scheme string, a app.Application, sqldb *sql.DB, d models.SqlDialect, models []models.Model) (s *Server, err error) {
 	// TODO: Move to config validator
 	const minKeySize = 1024
 	// Enforce server level configuration
@@ -65,7 +66,7 @@ func newServer(c *config.Config, h http.Handler, scheme string, a app.Applicatio
 	httpServer := createRedirectServer(c)
 
 	// Create the apcore server
-	s = &server{
+	s = &Server{
 		certFile:    c.ServerConfig.CertFile,
 		keyFile:     c.ServerConfig.KeyFile,
 		a:           a,
@@ -110,7 +111,11 @@ func createRedirectServer(c *config.Config) *http.Server {
 	}
 }
 
-func (s *server) start() error {
+func (s *Server) Start() error {
+	err := db.MustPing(s.sqldb)
+	if err != nil {
+		return err
+	}
 	util.InfoLogger.Infof("Preparing models")
 	for _, m := range s.models {
 		if err := m.Prepare(s.sqldb, s.d); err != nil {
@@ -118,7 +123,7 @@ func (s *server) start() error {
 		}
 	}
 	util.InfoLogger.Infof("Starting application")
-	err := s.a.Start()
+	err = s.a.Start()
 	if err != nil {
 		return err
 	}
@@ -143,12 +148,12 @@ func (s *server) start() error {
 	return nil
 }
 
-func (s *server) stop() {
+func (s *Server) Stop() {
 	util.InfoLogger.Infof("Shutdown HTTPS server")
 	s.httpsServer.Shutdown(context.Background())
 }
 
-func (s *server) onStop() {
+func (s *Server) onStop() {
 	util.InfoLogger.Infof("Shutdown HTTP server")
 	s.httpServer.Shutdown(context.Background())
 	util.InfoLogger.Infof("Stop application")

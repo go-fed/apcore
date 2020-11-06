@@ -71,7 +71,7 @@ type Controller struct {
 	da          *services.DeliveryAttempts
 }
 
-func newController(
+func NewController(
 	c *config.Config,
 	a app.Application,
 	clock pub.Clock,

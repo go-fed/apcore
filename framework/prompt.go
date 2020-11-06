@@ -74,14 +74,14 @@ func promptDoesXHavePassword(display string) (b bool, err error) {
 			display))
 }
 
-func promptFileExistsContinue(path string) (b bool, err error) {
+func PromptFileExistsContinue(path string) (b bool, err error) {
 	return promptYN(
 		fmt.Sprintf(
 			"File exists at: %q. Do you wish to continue?",
 			path))
 }
 
-func promptOverwriteExistingFile(path string) (b bool, err error) {
+func PromptOverwriteExistingFile(path string) (b bool, err error) {
 	return promptYN(
 		fmt.Sprintf(
 			"File exists at: %q. Do you wish to overwrite it?",

@@ -51,7 +51,7 @@ func replace(input, replace string, offset int) string {
 			in[offset+len(repl):]...)...))
 }
 
-func clarkeSays(moo string) string {
+func ClarkeSays(moo string) string {
 	moo = strings.TrimSpace(strings.ReplaceAll(moo, "\n", " "))
 	words := strings.Split(moo, " ")
 	lines := make([][]string, 0, 1)

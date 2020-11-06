@@ -2,6 +2,8 @@ package apcore
 
 import (
 	"flag"
+	"fmt"
+	"io"
 	"os"
 
 	"github.com/go-fed/apcore/app"

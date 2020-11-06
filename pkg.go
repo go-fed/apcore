@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Package framework implements a generic, extensible ActivityPub server using
+// Package apcore implements a generic, extensible ActivityPub server using
 // the go-fed libraries.
-package framework
+package apcore
 
 import (
 	"github.com/go-fed/apcore/app"

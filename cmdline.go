@@ -18,16 +18,15 @@ package apcore
 
 import (
 	"bytes"
-	"context"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 
 	"github.com/go-fed/apcore/app"
+	"github.com/go-fed/apcore/framework"
 	"github.com/go-fed/apcore/util"
 )
 
@@ -65,7 +64,7 @@ func init() {
 				"to file for auditing and record keeping purposes.\n")
 		fmt.Fprintf(
 			flag.CommandLine.Output(),
-			clarkeSays("Hi, I'm Clarke the Cow! When you run certain commands, I will help guide you "+
+			framework.ClarkeSays("Hi, I'm Clarke the Cow! When you run certain commands, I will help guide you "+
 				"and ensure you have a smooooth time. Ciao!"))
 		fmt.Fprintf(
 			flag.CommandLine.Output(),
@@ -172,15 +171,15 @@ func serveFn(a app.Application) error {
 	signal.Notify(interruptCh, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-interruptCh
-		s.stop()
+		s.Stop()
 	}()
-	return s.start()
+	return s.Start()
 }
 
 // The 'new' command line action.
 func guideNewFn(a app.Application) error {
 	sw := a.Software()
-	fmt.Println(clarkeSays(fmt.Sprintf(`
+	fmt.Println(framework.ClarkeSays(fmt.Sprintf(`
 Hi, I'm Clarke the Cow! I am here to help you set up your ActivityPub
 software. It is called %q. This is version %d.%d.%d, but I don't know what
 that means. I'm a cow! First off, let's create a configuration file. Let's get
@@ -193,7 +192,7 @@ mooving!`,
 	if err != nil {
 		return err
 	}
-	fmt.Println(clarkeSays(`
+	fmt.Println(framework.ClarkeSays(`
 Configuration wizardry complete! It is a good idea to check that configuration
 file for additional options before serving traffic. You can always re-run the
 wizard using the "configure" action. Now let's initialize the database!`))
@@ -201,14 +200,14 @@ wizard using the "configure" action. Now let's initialize the database!`))
 	if err != nil {
 		return err
 	}
-	fmt.Println(clarkeSays(`
+	fmt.Println(framework.ClarkeSays(`
 Whew! That can manually be done using the "init-db" action in the future. Next,
 let's initialize your first administrator account in the database.`))
 	err = initAdminFn(a)
 	if err != nil {
 		return err
 	}
-	fmt.Println(clarkeSays(`
+	fmt.Println(framework.ClarkeSays(`
 Moo~! That was the "init-admin" action. We are done, but before you run the
 "serve" action, please do double check your configuration file! Bye bye!`))
 	return nil
@@ -216,22 +215,14 @@ Moo~! That was the "init-admin" action. We are done, but before you run the
 
 // The 'init-db' command line action.
 func initDbFn(a app.Application) error {
-	fmt.Println(clarkeSays(`
+	fmt.Println(framework.ClarkeSays(`
 We're connecting to the database using the specs in the config file, creating
 tables, and then closing all connections.`))
-	c, err := loadConfigFile(*configFlag, a, *debugFlag)
+	err := doCreateTables(*configFlag, a, *debugFlag, schemeFromFlags())
 	if err != nil {
 		return err
 	}
-	db, err := newDatabase(c, a, *debugFlag)
-	if err != nil {
-		return err
-	}
-	err = db.OpenCreateTablesClose()
-	if err != nil {
-		return err
-	}
-	fmt.Println(clarkeSays(`Database initialization udderly complete!`))
+	fmt.Println(framework.ClarkeSays(`Database initialization udderly complete!`))
 	return nil
 }
 
@@ -241,39 +232,12 @@ func initAdminFn(a app.Application) error {
 	if *debugFlag {
 		msg += "\nWARNING: Creating a user in debug mode will NOT work in production and MUST ONLY be used for development"
 	}
-	fmt.Println(clarkeSays(msg))
-	c, err := loadConfigFile(*configFlag, a, *debugFlag)
+	fmt.Println(framework.ClarkeSays(msg))
+	err := doInitAdmin(*configFlag, a, *debugFlag)
 	if err != nil {
 		return err
 	}
-	db, err := newDatabase(c, a, *debugFlag)
-	if err != nil {
-		return err
-	}
-	err = db.Open()
-	if err != nil {
-		return err
-	}
-	username, email, password, err := promptAdminUser()
-	if err != nil {
-		return err
-	}
-	_, err = db.CreateAdminUser(context.Background(),
-		schemeFromFlags(),
-		c.ServerConfig.Host,
-		username,
-		username,
-		"",
-		email,
-		password)
-	if err != nil {
-		return err
-	}
-	err = db.Close()
-	if err != nil {
-		return err
-	}
-	fmt.Println(clarkeSays(`New admin account successfully created! Moo~`))
+	fmt.Println(framework.ClarkeSays(`New admin account successfully created! Moo~`))
 	return nil
 }
 
@@ -285,7 +249,7 @@ func configureFn(a app.Application) error {
 	exists := false
 	if _, err := os.Stat(*configFlag); err == nil {
 		exists = true
-		cont, err := promptFileExistsContinue(*configFlag)
+		cont, err := framework.PromptFileExistsContinue(*configFlag)
 		if err != nil {
 			return err
 		}
@@ -295,14 +259,14 @@ func configureFn(a app.Application) error {
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("cannot modify configuration: %s", err)
 	}
-	cfg, err := promptNewConfig(*configFlag)
+	cfg, err := framework.PromptNewConfig(*configFlag)
 	if err != nil {
 		return err
 	}
 	util.InfoLogger.Info("Calling application to get default config options")
 	acfg := a.NewConfiguration()
 	if exists {
-		cont, err := promptOverwriteExistingFile(*configFlag)
+		cont, err := framework.PromptOverwriteExistingFile(*configFlag)
 		if err != nil {
 			return err
 		}
@@ -311,7 +275,7 @@ func configureFn(a app.Application) error {
 			return nil
 		}
 	}
-	err = saveConfigFile(*configFlag, cfg, acfg)
+	err = framework.SaveConfigFile(*configFlag, cfg, acfg)
 	if err != nil {
 		return err
 	}

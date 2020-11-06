@@ -22,15 +22,17 @@ import (
 	"time"
 
 	"github.com/go-fed/apcore/framework/config"
+	"github.com/go-fed/apcore/models"
 	"github.com/go-fed/apcore/util"
 )
 
-func NewDB(c *config.Config) (sqldb *sql.DB, err error) {
+func NewDB(c *config.Config) (sqldb *sql.DB, d models.SqlDialect, err error) {
 	kind := c.DatabaseConfig.DatabaseKind
 	var conn string
 	switch kind {
 	case "postgres":
 		conn, err = postgresConn(c.DatabaseConfig.PostgresConfig)
+		d = NewPgV0(c.DatabaseConfig.PostgresConfig.Schema)
 	default:
 		err = fmt.Errorf("unhandled database_kind in config: %s", kind)
 	}

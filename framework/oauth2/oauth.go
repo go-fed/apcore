@@ -42,7 +42,7 @@ type Server struct {
 	s *oaserver.Server
 }
 
-func newServer(c *config.Config, a app.Application, d *services.OAuth2, y *services.Crypto, k *web.Sessions) (s *Server, err error) {
+func NewServer(c *config.Config, a app.Application, d *services.OAuth2, y *services.Crypto, k *web.Sessions) (s *Server, err error) {
 	m := manage.NewDefaultManager()
 	// Configure Access token and Refresh token refresh.
 	if c.OAuthConfig.AccessTokenExpiry <= 0 {
