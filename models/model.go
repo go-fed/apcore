@@ -30,7 +30,6 @@ type stmtPairs []stmtPair
 
 // prepareStmtPairs turns stmtPairs into a single error, with a side effect of
 // populating all stmt.
-// TODO: Use this in more models
 func prepareStmtPairs(db *sql.DB, s stmtPairs) (err error) {
 	doIfNoErr := func(p stmtPair, fn func(*sql.DB, stmtPair) error) error {
 		if err == nil {

@@ -16,16 +16,11 @@ type PrivateKeys struct {
 }
 
 func (p *PrivateKeys) Prepare(db *sql.DB, s SqlDialect) error {
-	var err error
-	p.createPrivateKey, err = db.Prepare(s.CreatePrivateKey())
-	if err != nil {
-		return err
-	}
-	p.getByUserID, err = db.Prepare(s.GetPrivateKeyByUserID())
-	if err != nil {
-		return err
-	}
-	return nil
+	return prepareStmtPairs(db,
+		stmtPairs{
+			{&(p.createPrivateKey), s.CreatePrivateKey()},
+			{&(p.getByUserID), s.CreatePrivateKey()},
+		})
 }
 
 func (p *PrivateKeys) CreateTable(t *sql.Tx, s SqlDialect) error {

@@ -25,20 +25,12 @@ type DeliveryAttempts struct {
 }
 
 func (d *DeliveryAttempts) Prepare(db *sql.DB, s SqlDialect) error {
-	var err error
-	d.insertDeliveryAttempt, err = db.Prepare(s.InsertAttempt())
-	if err != nil {
-		return err
-	}
-	d.markDeliveryAttemptSuccessful, err = db.Prepare(s.MarkSuccessfulAttempt())
-	if err != nil {
-		return err
-	}
-	d.markDeliveryAttemptFailed, err = db.Prepare(s.MarkFailedAttempt())
-	if err != nil {
-		return err
-	}
-	return nil
+	return prepareStmtPairs(db,
+		stmtPairs{
+			{&(d.insertDeliveryAttempt), s.InsertAttempt()},
+			{&(d.markDeliveryAttemptSuccessful), s.MarkSuccessfulAttempt()},
+			{&(d.markDeliveryAttemptFailed), s.MarkFailedAttempt()},
+		})
 }
 
 func (d *DeliveryAttempts) CreateTable(t *sql.Tx, s SqlDialect) error {
