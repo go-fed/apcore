@@ -80,7 +80,6 @@ func BuildHandler(r *Router,
 		webfingerHandler(scheme, c.ServerConfig.Host, badRequestHandler, internalErrorHandler, users))
 
 	// TODO: Node-info
-	// TODO: Actor routes (public key id)
 
 	// Built-in routes for users, default supported:
 	// - PostInbox
