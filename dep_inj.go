@@ -174,6 +174,31 @@ func newModels(configFileName string, appl app.Application, debug bool, scheme s
 	return
 }
 
+func newUserService(configFileName string, appl app.Application, debug bool, scheme string) (sqldb *sql.DB, users *services.Users, c *config.Config, err error) {
+	// Load the configuration
+	c, err = framework.LoadConfigFile(configFileName, appl, debug)
+	if err != nil {
+		return
+	}
+	host := c.ServerConfig.Host
+
+	// Create a server clock, a pub.Clock
+	var clock pub.Clock
+	clock, err = ap.NewClock(c.ActivityPubConfig.ClockTimezone)
+	if err != nil {
+		return
+	}
+
+	// Create the SQL database
+	sqldb, _, err = db.NewDB(c)
+	if err != nil {
+		return
+	}
+
+	_, _, _, _, _, _, _, _, _, _, _, users, _ = createModelsAndServices(sqldb, appl, host, scheme, clock)
+	return
+}
+
 func createModelsAndServices(sqldb *sql.DB, appl app.Application, host, scheme string, clock pub.Clock) (cryp *services.Crypto,
 	data *services.Data,
 	dAttempts *services.DeliveryAttempts,

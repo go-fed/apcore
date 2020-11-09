@@ -233,7 +233,7 @@ func initAdminFn(a app.Application) error {
 		msg += "\nWARNING: Creating a user in debug mode will NOT work in production and MUST ONLY be used for development"
 	}
 	fmt.Println(framework.ClarkeSays(msg))
-	err := doInitAdmin(*configFlag, a, *debugFlag)
+	err := doInitAdmin(*configFlag, a, *debugFlag, schemeFromFlags())
 	if err != nil {
 		return err
 	}

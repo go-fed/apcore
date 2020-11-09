@@ -20,10 +20,16 @@ import (
 	"context"
 
 	"github.com/go-fed/apcore/app"
+	"github.com/go-fed/apcore/framework"
+	"github.com/go-fed/apcore/services"
+	"github.com/go-fed/apcore/util"
 )
 
 func doCreateTables(configFilePath string, a app.Application, debug bool, scheme string) error {
 	db, d, ms, err := newModels(configFilePath, a, debug, scheme)
+	if err != nil {
+		return err
+	}
 	defer db.Close()
 	tx, err := db.BeginTx(context.Background(), nil)
 	if err != nil {
@@ -38,7 +44,35 @@ func doCreateTables(configFilePath string, a app.Application, debug bool, scheme
 	return tx.Commit()
 }
 
-func doInitAdmin(configFilePath string, a app.Application, debug bool) error {
-	// TODO
-	return nil
+func doInitAdmin(configFilePath string, a app.Application, debug bool, scheme string) error {
+	db, users, c, err := newUserService(configFilePath, a, debug, scheme)
+	if err != nil {
+		return err
+	}
+
+	// Prompt for admin information
+	p := services.CreateUserParameters{
+		Scheme:     scheme,
+		Host:       c.ServerConfig.Host,
+		RSAKeySize: c.ServerConfig.RSAKeySize,
+		HashParams: services.HashPasswordParameters{
+			SaltSize:       c.ServerConfig.SaltSize,
+			BCryptStrength: c.ServerConfig.BCryptStrength,
+		},
+	}
+	var password string
+	p.Username, p.Email, password, err = framework.PromptAdminUser()
+
+	// Create the user in the database
+	defer db.Close()
+	tx, err := db.BeginTx(context.Background(), nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	_, err = users.CreateAdminUser(util.Context{context.Background()}, p, password)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }

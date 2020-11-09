@@ -185,7 +185,7 @@ func promptFloat64WithDefault(display string, def int) (v float64, err error) {
 	return
 }
 
-func promptAdminUser() (username, email, password string, err error) {
+func PromptAdminUser() (username, email, password string, err error) {
 	username, err = promptStringWithDefault(
 		"Enter the new admin account's username",
 		"")
