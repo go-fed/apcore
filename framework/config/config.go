@@ -72,7 +72,7 @@ type ActivityPubConfig struct {
 // Configuration for HTTP Signatures.
 type HttpSignaturesConfig struct {
 	Algorithms      []string `ini:"http_sig_algorithms" comment:"(default: \"sha256,sha512\") Comma-separated list of algorithms used by the go-fed/httpsig library to sign outgoing HTTP signatures; the first algorithm in this list will be the one used to verify other peers' HTTP signatures"`
-	DigestAlgorithm string   `ini:"http_sig_digest_algorithm" comment:"(default: \"SHA-256\") RFC ???? algorithm for use in signing header Digests"` // TODO: Find the Digest header RFC for reference
+	DigestAlgorithm string   `ini:"http_sig_digest_algorithm" comment:"(default: \"SHA-256\") RFC 3230 algorithm for use in signing header Digests"`
 	GetHeaders      []string `ini:"http_sig_get_headers" comment:"(default: \"(request-target),Date,Digest\") Comma-separated list of HTTP headers to sign in GET requests; must contain \"(request-target)\", \"Date\", and \"Digest\""`
 	PostHeaders     []string `ini:"http_sig_post_headers" comment:"(default: \"(request-target),Date,Digest\") Comma-separated list of HTTP headers to sign in POST requests; must contain \"(request-target)\", \"Date\", and \"Digest\""`
 }
