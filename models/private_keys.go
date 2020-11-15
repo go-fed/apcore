@@ -35,7 +35,7 @@ func (p *PrivateKeys) Prepare(db *sql.DB, s SqlDialect) error {
 	return prepareStmtPairs(db,
 		stmtPairs{
 			{&(p.createPrivateKey), s.CreatePrivateKey()},
-			{&(p.getByUserID), s.CreatePrivateKey()},
+			{&(p.getByUserID), s.GetPrivateKeyByUserID()},
 		})
 }
 
