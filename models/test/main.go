@@ -25,6 +25,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/go-fed/activity/pub"
 	"github.com/go-fed/activity/streams"
 	"github.com/go-fed/activity/streams/vocab"
 	"github.com/go-fed/apcore/framework/db"
@@ -1573,6 +1574,12 @@ func runUserModelCalls(ctx util.Context, db *sql.DB) error {
 		return err
 	}
 	fmt.Printf("> ActorIDForInbox: %s\n", id.URL)
+	if err := runUserModelUpdatePreferences(ctx, db, userID); err != nil {
+		return err
+	}
+	if err := runUserModelUpdatePrivileges(ctx, db, userID); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1647,6 +1654,26 @@ func runUserModelActorIDForInbox(ctx util.Context, db *sql.DB) (id models.URL, e
 	return id, doWithTx(ctx, db, func(tx *sql.Tx) error {
 		id, err = users.ActorIDForInbox(ctx, tx, mustParse(testActor1InboxIRI))
 		return err
+	})
+}
+
+func runUserModelUpdatePreferences(ctx util.Context, db *sql.DB, id string) error {
+	pref := models.Preferences{
+		OnFollow: models.OnFollowBehavior(pub.OnFollowAutomaticallyAccept),
+		Payload:  []byte(`{"test":"pref"}`),
+	}
+	return doWithTx(ctx, db, func(tx *sql.Tx) error {
+		return users.UpdatePreferences(ctx, tx, id, pref)
+	})
+}
+
+func runUserModelUpdatePrivileges(ctx util.Context, db *sql.DB, id string) error {
+	priv := models.Privileges{
+		Admin:   true,
+		Payload: []byte(`{"test":"priv"}`),
+	}
+	return doWithTx(ctx, db, func(tx *sql.Tx) error {
+		return users.UpdatePrivileges(ctx, tx, id, priv)
 	})
 }
 
