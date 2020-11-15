@@ -92,6 +92,7 @@ func newServer(configFileName string, appl app.Application, debug bool, scheme s
 		pkeys,
 		policies,
 		followers,
+		users,
 		tc)
 
 	// ** Initialize the Web Server **

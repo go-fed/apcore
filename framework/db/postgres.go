@@ -99,6 +99,14 @@ func (p *pgV0) ActorIDForInbox() string {
 WHERE actor->'inbox' ? $1`
 }
 
+func (p *pgV0) UpdateUserPreferences() string {
+	return `UPDATE ` + p.schema + `users SET preferences = $2 WHERE id = $1`
+}
+
+func (p *pgV0) UpdateUserPrivileges() string {
+	return `UPDATE ` + p.schema + `users SET privileges = $2 WHERE id = $1`
+}
+
 func (p *pgV0) CreateFedDataTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `fed_data

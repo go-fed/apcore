@@ -110,6 +110,18 @@ type SqlDialect interface {
 	//  Returns
 	//   ActorID     string
 	ActorIDForInbox() string
+	// UpdateUserPreferences:
+	//  Params
+	//   ID          string
+	//   Preferences []byte
+	//  Returns
+	UpdateUserPreferences() string
+	// UpdateUserPrivileges:
+	//  Params
+	//   ID          string
+	//   Privileges  []byte
+	//  Returns
+	UpdateUserPrivileges() string
 
 	// FedExists:
 	//  Params

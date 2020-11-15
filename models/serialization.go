@@ -107,6 +107,48 @@ func mustChangeOneRow(r sql.Result, existing error, name string) error {
 	return nil
 }
 
+var _ driver.Valuer = Privileges{}
+var _ sql.Scanner = &Privileges{}
+
+// Privileges are a user's privileges serializable and deserializable into JSON
+// for database storage.
+type Privileges struct {
+	// Admin indicates whether to treat the user as an administrator by the
+	// framework.
+	Admin bool
+	// Payload is additional privilege information that is app-specific.
+	Payload json.RawMessage
+}
+
+func (p Privileges) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
+
+func (p *Privileges) Scan(src interface{}) error {
+	return unmarshal(src, p)
+}
+
+var _ driver.Valuer = Preferences{}
+var _ sql.Scanner = &Preferences{}
+
+// Preferences are a user's preferences serializable and deserializable into
+// JSON for database storage.
+type Preferences struct {
+	// OnFollow indicates default behavior when a Follow request is received
+	// by a user.
+	OnFollow OnFollowBehavior
+	// Payload is additional preference information that is app-specific.
+	Payload json.RawMessage
+}
+
+func (p Preferences) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
+
+func (p *Preferences) Scan(src interface{}) error {
+	return unmarshal(src, p)
+}
+
 var _ driver.Valuer = OnFollowBehavior(0)
 var _ sql.Scanner = (*OnFollowBehavior)(nil)
 

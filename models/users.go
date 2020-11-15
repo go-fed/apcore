@@ -18,8 +18,6 @@ package models
 
 import (
 	"database/sql"
-	"database/sql/driver"
-	"encoding/json"
 	"net/url"
 
 	"github.com/go-fed/apcore/util"
@@ -48,36 +46,6 @@ type SensitiveUser struct {
 	Salt     []byte
 }
 
-var _ driver.Valuer = Privileges{}
-var _ sql.Scanner = &Privileges{}
-
-// TODO: Privileges
-type Privileges struct{}
-
-func (p Privileges) Value() (driver.Value, error) {
-	return json.Marshal(p)
-}
-
-func (p *Privileges) Scan(src interface{}) error {
-	return unmarshal(src, p)
-}
-
-var _ driver.Valuer = Preferences{}
-var _ sql.Scanner = &Preferences{}
-
-// TODO: Preferences
-type Preferences struct {
-	OnFollow OnFollowBehavior
-}
-
-func (p Preferences) Value() (driver.Value, error) {
-	return json.Marshal(p)
-}
-
-func (p *Preferences) Scan(src interface{}) error {
-	return unmarshal(src, p)
-}
-
 var _ Model = &Users{}
 
 // Users is a Model that provides additional database methods for the
@@ -90,6 +58,8 @@ type Users struct {
 	userByPreferredUsername *sql.Stmt
 	actorIDForOutbox        *sql.Stmt
 	actorIDForInbox         *sql.Stmt
+	updatePreferences       *sql.Stmt
+	updatePrivileges        *sql.Stmt
 }
 
 func (u *Users) Prepare(db *sql.DB, s SqlDialect) error {
@@ -102,6 +72,8 @@ func (u *Users) Prepare(db *sql.DB, s SqlDialect) error {
 			{&(u.userByPreferredUsername), s.UserByPreferredUsername()},
 			{&(u.actorIDForOutbox), s.ActorIDForOutbox()},
 			{&(u.actorIDForInbox), s.ActorIDForInbox()},
+			{&(u.updatePreferences), s.UpdateUserPreferences()},
+			{&(u.updatePrivileges), s.UpdateUserPrivileges()},
 		})
 }
 
@@ -118,6 +90,8 @@ func (u *Users) Close() {
 	u.userByPreferredUsername.Close()
 	u.actorIDForOutbox.Close()
 	u.actorIDForInbox.Close()
+	u.updatePreferences.Close()
+	u.updatePrivileges.Close()
 }
 
 // Create a User in the database.
@@ -212,4 +186,20 @@ func (u *Users) ActorIDForInbox(c util.Context, tx *sql.Tx, inbox *url.URL) (act
 	return actor, enforceOneRow(rows, "Users.ActorIDForInbox", func(r singleRow) error {
 		return r.Scan(&actor)
 	})
+}
+
+// UpdatePreferences updates the preferences associated with the user.
+func (u *Users) UpdatePreferences(c util.Context, tx *sql.Tx, id string, p Preferences) error {
+	r, err := tx.Stmt(u.updatePreferences).ExecContext(c,
+		id,
+		p)
+	return mustChangeOneRow(r, err, "Users.UpdatePreferences")
+}
+
+// UpdatePrivileges updates the privileges associated with the user.
+func (u *Users) UpdatePrivileges(c util.Context, tx *sql.Tx, id string, p Privileges) error {
+	r, err := tx.Stmt(u.updatePrivileges).ExecContext(c,
+		id,
+		p)
+	return mustChangeOneRow(r, err, "Users.UpdatePrivileges")
 }

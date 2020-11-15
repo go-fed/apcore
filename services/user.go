@@ -18,8 +18,10 @@ package services
 
 import (
 	"database/sql"
+	"encoding/json"
 	"net/url"
 
+	"github.com/go-fed/activity/pub"
 	"github.com/go-fed/activity/streams"
 	"github.com/go-fed/activity/streams/vocab"
 	"github.com/go-fed/apcore/app"
@@ -30,11 +32,21 @@ import (
 
 // CreateUserParameters contains all parameters needed to create a user & Actor.
 type CreateUserParameters struct {
-	Scheme     string
-	Host       string
-	Username   string
-	Email      string
+	// Scheme is the server's scheme for serving the ActivityPub actor
+	// representing this user.
+	Scheme string
+	// Host is this server's hostname for the ActivityPub actor representing
+	// this user.
+	Host string
+	// Username is the user-facing username to give the initial ActivityPub
+	// actor representing the user.
+	Username string
+	// Email is the email address of the user.
+	Email string
+	// HashParams are the parameters used to hash this user's password.
 	HashParams HashPasswordParameters
+	// RSAKeySize is the size of the RSA private key to create for this
+	// user, in bits.
 	RSAKeySize int
 }
 
@@ -57,19 +69,39 @@ type Users struct {
 }
 
 func (u *Users) CreateUser(c util.Context, params CreateUserParameters, password string) (userID string, err error) {
+	var roles models.Privileges
+	roles.Payload, err = json.Marshal(u.App.DefaultUserPrivileges())
+	if err != nil {
+		return
+	}
+	var prefs models.Preferences
+	prefs.Payload, err = json.Marshal(u.App.DefaultUserPreferences())
+	if err != nil {
+		return
+	}
 	return u.createUser(c,
 		params,
 		password,
-		models.Privileges{},
-		models.Preferences{})
+		roles,
+		prefs)
 }
 
 func (u *Users) CreateAdminUser(c util.Context, params CreateUserParameters, password string) (userID string, err error) {
+	var roles models.Privileges
+	roles.Payload, err = json.Marshal(u.App.DefaultAdminPrivileges())
+	if err != nil {
+		return
+	}
+	var prefs models.Preferences
+	prefs.Payload, err = json.Marshal(u.App.DefaultUserPreferences())
+	if err != nil {
+		return
+	}
 	return u.createUser(c,
 		params,
 		password,
-		models.Privileges{},
-		models.Preferences{})
+		roles,
+		prefs)
 }
 
 // TODO: Also require unique preferredUsername for webfinger functionality.
@@ -204,4 +236,110 @@ func (u *Users) UserByUsername(c util.Context, name string) (s *User, err error)
 		}
 		return nil
 	})
+}
+
+type Preferences struct {
+	OnFollow       pub.OnFollowBehavior
+	AppPreferences interface{}
+}
+
+func (p Preferences) toModel() (pref models.Preferences, err error) {
+	pref = models.Preferences{
+		OnFollow: models.OnFollowBehavior(p.OnFollow),
+	}
+	pref.Payload, err = json.Marshal(p.AppPreferences)
+	if err != nil {
+		return
+	}
+	return
+}
+
+// Preferences returns the preferences associated with the user.
+//
+// Fetches the application-specific preferences if appPref is non-nil and JSON
+// compatible struct.
+func (u *Users) Preferences(c util.Context, uuid string, appPref interface{}) (p *Preferences, err error) {
+	var a *models.User
+	err = doInTx(c, u.DB, func(tx *sql.Tx) error {
+		a, err = u.Users.UserByID(c, tx, uuid)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return
+	}
+	if appPref != nil {
+		if err = json.Unmarshal(a.Preferences.Payload, appPref); err != nil {
+			return
+		}
+	}
+	p = &Preferences{
+		OnFollow:       pub.OnFollowBehavior(a.Preferences.OnFollow),
+		AppPreferences: appPref,
+	}
+	return
+}
+
+type Privileges struct {
+	Admin         bool
+	AppPrivileges interface{}
+}
+
+func (p Privileges) toModel() (priv models.Privileges, err error) {
+	priv = models.Privileges{
+		Admin: p.Admin,
+	}
+	priv.Payload, err = json.Marshal(p.AppPrivileges)
+	if err != nil {
+		return
+	}
+	return
+}
+
+// Privileges returns the privileges associated with the user.
+//
+// Fetches the application-specific privileges if appPriv is non-nil and JSON
+// compatible struct.
+func (u *Users) Privileges(c util.Context, uuid string, appPriv interface{}) (p *Privileges, err error) {
+	var a *models.User
+	err = doInTx(c, u.DB, func(tx *sql.Tx) error {
+		a, err = u.Users.UserByID(c, tx, uuid)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return
+	}
+	if appPriv != nil {
+		if err = json.Unmarshal(a.Privileges.Payload, appPriv); err != nil {
+			return
+		}
+	}
+	p = &Privileges{
+		Admin:         a.Privileges.Admin,
+		AppPrivileges: appPriv,
+	}
+	return
+}
+
+func (u *Users) UpdatePreferences(c util.Context, uuid string, p *Preferences) (err error) {
+	var pref models.Preferences
+	pref, err = p.toModel()
+	err = doInTx(c, u.DB, func(tx *sql.Tx) error {
+		return u.Users.UpdatePreferences(c, tx, uuid, pref)
+	})
+	return
+}
+
+func (u *Users) UpdatePrivileges(c util.Context, uuid string, p *Privileges) (err error) {
+	var priv models.Privileges
+	priv, err = p.toModel()
+	err = doInTx(c, u.DB, func(tx *sql.Tx) error {
+		return u.Users.UpdatePrivileges(c, tx, uuid, priv)
+	})
+	return
 }

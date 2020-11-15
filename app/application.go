@@ -332,6 +332,19 @@ type Application interface {
 	// enabled.
 	ScopePermitsPrivateGetOutbox(scope string) (permitted bool, err error)
 
+	// DefaultUserPreferences returns an application-specific preferences
+	// struct to be serialized into JSON and used as initial user app
+	// preferences.
+	DefaultUserPreferences() interface{}
+	// DefaultUserPrivileges returns an application-specific privileges
+	// struct to be serialized into JSON and used as initial user app
+	// privileges.
+	DefaultUserPrivileges() interface{}
+	// DefaultAdminPrivileges returns an application-specific privileges
+	// struct to be serialized into JSON and used as initial user app
+	// privileges for new admins.
+	DefaultAdminPrivileges() interface{}
+
 	// CALLS MADE BOTH AT STARTUP AND SERVING TIME
 	//
 	// These calls are made at least once during server initialization, and

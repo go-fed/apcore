@@ -40,6 +40,7 @@ type FederatingBehavior struct {
 	po                      *services.Policies
 	pk                      *services.PrivateKeys
 	f                       *services.Followers
+	u                       *services.Users
 	tc                      *conn.Controller
 }
 
@@ -49,6 +50,7 @@ func NewFederatingBehavior(c *config.Config,
 	po *services.Policies,
 	pk *services.PrivateKeys,
 	f *services.Followers,
+	u *services.Users,
 	tc *conn.Controller) *FederatingBehavior {
 	return &FederatingBehavior{
 		maxInboxForwardingDepth: c.ActivityPubConfig.MaxInboxForwardingRecursionDepth,
@@ -58,6 +60,7 @@ func NewFederatingBehavior(c *config.Config,
 		po:                      po,
 		pk:                      pk,
 		f:                       f,
+		u:                       u,
 		tc:                      tc,
 	}
 }
@@ -90,9 +93,19 @@ func (f *FederatingBehavior) Blocked(c context.Context, actorIRIs []*url.URL) (b
 }
 
 func (f *FederatingBehavior) FederatingCallbacks(c context.Context) (wrapped pub.FederatingWrappedCallbacks, other []interface{}, err error) {
-	// TODO: Determine OnFollow from user preferences.
+	ctx := util.Context{c}
+	var uuid string
+	uuid, err = ctx.UserPathUUID()
+	if err != nil {
+		return
+	}
+	var prefs *services.Preferences
+	prefs, err = f.u.Preferences(ctx, uuid, nil)
+	if err != nil {
+		return
+	}
 	wrapped = pub.FederatingWrappedCallbacks{
-		OnFollow: pub.OnFollowDoNothing,
+		OnFollow: prefs.OnFollow,
 	}
 	other = f.app.ApplyFederatingCallbacks(&wrapped)
 	return
