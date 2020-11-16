@@ -83,6 +83,7 @@ type PostgresConfig struct {
 	UserName                string `ini:"pg_user" comment:"(required) User to connect as (any password will be prompted)"`
 	Host                    string `ini:"pg_host" comment:"(default: localhost) The Postgres host to connect to"`
 	Port                    int    `ini:"pg_port" comment:"(default: 5432) The port to connect to"`
+	Password                string `ini:"password" comment:"The database password to use to connect"`
 	SSLMode                 string `ini:"pg_ssl_mode" comment:"(default: require) SSL mode to use when connecting (options are: \"disable\", \"require\", \"verify-ca\", \"verify-full\")"`
 	FallbackApplicationName string `ini:"pg_fallback_application_name" comment:"An application_name to fall back to if one is not provided"`
 	ConnectTimeout          int    `ini:"pg_connect_timeout" comment:"(default: indefinite) Maximum wait when connecting to a database, zero or unset means indefinite"`

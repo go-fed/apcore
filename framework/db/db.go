@@ -87,10 +87,9 @@ func postgresConn(pg config.PostgresConfig) (s string, err error) {
 		return
 	}
 	s = fmt.Sprintf("dbname=%s user=%s", pg.DatabaseName, pg.UserName)
-	// TODO: Determine password from config.
-	//if ??? {
-	//	s = fmt.Sprintf("%s password=%s", s, pw)
-	//}
+	if len(pg.Password) > 0 {
+		s = fmt.Sprintf("%s password=%s", s, pg.Password)
+	}
 	if len(pg.Host) > 0 {
 		s = fmt.Sprintf("%s host=%s", s, pg.Host)
 	}

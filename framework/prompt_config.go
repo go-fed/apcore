@@ -198,6 +198,10 @@ func promptPostgresConfig(c *config.Config) (err error) {
 	if err != nil {
 		return
 	}
+	c.DatabaseConfig.PostgresConfig.Password, err = promptPassword("Enter the postgres database password")
+	if err != nil {
+		return
+	}
 	c.DatabaseConfig.PostgresConfig.SSLMode, err = promptSelection(
 		"Please choose a SSL mode (see https://www.postgresql.org/docs/current/libpq-ssl.html)",
 		"disable",
