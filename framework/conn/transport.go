@@ -33,7 +33,6 @@ import (
 	"github.com/go-fed/apcore/services"
 	"github.com/go-fed/apcore/util"
 	"github.com/go-fed/httpsig"
-	"golang.org/x/time/rate"
 )
 
 const (
@@ -67,7 +66,7 @@ type Controller struct {
 	digestAlg   httpsig.DigestAlgorithm
 	getHeaders  []string
 	postHeaders []string
-	l           *rate.Limiter // TODO: Use this
+	hl          *hostLimiter // TODO: Use this
 	da          *services.DeliveryAttempts
 }
 
@@ -111,9 +110,17 @@ func NewController(
 		digestAlg:   httpsig.DigestAlgorithm(c.ActivityPubConfig.HttpSignaturesConfig.DigestAlgorithm),
 		getHeaders:  c.ActivityPubConfig.HttpSignaturesConfig.GetHeaders,
 		postHeaders: c.ActivityPubConfig.HttpSignaturesConfig.PostHeaders,
-		l:           rate.NewLimiter(rate.Limit(c.ActivityPubConfig.OutboundRateLimitQPS), c.ActivityPubConfig.OutboundRateLimitBurst),
+		hl:          newHostLimiter(c),
 		da:          da,
 	}, err
+}
+
+func (tc *Controller) Start() {
+	tc.hl.Start()
+}
+
+func (tc *Controller) Stop() {
+	tc.hl.Stop()
 }
 
 func (tc *Controller) Get(
@@ -143,8 +150,8 @@ func (tc *Controller) GetFirstAlgorithm() httpsig.Algorithm {
 	return tc.algs[0]
 }
 
-func (tc *Controller) wait(c util.Context) {
-	tc.l.Wait(c)
+func (tc *Controller) wait(c context.Context, host string) error {
+	return tc.hl.Get(host).Wait(c)
 }
 
 func (tc *Controller) insertAttempt(c util.Context, payload []byte, to *url.URL, fromUUID string) (id string, err error) {
@@ -213,6 +220,9 @@ func (t *transport) Dereference(c context.Context, iri *url.URL) (b []byte, err 
 	if err != nil {
 		return
 	}
+	if err = t.tc.wait(c, req.URL.Host); err != nil {
+		return
+	}
 	var resp *http.Response
 	resp, err = t.client.Do(req)
 	if err != nil {
@@ -258,6 +268,9 @@ func (t *transport) Deliver(c context.Context, b []byte, to *url.URL) (err error
 	err = t.postSigner.SignRequest(t.privKey, t.pubKeyId, req, b)
 	t.postSignerMu.Unlock()
 	if err != nil {
+		return
+	}
+	if err = t.tc.wait(c, req.URL.Host); err != nil {
 		return
 	}
 	var resp *http.Response

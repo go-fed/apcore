@@ -61,12 +61,14 @@ type DatabaseConfig struct {
 
 // Configuration section specifically for ActivityPub.
 type ActivityPubConfig struct {
-	ClockTimezone                    string               `ini:"ap_clock_timezone" comment:"(default: UTC) Timezone for ActivityPub related operations: unset and \"UTC\" are UTC, \"Local\" is local server time, otherwise use IANA Time Zone database values"`
-	OutboundRateLimitQPS             float64              `ini:"ap_outbound_rate_limit_qps" comment:"(default: 10) Global outbound rate limit for delivery of federated messages under steady state conditions; a negative value or value of zero is invalid"`
-	OutboundRateLimitBurst           int                  `ini:"ap_outbound_rate_limit_burst" comment:"(default: 50) Global outbound burst tolerance for delivery of federated messages; a negative value or value of zero is invalid"`
-	HttpSignaturesConfig             HttpSignaturesConfig `ini:"ap_http_signatures" comment:"HTTP Signatures configuration"`
-	MaxInboxForwardingRecursionDepth int                  `ini:"ap_max_inbox_forwarding_recursion_depth" comment:"(default: 50) The maximum recursion depth to use when determining whether to do inbox forwarding, which if triggered ensures older thread participants are able to receive messages; zero means no limit (only used if the application has S2S enabled)"`
-	MaxDeliveryRecursionDepth        int                  `ini:"ap_max_delivery_recursion_depth" comment:"(default: 50) The maximum depth to search for peers to deliver due to inbox forwarding, which ensures messages received by this server are propagated to them and no \"ghost reply\" problems occur; zero means no limit (only used if the application has S2S enabled)"`
+	ClockTimezone                       string               `ini:"ap_clock_timezone" comment:"(default: UTC) Timezone for ActivityPub related operations: unset and \"UTC\" are UTC, \"Local\" is local server time, otherwise use IANA Time Zone database values"`
+	OutboundRateLimitQPS                float64              `ini:"ap_outbound_rate_limit_qps" comment:"(default: 2) Per-host outbound rate limit for delivery of federated messages under steady state conditions; a negative value or value of zero is invalid"`
+	OutboundRateLimitBurst              int                  `ini:"ap_outbound_rate_limit_burst" comment:"(default: 5) Per-host outbound burst tolerance for delivery of federated messages; a negative value or value of zero is invalid"`
+	OutboundRateLimitPrunePeriodSeconds int                  `ini:"ap_outbound_rate_limit_prune_period_seconds" comment:"(default: 60) The time period to await before periodically removing cached per-host rate-limiters that are no longer in use, controlling how frequently pruning occurs"`
+	OutboundRateLimitPruneAgeSeconds    int                  `ini:"ap_outbound_rate_limit_prune_age_seconds" comment:"(default: 30) The age of an unused per-host rate-limiter must be to be pruned and removed from the cache when the pruning occurs, controlling how long cached rate-limiters are kept when unused"`
+	HttpSignaturesConfig                HttpSignaturesConfig `ini:"ap_http_signatures" comment:"HTTP Signatures configuration"`
+	MaxInboxForwardingRecursionDepth    int                  `ini:"ap_max_inbox_forwarding_recursion_depth" comment:"(default: 50) The maximum recursion depth to use when determining whether to do inbox forwarding, which if triggered ensures older thread participants are able to receive messages; zero means no limit (only used if the application has S2S enabled)"`
+	MaxDeliveryRecursionDepth           int                  `ini:"ap_max_delivery_recursion_depth" comment:"(default: 50) The maximum depth to search for peers to deliver due to inbox forwarding, which ensures messages received by this server are propagated to them and no \"ghost reply\" problems occur; zero means no limit (only used if the application has S2S enabled)"`
 }
 
 // Configuration for HTTP Signatures.

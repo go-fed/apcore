@@ -145,7 +145,7 @@ func newServer(configFileName string, appl app.Application, debug bool, scheme s
 	}
 
 	// Build web server to control server behavior
-	s, err = framework.NewServer(c, h, scheme, appl, sqldb, dialect, models)
+	s, err = framework.NewServer(c, h, scheme, appl, sqldb, dialect, models, tc)
 	return
 }
 

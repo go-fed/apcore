@@ -26,6 +26,7 @@ import (
 
 	"github.com/go-fed/apcore/app"
 	"github.com/go-fed/apcore/framework/config"
+	"github.com/go-fed/apcore/framework/conn"
 	"github.com/go-fed/apcore/framework/db"
 	"github.com/go-fed/apcore/models"
 	"github.com/go-fed/apcore/util"
@@ -38,12 +39,13 @@ type Server struct {
 	sqldb       *sql.DB
 	d           models.SqlDialect
 	models      []models.Model
+	tc          *conn.Controller
 	httpServer  *http.Server
 	httpsServer *http.Server
 	debug       bool // TODO: http only, no https
 }
 
-func NewServer(c *config.Config, h http.Handler, scheme string, a app.Application, sqldb *sql.DB, d models.SqlDialect, models []models.Model) (s *Server, err error) {
+func NewServer(c *config.Config, h http.Handler, scheme string, a app.Application, sqldb *sql.DB, d models.SqlDialect, models []models.Model, tc *conn.Controller) (s *Server, err error) {
 	// TODO: Move to config validator
 	const minKeySize = 1024
 	// Enforce server level configuration
@@ -72,6 +74,7 @@ func NewServer(c *config.Config, h http.Handler, scheme string, a app.Applicatio
 		a:           a,
 		sqldb:       sqldb,
 		d:           d,
+		tc:          tc,
 		httpServer:  httpServer,
 		httpsServer: httpsServer,
 	}
@@ -122,6 +125,8 @@ func (s *Server) Start() error {
 			return err
 		}
 	}
+	util.InfoLogger.Infof("Starting conn.Controller")
+	s.tc.Start()
 	util.InfoLogger.Infof("Starting application")
 	err = s.a.Start()
 	if err != nil {
@@ -160,6 +165,8 @@ func (s *Server) onStop() {
 	if err := s.a.Stop(); err != nil {
 		util.ErrorLogger.Errorf("Error shutting down application: %s", err)
 	}
+	util.InfoLogger.Infof("Stopping conn.Controller")
+	s.tc.Stop()
 	util.InfoLogger.Infof("Closing models")
 	for _, m := range s.models {
 		m.Close()

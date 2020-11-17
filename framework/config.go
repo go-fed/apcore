@@ -83,8 +83,8 @@ func defaultDatabaseConfig(dbkind string) (d config.DatabaseConfig, err error) {
 func defaultActivityPubConfig() config.ActivityPubConfig {
 	return config.ActivityPubConfig{
 		ClockTimezone:                    "UTC",
-		OutboundRateLimitQPS:             10,
-		OutboundRateLimitBurst:           50,
+		OutboundRateLimitQPS:             2,
+		OutboundRateLimitBurst:           5,
 		HttpSignaturesConfig:             defaultHttpSignaturesConfig(),
 		MaxInboxForwardingRecursionDepth: 50,
 		MaxDeliveryRecursionDepth:        50,
