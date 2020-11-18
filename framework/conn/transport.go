@@ -66,7 +66,7 @@ type Controller struct {
 	digestAlg   httpsig.DigestAlgorithm
 	getHeaders  []string
 	postHeaders []string
-	hl          *hostLimiter // TODO: Use this
+	hl          *hostLimiter
 	da          *services.DeliveryAttempts
 }
 
