@@ -696,20 +696,57 @@ func (p *pgV0) CreateDeliveryAttemptsTable() string {
   from_id uuid REFERENCES ` + p.schema + `users (id) ON DELETE CASCADE NOT NULL,
   deliver_to text NOT NULL,
   payload bytea NOT NULL,
-  state text NOT NULL
+  state text NOT NULL,
+  n_attempts bigint NOT NULL,
+  last_attempt timestamp with time zone DEFAULT current_timestamp
 );`
 }
 
 func (p *pgV0) InsertAttempt() string {
-	return `INSERT INTO ` + p.schema + `delivery_attempts (from_id, deliver_to, payload, state) VALUES ($1, $2, $3, $4) RETURNING id`
+	return `INSERT INTO ` + p.schema + `delivery_attempts (from_id, deliver_to, payload, state, n_attempts) VALUES ($1, $2, $3, $4, 0) RETURNING id`
 }
 
 func (p *pgV0) MarkSuccessfulAttempt() string {
-	return `UPDATE ` + p.schema + `delivery_attempts SET state = $2 WHERE id = $1`
+	return `UPDATE ` + p.schema + `delivery_attempts
+SET
+  state = $2,
+  n_attempts = n_attempts + 1,
+  last_attempt = current_timestamp
+WHERE id = $1`
 }
 
 func (p *pgV0) MarkFailedAttempt() string {
-	return `UPDATE ` + p.schema + `delivery_attempts SET state = $2 WHERE id = $1`
+	return `UPDATE ` + p.schema + `delivery_attempts
+SET
+  state = $2,
+  n_attempts = n_attempts + 1,
+  last_attempt = current_timestamp
+WHERE id = $1`
+}
+
+func (p *pgV0) MarkAbandonedAttempt() string {
+	return `UPDATE ` + p.schema + `delivery_attempts
+SET
+  state = $2,
+  n_attempts = n_attempts + 1,
+  last_attempt = current_timestamp
+WHERE id = $1`
+}
+
+func (p *pgV0) FirstPageRetryableFailures() string {
+	return `SELECT id, from_id, deliver_to, payload, n_attempts, last_attempt
+FROM ` + p.schema + `delivery_attempts
+WHERE state = $1 AND create_time < $2
+ORDER BY id DESC
+LIMIT $3`
+}
+
+func (p *pgV0) NextPageRetryableFailures() string {
+	return `SELECT id, from_id, deliver_to, payload, n_attempts, last_attempt
+FROM ` + p.schema + `delivery_attempts
+WHERE state = $1 AND create_time < $2 AND id < $4
+ORDER BY id DESC
+LIMIT $3`
 }
 
 func (p *pgV0) CreatePrivateKeysTable() string {

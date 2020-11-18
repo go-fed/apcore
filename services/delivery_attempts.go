@@ -19,6 +19,7 @@ package services
 import (
 	"database/sql"
 	"net/url"
+	"time"
 
 	"github.com/go-fed/apcore/models"
 	"github.com/go-fed/apcore/util"
@@ -46,4 +47,67 @@ func (d *DeliveryAttempts) MarkRetryFailureAttempt(c util.Context, id string) (e
 	return doInTx(c, d.DB, func(tx *sql.Tx) error {
 		return d.DeliveryAttempts.MarkFailed(c, tx, id)
 	})
+}
+
+func (d *DeliveryAttempts) MarkAbandonedAttempt(c util.Context, id string) (err error) {
+	return doInTx(c, d.DB, func(tx *sql.Tx) error {
+		return d.DeliveryAttempts.MarkAbandoned(c, tx, id)
+	})
+}
+
+type RetryableFailure struct {
+	ID          string
+	UserID      string
+	FetchTime   time.Time
+	DeliverTo   *url.URL
+	Payload     []byte
+	NAttempts   int
+	LastAttempt time.Time
+}
+
+func (d *DeliveryAttempts) FirstPageRetryableFailures(c util.Context, n int) (rf []RetryableFailure, err error) {
+	now := time.Now()
+	err = doInTx(c, d.DB, func(tx *sql.Tx) error {
+		f, err := d.DeliveryAttempts.FirstPageFailures(c, tx, now, n)
+		if err != nil {
+			return err
+		}
+		for _, a := range f {
+			r := RetryableFailure{
+				ID:          a.ID,
+				UserID:      a.UserID,
+				FetchTime:   now,
+				DeliverTo:   a.DeliverTo.URL,
+				Payload:     a.Payload,
+				NAttempts:   a.NAttempts,
+				LastAttempt: a.LastAttempt,
+			}
+			rf = append(rf, r)
+		}
+		return nil
+	})
+	return
+}
+
+func (d *DeliveryAttempts) NextPageRetryableFailures(c util.Context, prevID string, fetch time.Time, n int) (rf []RetryableFailure, err error) {
+	err = doInTx(c, d.DB, func(tx *sql.Tx) error {
+		f, err := d.DeliveryAttempts.NextPageFailures(c, tx, prevID, fetch, n)
+		if err != nil {
+			return err
+		}
+		for _, a := range f {
+			r := RetryableFailure{
+				ID:          a.ID,
+				UserID:      a.UserID,
+				FetchTime:   fetch,
+				DeliverTo:   a.DeliverTo.URL,
+				Payload:     a.Payload,
+				NAttempts:   a.NAttempts,
+				LastAttempt: a.LastAttempt,
+			}
+			rf = append(rf, r)
+		}
+		return nil
+	})
+	return
 }

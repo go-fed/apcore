@@ -88,6 +88,9 @@ func defaultActivityPubConfig() config.ActivityPubConfig {
 		HttpSignaturesConfig:             defaultHttpSignaturesConfig(),
 		MaxInboxForwardingRecursionDepth: 50,
 		MaxDeliveryRecursionDepth:        50,
+		RetryPageSize:                    25,
+		RetryAbandonLimit:                10,
+		RetrySleepPeriod:                 300,
 	}
 }
 

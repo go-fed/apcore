@@ -69,6 +69,9 @@ type ActivityPubConfig struct {
 	HttpSignaturesConfig                HttpSignaturesConfig `ini:"ap_http_signatures" comment:"HTTP Signatures configuration"`
 	MaxInboxForwardingRecursionDepth    int                  `ini:"ap_max_inbox_forwarding_recursion_depth" comment:"(default: 50) The maximum recursion depth to use when determining whether to do inbox forwarding, which if triggered ensures older thread participants are able to receive messages; zero means no limit (only used if the application has S2S enabled)"`
 	MaxDeliveryRecursionDepth           int                  `ini:"ap_max_delivery_recursion_depth" comment:"(default: 50) The maximum depth to search for peers to deliver due to inbox forwarding, which ensures messages received by this server are propagated to them and no \"ghost reply\" problems occur; zero means no limit (only used if the application has S2S enabled)"`
+	RetryPageSize                       int                  `ini:"ap_retry_page_size" comment:"(default: 25) The number of retryable deliveries to request from the database at a time."`
+	RetryAbandonLimit                   int                  `ini:"ap_retry_abandon_limit" comment:"(default: 10) The maximum number of times the app will attempt to deliver an Activity to a federated peer and fail before permanently giving up and abandoning any further attempts to deliver it."`
+	RetrySleepPeriod                    int                  `ini:"ap_retry_sleep_period_seconds" comment:"(default: 300) The time period to await between making periodic attempts to re-deliver Activities to federated peers that have never been successfully delivered; a 300-second retry sleep period with an abandon limit of 10 results in an exponential backoff of 10 delivery attempts across roughly 3 days."`
 }
 
 // Configuration for HTTP Signatures.

@@ -19,15 +19,17 @@ package models
 import (
 	"database/sql"
 	"net/url"
+	"time"
 
 	"github.com/go-fed/apcore/util"
 )
 
 // These constants are used to mark the simple state of the delivery attempt.
 const (
-	newDeliveryAttempt     = "new"
-	successDeliveryAttempt = "success"
-	failedDeliveryAttempt  = "failed"
+	newDeliveryAttempt       = "new"
+	successDeliveryAttempt   = "success"
+	failedDeliveryAttempt    = "failed"
+	abandonedDeliveryAttempt = "abandoned"
 )
 
 var _ Model = &DeliveryAttempts{}
@@ -38,6 +40,9 @@ type DeliveryAttempts struct {
 	insertDeliveryAttempt         *sql.Stmt
 	markDeliveryAttemptSuccessful *sql.Stmt
 	markDeliveryAttemptFailed     *sql.Stmt
+	markDeliveryAttemptAbandoned  *sql.Stmt
+	firstRetryablePage            *sql.Stmt
+	nextRetryablePage             *sql.Stmt
 }
 
 func (d *DeliveryAttempts) Prepare(db *sql.DB, s SqlDialect) error {
@@ -46,6 +51,9 @@ func (d *DeliveryAttempts) Prepare(db *sql.DB, s SqlDialect) error {
 			{&(d.insertDeliveryAttempt), s.InsertAttempt()},
 			{&(d.markDeliveryAttemptSuccessful), s.MarkSuccessfulAttempt()},
 			{&(d.markDeliveryAttemptFailed), s.MarkFailedAttempt()},
+			{&(d.markDeliveryAttemptAbandoned), s.MarkAbandonedAttempt()},
+			{&(d.firstRetryablePage), s.FirstPageRetryableFailures()},
+			{&(d.nextRetryablePage), s.NextPageRetryableFailures()},
 		})
 }
 
@@ -91,4 +99,57 @@ func (d *DeliveryAttempts) MarkFailed(c util.Context, tx *sql.Tx, id string) err
 		id,
 		failedDeliveryAttempt)
 	return mustChangeOneRow(r, err, "DeliveryAttempts.MarkFailed")
+}
+
+// MarkAbandoned marks a delivery attempt as abandoned.
+func (d *DeliveryAttempts) MarkAbandoned(c util.Context, tx *sql.Tx, id string) error {
+	r, err := tx.Stmt(d.markDeliveryAttemptAbandoned).ExecContext(c,
+		id,
+		abandonedDeliveryAttempt)
+	return mustChangeOneRow(r, err, "DeliveryAttempts.Abandoned")
+}
+
+type RetryableFailure struct {
+	ID          string
+	UserID      string
+	DeliverTo   URL
+	Payload     []byte
+	NAttempts   int
+	LastAttempt time.Time
+}
+
+// FirstPageFailures obtains the first page of retryable failures.
+func (d *DeliveryAttempts) FirstPageFailures(c util.Context, tx *sql.Tx, fetchTime time.Time, n int) (rf []RetryableFailure, err error) {
+	var rows *sql.Rows
+	rows, err = tx.Stmt(d.firstRetryablePage).QueryContext(c, failedDeliveryAttempt, fetchTime, n)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	return rf, doForRows(rows, "DeliveryAttempts.FirstPageFailures", func(r singleRow) error {
+		var rt RetryableFailure
+		if err := r.Scan(&(rt.ID), &(rt.UserID), &(rt.DeliverTo), &(rt.Payload), &(rt.NAttempts), &(rt.LastAttempt)); err != nil {
+			return err
+		}
+		rf = append(rf, rt)
+		return nil
+	})
+}
+
+// NextPageFailures obtains the next page of retryable failures.
+func (d *DeliveryAttempts) NextPageFailures(c util.Context, tx *sql.Tx, prevID string, fetchTime time.Time, n int) (rf []RetryableFailure, err error) {
+	var rows *sql.Rows
+	rows, err = tx.Stmt(d.nextRetryablePage).QueryContext(c, failedDeliveryAttempt, fetchTime, n, prevID)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	return rf, doForRows(rows, "DeliveryAttempts.NextPageFailures", func(r singleRow) error {
+		var rt RetryableFailure
+		if err := r.Scan(&(rt.ID), &(rt.UserID), &(rt.DeliverTo), &(rt.Payload), &(rt.NAttempts), &(rt.LastAttempt)); err != nil {
+			return err
+		}
+		rf = append(rf, rt)
+		return nil
+	})
 }

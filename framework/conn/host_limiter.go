@@ -90,12 +90,13 @@ func (h *hostLimiter) resetMap() {
 }
 
 func (h *hostLimiter) stopPrune() {
-	h.pMu.Lock()
-	defer h.pMu.Unlock()
+	h.pMu.Lock() // WARNING: NO DEFER UNLOCK
 	if h.pruneCancel == nil {
+		h.pMu.Unlock()
 		return
 	}
 	h.pruneCancel()
+	h.pMu.Unlock()
 	h.wg.Wait()
 }
 

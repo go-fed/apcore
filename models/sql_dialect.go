@@ -340,6 +340,38 @@ type SqlDialect interface {
 	//   ID          string
 	//  Returns
 	MarkFailedAttempt() string
+	// MarkAbandonedAttempt:
+	//  Params
+	//   ID          string
+	//  Returns
+	MarkAbandonedAttempt() string
+	// FirstPageRetryableFailures:
+	//  Params
+	//   State       string
+	//   FetchTime   time.Time
+	//   Limit       int
+	//  Returns
+	//   ID          string
+	//   FromID      string
+	//   DeliverTo   string
+	//   Payload     []byte
+	//   NAttempts   int
+	//   LastAttempt time.Time
+	FirstPageRetryableFailures() string
+	// NextPageRetryableFailures:
+	//  Params
+	//   State       string
+	//   FetchTime   time.Time
+	//   Limit       int
+	//   PrevID      string
+	//  Returns
+	//   ID          string
+	//   FromID      string
+	//   DeliverTo   string
+	//   Payload     []byte
+	//   NAttempts   int
+	//   LastAttempt time.Time
+	NextPageRetryableFailures() string
 
 	// CreatePrivateKey:
 	//  Params

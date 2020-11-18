@@ -56,8 +56,6 @@ func containsRequiredHttpHeaders(method string, headers []string) error {
 	return nil
 }
 
-// TODO: re-launch existing failed deliveries at startup and control rate-limiting.
-
 type Controller struct {
 	a           app.Application
 	clock       pub.Clock
@@ -67,6 +65,7 @@ type Controller struct {
 	getHeaders  []string
 	postHeaders []string
 	hl          *hostLimiter
+	rt          *retrier
 	da          *services.DeliveryAttempts
 }
 
@@ -75,7 +74,8 @@ func NewController(
 	a app.Application,
 	clock pub.Clock,
 	client *http.Client,
-	da *services.DeliveryAttempts) (tc *Controller, err error) {
+	da *services.DeliveryAttempts,
+	pk *services.PrivateKeys) (tc *Controller, err error) {
 	if c.ActivityPubConfig.OutboundRateLimitQPS <= 0 {
 		err = fmt.Errorf("outbound rate limit qps is <= 0")
 		return
@@ -102,7 +102,7 @@ func NewController(
 		algos[i] = httpsig.Algorithm(algo)
 	}
 
-	return &Controller{
+	ct := &Controller{
 		a:           a,
 		clock:       clock,
 		client:      client,
@@ -112,14 +112,18 @@ func NewController(
 		postHeaders: c.ActivityPubConfig.HttpSignaturesConfig.PostHeaders,
 		hl:          newHostLimiter(c),
 		da:          da,
-	}, err
+	}
+	ct.rt = newRetrier(da, pk, ct, c)
+	return ct, err
 }
 
 func (tc *Controller) Start() {
 	tc.hl.Start()
+	tc.rt.Start()
 }
 
 func (tc *Controller) Stop() {
+	tc.rt.Stop()
 	tc.hl.Stop()
 }
 

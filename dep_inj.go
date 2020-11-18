@@ -80,7 +80,7 @@ func newServer(configFileName string, appl app.Application, debug bool, scheme s
 	apdb := ap.NewAPDB(db, appl)
 
 	// Create a controller for outbound messaging.
-	tc, err := conn.NewController(c, appl, clock, httpClient, dAttempts)
+	tc, err := conn.NewController(c, appl, clock, httpClient, dAttempts, pkeys)
 
 	// Hook up ActivityPub Actor behavior for users.
 	actor, err := ap.NewActor(c,
