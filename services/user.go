@@ -19,6 +19,7 @@ package services
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/url"
 
 	"github.com/go-fed/activity/pub"
@@ -104,7 +105,6 @@ func (u *Users) CreateAdminUser(c util.Context, params CreateUserParameters, pas
 		prefs)
 }
 
-// TODO: Also require unique preferredUsername for webfinger functionality.
 func (u *Users) createUser(c util.Context, params CreateUserParameters, password string, roles models.Privileges, prefs models.Preferences) (userID string, err error) {
 	// Prepare Salt & Hashed Password
 	var salt, hashpass []byte
@@ -165,6 +165,11 @@ func (u *Users) createUser(c util.Context, params CreateUserParameters, password
 		if err != nil {
 			return err
 		}
+		// Enforce that the preferredUsername is unique
+		err = u.checkPreferredUsernameUnique(c, tx, actor)
+		if err != nil {
+			return err
+		}
 		// Update the created user with the filled-in actor
 		err = u.Users.UpdateActor(c, tx, userID, models.ActivityStreamsPerson{actor})
 		if err != nil {
@@ -196,6 +201,24 @@ func (u *Users) createUser(c util.Context, params CreateUserParameters, password
 	})
 }
 
+type preferredUsernamer interface {
+	GetActivityStreamsPreferredUsername() vocab.ActivityStreamsPreferredUsernameProperty
+}
+
+func (u *Users) checkPreferredUsernameUnique(c util.Context, tx *sql.Tx, actor preferredUsernamer) error {
+	pu := actor.GetActivityStreamsPreferredUsername()
+	if pu == nil || !pu.HasAny() || len(pu.GetXMLSchemaString()) == 0 {
+		return errors.New("user is missing preferredUsername")
+	}
+	user, err := u.Users.UserByPreferredUsername(c, tx, pu.GetXMLSchemaString())
+	if err != nil {
+		return err
+	} else if user != nil {
+		return errors.New("user does not have a unique preferredUsername")
+	}
+	return nil
+}
+
 func (u *Users) ActorIDForOutbox(c util.Context, outboxIRI *url.URL) (actorIRI *url.URL, err error) {
 	return actorIRI, doInTx(c, u.DB, func(tx *sql.Tx) error {
 		var a models.URL
@@ -219,8 +242,6 @@ func (u *Users) ActorIDForInbox(c util.Context, inboxIRI *url.URL) (actorIRI *ur
 		return nil
 	})
 }
-
-// TODO: If permitting updates to the actor, enforce preferredUsername uniqueness.
 
 func (u *Users) UserByUsername(c util.Context, name string) (s *User, err error) {
 	return s, doInTx(c, u.DB, func(tx *sql.Tx) error {

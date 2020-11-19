@@ -1650,6 +1650,8 @@ func runUserModelCalls(ctx util.Context, db *sql.DB) error {
 	} else {
 		fmt.Printf("> JSON:\n%s\n", pb)
 	}
+	u, err = runUserModelUserByPreferredUsernameNone(ctx, db)
+	fmt.Printf("> UserByPreferredUsername( N/A ): %v %v\n", u, err)
 	u, err = runUserModelUserByPreferredUsername(ctx, db)
 	if err != nil {
 		return err
@@ -1721,6 +1723,19 @@ func runUserModelUserByPreferredUsername(ctx util.Context, db *sql.DB) (s *model
 	}
 	defer tx.Rollback()
 	if s, err = users.UserByPreferredUsername(ctx, tx, testActor1PreferredUsername); err != nil {
+		return
+	}
+	return s, tx.Commit()
+}
+
+func runUserModelUserByPreferredUsernameNone(ctx util.Context, db *sql.DB) (s *models.User, err error) {
+	var tx *sql.Tx
+	tx, err = db.BeginTx(ctx, nil)
+	if err != nil {
+		return
+	}
+	defer tx.Rollback()
+	if s, err = users.UserByPreferredUsername(ctx, tx, "gibberish"); err != nil {
 		return
 	}
 	return s, tx.Commit()
