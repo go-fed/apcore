@@ -46,14 +46,6 @@ type Server struct {
 }
 
 func NewServer(c *config.Config, h http.Handler, scheme string, a app.Application, sqldb *sql.DB, d models.SqlDialect, models []models.Model, tc *conn.Controller) (s *Server, err error) {
-	// TODO: Move to config validator
-	const minKeySize = 1024
-	// Enforce server level configuration
-	if c.ServerConfig.RSAKeySize < minKeySize {
-		err = fmt.Errorf("RSA private key size is configured to be < %d, which is forbidden: %d", minKeySize, c.ServerConfig.RSAKeySize)
-		return
-	}
-
 	// Prepare HTTPS server. No option to run the server as HTTP in prod,
 	// because we're living in the future.
 	httpsServer := &http.Server{
