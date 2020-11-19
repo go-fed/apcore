@@ -59,6 +59,7 @@ const (
 	testActor2IRI               = "https://example.com/actors/test2"
 	testActor3IRI               = "https://example.com/actors/test3"
 	testPeerActor1InboxIRI      = "https://fed.example.com/actors/test1/inbox"
+	testPeerActor2InboxIRI      = "https://fed.example.com/actors/test2/inbox"
 	testActor1InboxIRI          = "https://example.com/actors/test1/inbox"
 	testActor2InboxIRI          = "https://example.com/actors/test2/inbox"
 	testActor3InboxIRI          = "https://example.com/actors/test3/inbox"

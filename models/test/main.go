@@ -978,6 +978,28 @@ func runDeliveryAttemptsCalls(ctx util.Context, db *sql.DB) error {
 	if err := runDeliveryAttemptsMarkFailed(ctx, db); err != nil {
 		return err
 	}
+	if err := runDeliveryAttemptsMarkAbandoned(ctx, db); err != nil {
+		return err
+	}
+	rf, ft, err := runDeliveryAttemptsFirstPage(ctx, db)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("> FirstPage: len=%d\n", len(rf))
+	for i, r := range rf {
+		fmt.Printf("> [%d]=%v\n", i, r)
+	}
+	for k := 0; k < 3; k++ {
+		last := rf[len(rf)-1]
+		rf, err = runDeliveryAttemptsNextPage(ctx, db, last.ID, ft)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("> NextPage[%d, %s]: len=%d\n", k, last.ID, len(rf))
+		for i, r := range rf {
+			fmt.Printf("> [%d]=%v\n", i, r)
+		}
+	}
 	return nil
 }
 
@@ -1024,6 +1046,80 @@ func runDeliveryAttemptsMarkFailed(ctx util.Context, db *sql.DB) error {
 	return doWithTx(ctx, db, func(tx *sql.Tx) error {
 		return deliveryAttempts.MarkFailed(ctx, tx, daID)
 	})
+}
+
+func runDeliveryAttemptsMarkAbandoned(ctx util.Context, db *sql.DB) error {
+	id, err := getUserID(ctx, db)
+	if err != nil {
+		return err
+	}
+	var daID string
+	if err = doWithTx(ctx, db, func(tx *sql.Tx) error {
+		daID, err = deliveryAttempts.Create(ctx, tx, id, mustParse(testPeerActor1InboxIRI), []byte("hello4"))
+		return err
+	}); err != nil {
+		return err
+	}
+	return doWithTx(ctx, db, func(tx *sql.Tx) error {
+		return deliveryAttempts.MarkAbandoned(ctx, tx, daID)
+	})
+}
+
+func runDeliveryAttemptsFirstPage(ctx util.Context, db *sql.DB) (rf []models.RetryableFailure, ft time.Time, err error) {
+	var id string
+	id, err = getUserID(ctx, db)
+	if err != nil {
+		return
+	}
+	if err = doWithTx(ctx, db, func(tx *sql.Tx) error {
+		// Make 24 additional failed, in addition to the existing one.
+		for i := 0; i < 24; i++ {
+			var daID string
+			daID, err = deliveryAttempts.Create(ctx, tx, id, mustParse(testPeerActor1InboxIRI), []byte("hello_fetch_me"))
+			if err != nil {
+				return err
+			}
+			err = deliveryAttempts.MarkFailed(ctx, tx, daID)
+			if err != nil {
+				return err
+			}
+		}
+		// Get the current "fetch" time
+		ft = time.Now()
+		return nil
+	}); err != nil {
+		return
+	}
+	if err = doWithTx(ctx, db, func(tx *sql.Tx) error {
+		// Make 10 more failed, which should be skipped
+		for i := 0; i < 10; i++ {
+			var daID string
+			daID, err = deliveryAttempts.Create(ctx, tx, id, mustParse(testPeerActor2InboxIRI), []byte("hello_no_fetch"))
+			if err != nil {
+				return err
+			}
+			err = deliveryAttempts.MarkFailed(ctx, tx, daID)
+			if err != nil {
+				return err
+			}
+		}
+		return err
+	}); err != nil {
+		return
+	}
+	err = doWithTx(ctx, db, func(tx *sql.Tx) error {
+		rf, err = deliveryAttempts.FirstPageFailures(ctx, tx, ft, 10)
+		return err
+	})
+	return
+}
+
+func runDeliveryAttemptsNextPage(ctx util.Context, db *sql.DB, prev string, ft time.Time) (rf []models.RetryableFailure, err error) {
+	err = doWithTx(ctx, db, func(tx *sql.Tx) error {
+		rf, err = deliveryAttempts.NextPageFailures(ctx, tx, prev, ft, 10)
+		return err
+	})
+	return
 }
 
 /* Outboxes */
