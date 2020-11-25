@@ -37,7 +37,7 @@ func Run(a app.Application) {
 	}
 
 	// Check and prepare debug mode
-	if *debugFlag {
+	if *devFlag {
 		util.InfoLogger.Info("Debug mode enabled")
 		if len(*infoLogFileFlag) > 0 {
 			util.InfoLogger.Warning("info_log_file flag ignored in debug mode")

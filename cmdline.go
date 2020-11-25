@@ -32,7 +32,7 @@ import (
 
 var (
 	// Flags for apcore
-	debugFlag        = flag.Bool("debug", false, "Enable the development server on localhost & other developer quality of life features")
+	devFlag          = flag.Bool("dev", false, "Enable the development server on localhost & other developer quality of life features")
 	systemLogFlag    = flag.Bool("syslog", false, "Also logs to system (stdout and stderr) if logging to a file")
 	infoLogFileFlag  = flag.String("info_log_file", "", "Log file for info, defaults to stdout")
 	errorLogFileFlag = flag.String("error_log_file", "", "Log file for errors, defaults to stderr")
@@ -60,7 +60,7 @@ func init() {
 			flag.CommandLine.Output(),
 			"This executable supports different actions to facilitate easier administration,\n"+
 				"and flags to modify behavior at run-time. Each action will log its behavior, by\n"+
-				"default stderr and stdout. However, non-debug commands can specify writing logs\n"+
+				"default stderr and stdout. However, non-dev commands can specify writing logs\n"+
 				"to file for auditing and record keeping purposes.\n")
 		fmt.Fprintf(
 			flag.CommandLine.Output(),
@@ -150,6 +150,11 @@ func init() {
 		version,
 		help,
 	}
+	if *devFlag {
+		fmt.Println(framework.ClarkeSays(`
+WEE WOO MOO! WEE WOO MOO! WARNING!
+Development mode enabled. DO NOT USE IN PRODUCTION.`))
+	}
 }
 
 func allActionsUsage() string {
@@ -163,7 +168,7 @@ func allActionsUsage() string {
 
 // The 'serve' command line action.
 func serveFn(a app.Application) error {
-	s, err := newServer(*configFlag, a, *debugFlag)
+	s, err := newServer(*configFlag, a, *devFlag)
 	if err != nil {
 		return err
 	}
@@ -218,7 +223,7 @@ func initDbFn(a app.Application) error {
 	fmt.Println(framework.ClarkeSays(`
 We're connecting to the database using the specs in the config file, creating
 tables, and then closing all connections.`))
-	err := doCreateTables(*configFlag, a, *debugFlag, schemeFromFlags())
+	err := doCreateTables(*configFlag, a, *devFlag, schemeFromFlags())
 	if err != nil {
 		return err
 	}
@@ -229,11 +234,11 @@ tables, and then closing all connections.`))
 // The 'init-admin' command line action.
 func initAdminFn(a app.Application) error {
 	msg := `Moo~, let's create an administrative account!`
-	if *debugFlag {
-		msg += "\nWARNING: Creating a user in debug mode will NOT work in production and MUST ONLY be used for development"
+	if *devFlag {
+		msg += "\nWARNING: Creating a user in dev mode will NOT work in production and MUST ONLY be used for development"
 	}
 	fmt.Println(framework.ClarkeSays(msg))
-	err := doInitAdmin(*configFlag, a, *debugFlag, schemeFromFlags())
+	err := doInitAdmin(*configFlag, a, *devFlag, schemeFromFlags())
 	if err != nil {
 		return err
 	}
@@ -296,7 +301,7 @@ func helpFn(a app.Application) error {
 }
 
 func schemeFromFlags() string {
-	if *debugFlag {
+	if *devFlag {
 		return "http"
 	}
 	return "https"
