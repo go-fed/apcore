@@ -18,7 +18,6 @@ package apcore
 
 import (
 	"database/sql"
-	"net/http"
 
 	"github.com/go-fed/activity/pub"
 	"github.com/go-fed/apcore/ap"
@@ -61,8 +60,7 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 	oauth, err := oauth2.NewServer(c, appl, oauthSrv, cryp, sess)
 
 	// Create an HTTP client for this server.
-	// TODO: Reexamine this.
-	httpClient := &http.Client{}
+	httpClient := framework.NewHTTPClient(c)
 
 	// ** Initialize the ActivityPub behavior **
 
