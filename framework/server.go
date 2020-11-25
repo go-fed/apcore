@@ -45,11 +45,33 @@ type Server struct {
 	debug       bool // TODO: http only, no https
 }
 
-func NewServer(c *config.Config, h http.Handler, scheme string, a app.Application, sqldb *sql.DB, d models.SqlDialect, models []models.Model, tc *conn.Controller) (s *Server, err error) {
+func NewInsecureServer(c *config.Config, h http.Handler, a app.Application, sqldb *sql.DB, d models.SqlDialect, models []models.Model, tc *conn.Controller) (s *Server, err error) {
+	httpServer := &http.Server{
+		Addr:         ":http",
+		Handler:      h,
+		ReadTimeout:  time.Duration(c.ServerConfig.HttpsReadTimeoutSeconds) * time.Second,
+		WriteTimeout: time.Duration(c.ServerConfig.HttpsWriteTimeoutSeconds) * time.Second,
+	}
+
+	// Create the apcore server
+	s = &Server{
+		a:          a,
+		sqldb:      sqldb,
+		d:          d,
+		tc:         tc,
+		httpServer: httpServer,
+	}
+
+	// Post-creation hooks
+	httpServer.RegisterOnShutdown(s.onStopHTTP)
+	return
+}
+
+func NewHTTPSServer(c *config.Config, h http.Handler, a app.Application, sqldb *sql.DB, d models.SqlDialect, models []models.Model, tc *conn.Controller) (s *Server, err error) {
 	// Prepare HTTPS server. No option to run the server as HTTP in prod,
 	// because we're living in the future.
 	httpsServer := &http.Server{
-		Addr:         ":" + scheme,
+		Addr:         ":https",
 		Handler:      h,
 		ReadTimeout:  time.Duration(c.ServerConfig.HttpsReadTimeoutSeconds) * time.Second,
 		WriteTimeout: time.Duration(c.ServerConfig.HttpsWriteTimeoutSeconds) * time.Second,
@@ -72,7 +94,7 @@ func NewServer(c *config.Config, h http.Handler, scheme string, a app.Applicatio
 	}
 
 	// Post-creation hooks
-	httpsServer.RegisterOnShutdown(s.onStop)
+	httpsServer.RegisterOnShutdown(s.onStopHTTPS)
 	return
 }
 
@@ -124,6 +146,14 @@ func (s *Server) Start() error {
 	if err != nil {
 		return err
 	}
+	if s.httpsServer != nil {
+		return s.startHTTPS()
+	} else {
+		return s.startHTTP()
+	}
+}
+
+func (s *Server) startHTTPS() error {
 	go func() {
 		util.InfoLogger.Infof("Starting http redirection server")
 		err := s.httpServer.ListenAndServe()
@@ -134,7 +164,7 @@ func (s *Server) Start() error {
 		}
 	}()
 	util.InfoLogger.Infof("Launching https server")
-	err = s.httpsServer.ListenAndServeTLS(
+	err := s.httpsServer.ListenAndServeTLS(
 		s.certFile,
 		s.keyFile)
 	if err != http.ErrServerClosed {
@@ -145,14 +175,46 @@ func (s *Server) Start() error {
 	return nil
 }
 
+func (s *Server) startHTTP() error {
+	util.InfoLogger.Infof("Launching http server")
+	err := s.httpsServer.ListenAndServe()
+	if err != http.ErrServerClosed {
+		util.ErrorLogger.Errorf("Error shutting down http server: %s", err)
+	} else {
+		util.InfoLogger.Infof("HTTP server shutdown")
+	}
+	return nil
+}
+
 func (s *Server) Stop() {
+	if s.httpsServer != nil {
+		s.stopHTTPS()
+	} else {
+		s.stopHTTP()
+	}
+}
+
+func (s *Server) stopHTTPS() {
 	util.InfoLogger.Infof("Shutdown HTTPS server")
 	s.httpsServer.Shutdown(context.Background())
 }
 
-func (s *Server) onStop() {
+func (s *Server) stopHTTP() {
 	util.InfoLogger.Infof("Shutdown HTTP server")
 	s.httpServer.Shutdown(context.Background())
+}
+
+func (s *Server) onStopHTTPS() {
+	util.InfoLogger.Infof("Shutdown HTTP server")
+	s.httpServer.Shutdown(context.Background())
+	s.onStop()
+}
+
+func (s *Server) onStopHTTP() {
+	s.onStop()
+}
+
+func (s *Server) onStop() {
 	util.InfoLogger.Infof("Stop application")
 	if err := s.a.Stop(); err != nil {
 		util.ErrorLogger.Errorf("Error shutting down application: %s", err)

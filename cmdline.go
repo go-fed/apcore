@@ -163,7 +163,7 @@ func allActionsUsage() string {
 
 // The 'serve' command line action.
 func serveFn(a app.Application) error {
-	s, err := newServer(*configFlag, a, *debugFlag, schemeFromFlags())
+	s, err := newServer(*configFlag, a, *debugFlag)
 	if err != nil {
 		return err
 	}

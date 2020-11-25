@@ -34,12 +34,12 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func newServer(configFileName string, appl app.Application, debug bool, scheme string) (s *framework.Server, err error) {
+func newServer(configFileName string, appl app.Application, debug bool) (s *framework.Server, err error) {
 	// Load the configuration
 	c, err := framework.LoadConfigFile(configFileName, appl, debug)
 
 	host := c.ServerConfig.Host
-	// TODO: scheme = http for debug
+	scheme := schemeFromFlags()
 
 	// Create a server clock, a pub.Clock
 	clock, err := ap.NewClock(c.ActivityPubConfig.ClockTimezone)
@@ -145,7 +145,11 @@ func newServer(configFileName string, appl app.Application, debug bool, scheme s
 	}
 
 	// Build web server to control server behavior
-	s, err = framework.NewServer(c, h, scheme, appl, sqldb, dialect, models, tc)
+	if debug {
+		s, err = framework.NewInsecureServer(c, h, appl, sqldb, dialect, models, tc)
+	} else {
+		s, err = framework.NewHTTPSServer(c, h, appl, sqldb, dialect, models, tc)
+	}
 	return
 }
 
