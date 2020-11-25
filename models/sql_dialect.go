@@ -51,6 +51,28 @@ type SqlDialect interface {
 	// CreateResolutionsTable for the Resolutions model.
 	CreateResolutionsTable() string
 
+	/* Indexes */
+
+	// CreateIndexIDFedDataTable creates an index on the `id` of a federated
+	// data payload.
+	CreateIndexIDFedDataTable() string
+	// CreateIndexIDLocalDataTable creates an index on the `id` of a local
+	// data payload.
+	CreateIndexIDLocalDataTable() string
+	// CreateIndexIDInboxesTable creates an index on the `id` of an inbox.
+	CreateIndexIDInboxesTable() string
+	// CreateIndexIDOutboxesTable creates an index on the `id` of an outbox.
+	CreateIndexIDOutboxesTable() string
+	// CreateIndexIDFollowersTable creates an index on the `id` of a
+	// followers collection.
+	CreateIndexIDFollowersTable() string
+	// CreateIndexIDFollowingTable creates an index on the `id` of a
+	// following collection.
+	CreateIndexIDFollowingTable() string
+	// CreateIndexIDLikedTable creates an index on the `id` of a liked
+	// collection.
+	CreateIndexIDLikedTable() string
+
 	/* Queries */
 
 	// InsertUser:

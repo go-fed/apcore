@@ -117,6 +117,10 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `fed_data
 );`
 }
 
+func (p *pgV0) CreateIndexIDFedDataTable() string {
+	return `CREATE INDEX IF NOT EXISTS fed_data_id_index ON ` + p.schema + `fed_data USING GIN ((payload->'id'));`
+}
+
 func (p *pgV0) FedExists() string {
 	return `SELECT EXISTS (
   SELECT 1
@@ -152,6 +156,10 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `local_data
   create_time timestamp with time zone NOT NULL DEFAULT current_timestamp,
   payload jsonb NOT NULL
 );`
+}
+
+func (p *pgV0) CreateIndexIDLocalDataTable() string {
+	return `CREATE INDEX IF NOT EXISTS local_data_id_index ON ` + p.schema + `local_data USING GIN ((payload->'id'));`
 }
 
 func (p *pgV0) LocalExists() string {
@@ -191,6 +199,10 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `inboxes
 );`
 }
 
+func (p *pgV0) CreateIndexIDInboxesTable() string {
+	return `CREATE INDEX IF NOT EXISTS inboxes_id_index ON ` + p.schema + `inboxes USING GIN ((inbox->'id'));`
+}
+
 func (p *pgV0) CreateOutboxesTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `outboxes
@@ -199,6 +211,10 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `outboxes
   actor_id text NOT NULL,
   outbox jsonb NOT NULL
 );`
+}
+
+func (p *pgV0) CreateIndexIDOutboxesTable() string {
+	return `CREATE INDEX IF NOT EXISTS outboxes_id_index ON ` + p.schema + `outboxes USING GIN ((outbox->'id'));`
 }
 
 func (p *pgV0) InsertInbox() string {
@@ -919,6 +935,10 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + name + `
 )`
 }
 
+func (p *pgV0) createCollectionIDIndex(name string) string {
+	return `CREATE INDEX IF NOT EXISTS ` + name + `_id_index ON ` + p.schema + name + ` USING GIN ((` + name + `->'id'));`
+}
+
 func (p *pgV0) insertCollection(name string) string {
 	return `INSERT INTO ` + p.schema + name + ` (actor_id, ` + name + `) VALUES ($1, $2)`
 }
@@ -1044,6 +1064,10 @@ func (p *pgV0) CreateFollowersTable() string {
 	return p.createCollectionTable(v0Followers)
 }
 
+func (p *pgV0) CreateIndexIDFollowersTable() string {
+	return p.createCollectionIDIndex(v0Followers)
+}
+
 func (p *pgV0) InsertFollowers() string {
 	return p.insertCollection(v0Followers)
 }
@@ -1080,6 +1104,10 @@ func (p *pgV0) CreateFollowingTable() string {
 	return p.createCollectionTable(v0Following)
 }
 
+func (p *pgV0) CreateIndexIDFollowingTable() string {
+	return p.createCollectionIDIndex(v0Following)
+}
+
 func (p *pgV0) InsertFollowing() string {
 	return p.insertCollection(v0Following)
 }
@@ -1114,6 +1142,10 @@ func (p *pgV0) GetAllFollowingForActor() string {
 
 func (p *pgV0) CreateLikedTable() string {
 	return p.createCollectionTable(v0Liked)
+}
+
+func (p *pgV0) CreateIndexIDLikedTable() string {
+	return p.createCollectionIDIndex(v0Liked)
 }
 
 func (p *pgV0) InsertLiked() string {

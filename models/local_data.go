@@ -47,7 +47,10 @@ func (f *LocalData) Prepare(db *sql.DB, s SqlDialect) error {
 }
 
 func (f *LocalData) CreateTable(t *sql.Tx, s SqlDialect) error {
-	_, err := t.Exec(s.CreateLocalDataTable())
+	if _, err := t.Exec(s.CreateLocalDataTable()); err != nil {
+		return err
+	}
+	_, err := t.Exec(s.CreateIndexIDLocalDataTable())
 	return err
 }
 

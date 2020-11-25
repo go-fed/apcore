@@ -52,7 +52,10 @@ func (i *Liked) Prepare(db *sql.DB, s SqlDialect) error {
 }
 
 func (i *Liked) CreateTable(t *sql.Tx, s SqlDialect) error {
-	_, err := t.Exec(s.CreateLikedTable())
+	if _, err := t.Exec(s.CreateLikedTable()); err != nil {
+		return err
+	}
+	_, err := t.Exec(s.CreateIndexIDLikedTable())
 	return err
 }
 

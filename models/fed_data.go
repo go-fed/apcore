@@ -47,7 +47,10 @@ func (f *FedData) Prepare(db *sql.DB, s SqlDialect) error {
 }
 
 func (f *FedData) CreateTable(t *sql.Tx, s SqlDialect) error {
-	_, err := t.Exec(s.CreateFedDataTable())
+	if _, err := t.Exec(s.CreateFedDataTable()); err != nil {
+		return err
+	}
+	_, err := t.Exec(s.CreateIndexIDFedDataTable())
 	return err
 }
 

@@ -54,7 +54,10 @@ func (i *Inboxes) Prepare(db *sql.DB, s SqlDialect) error {
 }
 
 func (i *Inboxes) CreateTable(t *sql.Tx, s SqlDialect) error {
-	_, err := t.Exec(s.CreateInboxesTable())
+	if _, err := t.Exec(s.CreateInboxesTable()); err != nil {
+		return err
+	}
+	_, err := t.Exec(s.CreateIndexIDInboxesTable())
 	return err
 }
 

@@ -52,7 +52,10 @@ func (i *Following) Prepare(db *sql.DB, s SqlDialect) error {
 }
 
 func (i *Following) CreateTable(t *sql.Tx, s SqlDialect) error {
-	_, err := t.Exec(s.CreateFollowingTable())
+	if _, err := t.Exec(s.CreateFollowingTable()); err != nil {
+		return err
+	}
+	_, err := t.Exec(s.CreateIndexIDFollowingTable())
 	return err
 }
 

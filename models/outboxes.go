@@ -56,7 +56,10 @@ func (i *Outboxes) Prepare(db *sql.DB, s SqlDialect) error {
 }
 
 func (i *Outboxes) CreateTable(t *sql.Tx, s SqlDialect) error {
-	_, err := t.Exec(s.CreateOutboxesTable())
+	if _, err := t.Exec(s.CreateOutboxesTable()); err != nil {
+		return err
+	}
+	_, err := t.Exec(s.CreateIndexIDOutboxesTable())
 	return err
 }
 
