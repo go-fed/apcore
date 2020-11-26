@@ -28,6 +28,7 @@ import (
 	"github.com/go-fed/activity/pub"
 	"github.com/go-fed/apcore/app"
 	"github.com/go-fed/apcore/framework/config"
+	"github.com/go-fed/apcore/framework/nodeinfo"
 	"github.com/go-fed/apcore/framework/oauth2"
 	"github.com/go-fed/apcore/framework/web"
 	"github.com/go-fed/apcore/framework/webfinger"
@@ -53,11 +54,13 @@ func BuildHandler(r *Router,
 	db RoutingDatabase,
 	users *services.Users,
 	cy *services.Crypto,
+	ni *services.NodeInfo,
 	sqldb *sql.DB,
 	oauth *oauth2.Server,
 	sl *web.Sessions,
 	fw *Framework,
 	clock pub.Clock,
+	sw, apcore app.Software,
 	debug bool) (rt http.Handler, err error) {
 
 	// Static assets
@@ -79,7 +82,10 @@ func BuildHandler(r *Router,
 	r.WebOnlyHandleFunc("/.well-known/webfinger",
 		webfingerHandler(scheme, c.ServerConfig.Host, badRequestHandler, internalErrorHandler, users))
 
-	// TODO: Node-info
+	// Node-info
+	for _, ph := range nodeinfo.GetNodeInfoHandlers(scheme, c.ServerConfig.Host, ni, sw, apcore) {
+		r.WebOnlyHandleFunc(ph.Path, ph.Handler)
+	}
 
 	// Built-in routes for users, default supported:
 	// - PostInbox

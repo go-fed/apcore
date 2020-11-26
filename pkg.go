@@ -27,6 +27,7 @@ const (
 	apcoreMajorVersion = 0
 	apcoreMinorVersion = 1
 	apcorePatchVersion = 0
+	apcoreRepository   = "https://github.com/go-fed/apcore"
 )
 
 func apCoreSoftware() app.Software {
@@ -35,5 +36,6 @@ func apCoreSoftware() app.Software {
 		MajorVersion: apcoreMajorVersion,
 		MinorVersion: apcoreMinorVersion,
 		PatchVersion: apcorePatchVersion,
+		Repository:   apcoreRepository,
 	}
 }

@@ -49,7 +49,7 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 	sqldb, dialect, err := db.NewDB(c)
 
 	// Create the models & services for higher-level transformations
-	cryp, data, dAttempts, followers, following, inboxes, liked, oauthSrv, outboxes, policies, pkeys, users, models := createModelsAndServices(sqldb, appl, host, scheme, clock)
+	cryp, data, dAttempts, followers, following, inboxes, liked, oauthSrv, outboxes, policies, pkeys, users, nodeinfo, models := createModelsAndServices(sqldb, appl, host, scheme, clock)
 
 	// ** Create Misc Helpers **
 
@@ -132,11 +132,13 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 		apdb,
 		users,
 		cryp,
+		nodeinfo,
 		sqldb,
 		oauth,
 		sess,
 		fw,
 		clock,
+		appl.Software(), apCoreSoftware(),
 		debug)
 	if err != nil {
 		return
@@ -173,7 +175,7 @@ func newModels(configFileName string, appl app.Application, debug bool, scheme s
 		return
 	}
 
-	_, _, _, _, _, _, _, _, _, _, _, _, m = createModelsAndServices(sqldb, appl, host, scheme, clock)
+	_, _, _, _, _, _, _, _, _, _, _, _, _, m = createModelsAndServices(sqldb, appl, host, scheme, clock)
 	return
 }
 
@@ -198,7 +200,7 @@ func newUserService(configFileName string, appl app.Application, debug bool, sch
 		return
 	}
 
-	_, _, _, _, _, _, _, _, _, _, _, users, _ = createModelsAndServices(sqldb, appl, host, scheme, clock)
+	_, _, _, _, _, _, _, _, _, _, _, users, _, _ = createModelsAndServices(sqldb, appl, host, scheme, clock)
 	return
 }
 
@@ -214,6 +216,7 @@ func createModelsAndServices(sqldb *sql.DB, appl app.Application, host, scheme s
 	policies *services.Policies,
 	pkeys *services.PrivateKeys,
 	users *services.Users,
+	nodeinfo *services.NodeInfo,
 	m []models.Model) {
 	us := &models.Users{}
 	fd := &models.FedData{}
@@ -306,6 +309,9 @@ func createModelsAndServices(sqldb *sql.DB, appl app.Application, host, scheme s
 		Followers:   fr,
 		Following:   fn,
 		Liked:       li,
+	}
+	nodeinfo = &services.NodeInfo{
+		// TODO
 	}
 	return
 }

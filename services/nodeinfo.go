@@ -14,31 +14,34 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-package app
+package services
 
-import (
-	"fmt"
-)
-
-type Software struct {
-	Name         string
-	UserAgent    string
-	MajorVersion int
-	MinorVersion int
-	PatchVersion int
-	Repository   string
+type NodeInfoStats struct {
+	TotalUsers     int
+	ActiveHalfYear int
+	ActiveMonth    int
+	ActiveWeek     int
+	NLocalPosts    int
+	NLocalComments int
 }
 
-func (s Software) String() string {
-	return fmt.Sprintf(
-		"%s (%s)",
-		s.Name,
-		s.Version())
+type ServerProfile struct {
+	OpenRegistrations bool
+	ServerBaseURL     string
+	ServerName        string
+	OrgName           string
+	OrgContact        string
+	OrgAccount        string
 }
 
-func (s Software) Version() string {
-	return fmt.Sprintf("%d.%d.%d",
-		s.MajorVersion,
-		s.MinorVersion,
-		s.PatchVersion)
+type NodeInfo struct{}
+
+func (n *NodeInfo) GetAnonymizedStats() (t NodeInfoStats, err error) {
+	// TODO
+	return
+}
+
+func (n *NodeInfo) GetServerProfile() (p ServerProfile, err error) {
+	// TODO
+	return
 }
