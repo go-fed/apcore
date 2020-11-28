@@ -22,7 +22,6 @@ import (
 	"github.com/go-fed/activity/pub"
 	"github.com/go-fed/activity/streams"
 	"github.com/go-fed/activity/streams/vocab"
-	"github.com/go-fed/apcore/app"
 	"github.com/go-fed/apcore/paths"
 )
 
@@ -76,8 +75,7 @@ func addNextPrevCol(page vocab.ActivityStreamsCollectionPage, start, n int, isEn
 	return nil
 }
 
-func toPersonActor(a app.Application,
-	uuid paths.UUID,
+func toPersonActor(uuid paths.UUID,
 	scheme, host, username, preferredUsername, summary string,
 	pubKey string) (vocab.ActivityStreamsPerson, *url.URL) {
 	p := streams.NewActivityStreamsPerson()
@@ -300,4 +298,86 @@ func emptyCollection(id, first, last *url.URL) vocab.ActivityStreamsCollection {
 	oc.SetActivityStreamsLast(lastProp)
 
 	return oc
+}
+
+func toApplicationActor(c paths.Actor, scheme, host string,
+	username, preferredUsername string,
+	pubKey string) (vocab.ActivityStreamsApplication, *url.URL) {
+	p := streams.NewActivityStreamsApplication()
+	// id
+	idProp := streams.NewJSONLDIdProperty()
+	idIRI := paths.ActorIRIFor(scheme, host, paths.UserPathKey, c)
+	idProp.SetIRI(idIRI)
+	p.SetJSONLDId(idProp)
+
+	// inbox
+	inboxProp := streams.NewActivityStreamsInboxProperty()
+	inboxIRI := paths.ActorIRIFor(scheme, host, paths.InboxPathKey, c)
+	inboxProp.SetIRI(inboxIRI)
+	p.SetActivityStreamsInbox(inboxProp)
+
+	// outbox
+	outboxProp := streams.NewActivityStreamsOutboxProperty()
+	outboxIRI := paths.ActorIRIFor(scheme, host, paths.OutboxPathKey, c)
+	outboxProp.SetIRI(outboxIRI)
+	p.SetActivityStreamsOutbox(outboxProp)
+
+	// followers
+	followersProp := streams.NewActivityStreamsFollowersProperty()
+	followersIRI := paths.ActorIRIFor(scheme, host, paths.FollowersPathKey, c)
+	followersProp.SetIRI(followersIRI)
+	p.SetActivityStreamsFollowers(followersProp)
+
+	// following
+	followingProp := streams.NewActivityStreamsFollowingProperty()
+	followingIRI := paths.ActorIRIFor(scheme, host, paths.FollowingPathKey, c)
+	followingProp.SetIRI(followingIRI)
+	p.SetActivityStreamsFollowing(followingProp)
+
+	// liked
+	likedProp := streams.NewActivityStreamsLikedProperty()
+	likedIRI := paths.ActorIRIFor(scheme, host, paths.LikedPathKey, c)
+	likedProp.SetIRI(likedIRI)
+	p.SetActivityStreamsLiked(likedProp)
+
+	// name
+	nameProp := streams.NewActivityStreamsNameProperty()
+	nameProp.AppendXMLSchemaString(username)
+	p.SetActivityStreamsName(nameProp)
+
+	// preferredUsername
+	preferredUsernameProp := streams.NewActivityStreamsPreferredUsernameProperty()
+	preferredUsernameProp.SetXMLSchemaString(preferredUsername)
+	p.SetActivityStreamsPreferredUsername(preferredUsernameProp)
+
+	// url
+	urlProp := streams.NewActivityStreamsUrlProperty()
+	urlProp.AppendIRI(idIRI)
+	p.SetActivityStreamsUrl(urlProp)
+
+	// publicKey property
+	publicKeyProp := streams.NewW3IDSecurityV1PublicKeyProperty()
+
+	// publicKey type
+	publicKeyType := streams.NewW3IDSecurityV1PublicKey()
+
+	// publicKey id
+	pubKeyIdProp := streams.NewJSONLDIdProperty()
+	pubKeyIRI := paths.ActorIRIFor(scheme, host, paths.HttpSigPubKeyKey, c)
+	pubKeyIdProp.SetIRI(pubKeyIRI)
+	publicKeyType.SetJSONLDId(pubKeyIdProp)
+
+	// publicKey owner
+	ownerProp := streams.NewW3IDSecurityV1OwnerProperty()
+	ownerProp.SetIRI(idIRI)
+	publicKeyType.SetW3IDSecurityV1Owner(ownerProp)
+
+	// publicKey publicKeyPem
+	publicKeyPemProp := streams.NewW3IDSecurityV1PublicKeyPemProperty()
+	publicKeyPemProp.Set(pubKey)
+	publicKeyType.SetW3IDSecurityV1PublicKeyPem(publicKeyPemProp)
+
+	publicKeyProp.AppendW3IDSecurityV1PublicKey(publicKeyType)
+	p.SetW3IDSecurityV1PublicKey(publicKeyProp)
+	return p, idIRI
 }

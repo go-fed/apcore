@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	testActor1          models.ActivityStreamsPerson
+	testActor1          models.ActivityStreams
 	testActor1Inbox     models.ActivityStreamsOrderedCollection
 	testActor2Inbox     models.ActivityStreamsOrderedCollection
 	testActor3Inbox     models.ActivityStreamsOrderedCollection
@@ -113,24 +113,24 @@ func init() {
 }
 
 func initTestActor1() {
-	testActor1 = models.ActivityStreamsPerson{
-		streams.NewActivityStreamsPerson(),
-	}
+	ta := streams.NewActivityStreamsPerson()
+	testActor1 = models.ActivityStreams{ta}
+
 	idP := streams.NewJSONLDIdProperty()
 	idP.SetIRI(mustParse(testActor1IRI))
-	testActor1.SetJSONLDId(idP)
+	ta.SetJSONLDId(idP)
 
 	ibox := streams.NewActivityStreamsInboxProperty()
 	ibox.SetIRI(mustParse(testActor1InboxIRI))
-	testActor1.SetActivityStreamsInbox(ibox)
+	ta.SetActivityStreamsInbox(ibox)
 
 	obox := streams.NewActivityStreamsOutboxProperty()
 	obox.SetIRI(mustParse(testActor1OutboxIRI))
-	testActor1.SetActivityStreamsOutbox(obox)
+	ta.SetActivityStreamsOutbox(obox)
 
 	pref := streams.NewActivityStreamsPreferredUsernameProperty()
 	pref.SetXMLSchemaString(testActor1PreferredUsername)
-	testActor1.SetActivityStreamsPreferredUsername(pref)
+	ta.SetActivityStreamsPreferredUsername(pref)
 }
 
 func initTestActivity1() {

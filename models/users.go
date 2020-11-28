@@ -18,6 +18,7 @@ package models
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"net/url"
 
 	"github.com/go-fed/apcore/util"
@@ -27,7 +28,7 @@ type CreateUser struct {
 	Email       string
 	Hashpass    []byte
 	Salt        []byte
-	Actor       ActivityStreamsPerson
+	Actor       driver.Valuer
 	Privileges  Privileges
 	Preferences Preferences
 }
@@ -35,7 +36,7 @@ type CreateUser struct {
 type User struct {
 	ID          string
 	Email       string
-	Actor       ActivityStreamsPerson
+	Actor       ActivityStreams
 	Privileges  Privileges
 	Preferences Preferences
 }
@@ -60,6 +61,7 @@ type Users struct {
 	actorIDForInbox         *sql.Stmt
 	updatePreferences       *sql.Stmt
 	updatePrivileges        *sql.Stmt
+	instanceUser            *sql.Stmt
 }
 
 func (u *Users) Prepare(db *sql.DB, s SqlDialect) error {
@@ -74,6 +76,7 @@ func (u *Users) Prepare(db *sql.DB, s SqlDialect) error {
 			{&(u.actorIDForInbox), s.ActorIDForInbox()},
 			{&(u.updatePreferences), s.UpdateUserPreferences()},
 			{&(u.updatePrivileges), s.UpdateUserPrivileges()},
+			{&(u.instanceUser), s.InstanceUser()},
 		})
 }
 
@@ -92,6 +95,7 @@ func (u *Users) Close() {
 	u.actorIDForInbox.Close()
 	u.updatePreferences.Close()
 	u.updatePrivileges.Close()
+	u.instanceUser.Close()
 }
 
 // Create a User in the database.
@@ -114,7 +118,7 @@ func (u *Users) Create(c util.Context, tx *sql.Tx, r *CreateUser) (userID string
 }
 
 // UpdateActor updates the Actor for the userID.
-func (u *Users) UpdateActor(c util.Context, tx *sql.Tx, id string, actor ActivityStreamsPerson) error {
+func (u *Users) UpdateActor(c util.Context, tx *sql.Tx, id string, actor ActivityStreams) error {
 	r, err := tx.Stmt(u.updateActor).ExecContext(c, id, actor)
 	return mustChangeOneRow(r, err, "Users.UpdateActor")
 }
@@ -157,6 +161,20 @@ func (u *Users) UserByPreferredUsername(c util.Context, tx *sql.Tx, name string)
 	}
 	defer rows.Close()
 	return s, enforceOneRow(rows, "UserByID", func(r singleRow) error {
+		s = &User{}
+		return r.Scan(&(s.ID), &(s.Email), &(s.Actor), &(s.Privileges), &(s.Preferences))
+	})
+}
+
+// InstanceActorUser returns the user representing the instance.
+func (u *Users) InstanceActorUser(c util.Context, tx *sql.Tx) (s *User, err error) {
+	var rows *sql.Rows
+	rows, err = tx.Stmt(u.instanceUser).QueryContext(c)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	return s, enforceOneRow(rows, "Users.InstanceActorUser", func(r singleRow) error {
 		s = &User{}
 		return r.Scan(&(s.ID), &(s.Email), &(s.Actor), &(s.Privileges), &(s.Preferences))
 	})

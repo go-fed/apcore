@@ -107,6 +107,10 @@ func (p *pgV0) UpdateUserPrivileges() string {
 	return `UPDATE ` + p.schema + `users SET privileges = $2 WHERE id = $1`
 }
 
+func (p *pgV0) InstanceUser() string {
+	return "SELECT id, email, actor, privileges, preferences FROM " + p.schema + "users WHERE privileges->>'InstanceActor' = 'true'"
+}
+
 func (p *pgV0) CreateFedDataTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `fed_data

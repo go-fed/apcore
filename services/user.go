@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+	"sync"
 
 	"github.com/go-fed/activity/pub"
 	"github.com/go-fed/activity/streams"
@@ -54,7 +55,7 @@ type CreateUserParameters struct {
 type User struct {
 	ID    string
 	Email string
-	Actor vocab.ActivityStreamsPerson
+	Actor vocab.Type
 }
 
 type Users struct {
@@ -67,6 +68,11 @@ type Users struct {
 	Followers   *models.Followers
 	Following   *models.Following
 	Liked       *models.Liked
+	// muCheck is required to ensure certain database constraints are
+	// enforced and then maintained between different transactions, since
+	// databases are not guaranteed to be able to enforce unique constraints
+	// that we require.
+	muCheck sync.Mutex
 }
 
 func (u *Users) CreateUser(c util.Context, params CreateUserParameters, password string) (userID string, err error) {
@@ -80,7 +86,7 @@ func (u *Users) CreateUser(c util.Context, params CreateUserParameters, password
 	if err != nil {
 		return
 	}
-	return u.createUser(c,
+	return u.createPersonUser(c,
 		params,
 		password,
 		roles,
@@ -98,32 +104,97 @@ func (u *Users) CreateAdminUser(c util.Context, params CreateUserParameters, pas
 	if err != nil {
 		return
 	}
-	return u.createUser(c,
+	return u.createPersonUser(c,
 		params,
 		password,
 		roles,
 		prefs)
 }
 
-func (u *Users) createUser(c util.Context, params CreateUserParameters, password string, roles models.Privileges, prefs models.Preferences) (userID string, err error) {
+// TODO: Create this an init time
+// TODO: Serve this actor at its special endpoint
+func (u *Users) CreateInstanceActorSingleton(c util.Context, scheme, host string, rsaKeySize int) (userID string, err error) {
+	return u.createApplicationActor(c, paths.InstanceActor, scheme, host, rsaKeySize, models.Privileges{
+		Admin:         false,
+		InstanceActor: true,
+	})
+}
+
+func (u *Users) createApplicationActor(c util.Context, actor paths.Actor, scheme, host string, rsaKeySize int, priv models.Privileges) (userID string, err error) {
+	prefUsername := host
+	return u.createUser(c,
+		"",                 // Email
+		[]byte{}, []byte{}, // Salt, Hashpass
+		rsaKeySize,
+		prefUsername,
+		priv,
+		models.Preferences{
+			OnFollow: models.OnFollowBehavior(pub.OnFollowDoNothing),
+		},
+		func(userID, pubKey string) (models.ActivityStreams, *url.URL) {
+			actorAS, actorID := toApplicationActor(actor,
+				scheme,
+				host,
+				host, // username
+				prefUsername,
+				pubKey)
+			return models.ActivityStreams{actorAS}, actorID
+		})
+}
+
+func (u *Users) createPersonUser(c util.Context, params CreateUserParameters, password string, roles models.Privileges, prefs models.Preferences) (userID string, err error) {
 	// Prepare Salt & Hashed Password
 	var salt, hashpass []byte
 	salt, hashpass, err = hashPass(params.HashParams, password)
 	if err != nil {
 		return
 	}
+	prefUsername := params.Username
+	return u.createUser(c,
+		params.Email,
+		salt, hashpass,
+		params.RSAKeySize,
+		prefUsername,
+		roles,
+		prefs,
+		func(userID, pubKey string) (models.ActivityStreams, *url.URL) {
+			actor, actorID := toPersonActor(paths.UUID(userID),
+				params.Scheme,
+				params.Host,
+				params.Username,
+				prefUsername,
+				"", // summary
+				pubKey)
+			return models.ActivityStreams{actor}, actorID
+		})
+}
+
+func (u *Users) createUser(c util.Context,
+	email string,
+	salt, hashpass []byte,
+	rsaKeySize int,
+	prefUsername string,
+	roles models.Privileges,
+	prefs models.Preferences,
+	actor func(userID, pubKey string) (models.ActivityStreams, *url.URL)) (userID string, err error) {
 	// Prepare PrivateKey
 	var privKey []byte
 	var pubKey string
-	privKey, pubKey, err = createAndSerializeRSAKeys(params.RSAKeySize)
+	privKey, pubKey, err = createAndSerializeRSAKeys(rsaKeySize)
 	if err != nil {
 		return
 	}
 
+	u.muCheck.Lock()
+	defer u.muCheck.Unlock()
 	return userID, doInTx(c, u.DB, func(tx *sql.Tx) error {
+		err = u.checkUserConstraints(c, tx, prefUsername, roles)
+		if err != nil {
+			return err
+		}
 		// Insert into users table
 		cu := &models.CreateUser{
-			Email:       params.Email,
+			Email:       email,
 			Hashpass:    hashpass,
 			Salt:        salt,
 			Actor:       models.ActivityStreamsPerson{streams.NewActivityStreamsPerson()}, // Placeholder
@@ -135,14 +206,7 @@ func (u *Users) createUser(c util.Context, params CreateUserParameters, password
 			return err
 		}
 		// Create the ActivityStreams collections based on the userID.
-		actor, actorID := toPersonActor(u.App,
-			paths.UUID(userID),
-			params.Scheme,
-			params.Host,
-			params.Username,
-			params.Username, // preferredUsername
-			"",              // summary
-			pubKey)
+		actor, actorID := actor(userID, pubKey)
 		var inbox, outbox vocab.ActivityStreamsOrderedCollection
 		inbox, err = emptyInbox(actorID)
 		if err != nil {
@@ -165,13 +229,8 @@ func (u *Users) createUser(c util.Context, params CreateUserParameters, password
 		if err != nil {
 			return err
 		}
-		// Enforce that the preferredUsername is unique
-		err = u.checkPreferredUsernameUnique(c, tx, actor)
-		if err != nil {
-			return err
-		}
 		// Update the created user with the filled-in actor
-		err = u.Users.UpdateActor(c, tx, userID, models.ActivityStreamsPerson{actor})
+		err = u.Users.UpdateActor(c, tx, userID, actor)
 		if err != nil {
 			return err
 		}
@@ -201,20 +260,51 @@ func (u *Users) createUser(c util.Context, params CreateUserParameters, password
 	})
 }
 
-type preferredUsernamer interface {
-	GetActivityStreamsPreferredUsername() vocab.ActivityStreamsPreferredUsernameProperty
+// checkUserConstraints ensures ALL constraints related to a user are
+// maintained.
+//
+// WARNING: Requires muCheck to be maintained throughout the life of the
+// transaction.
+func (u *Users) checkUserConstraints(c util.Context, tx *sql.Tx, prefUsername string, priv models.Privileges) error {
+	if err := u.checkPreferredUsernameUnique(c, tx, prefUsername); err != nil {
+		return err
+	} else if err = u.checkNotDuplicateInstanceUser(c, tx, priv); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (u *Users) checkPreferredUsernameUnique(c util.Context, tx *sql.Tx, actor preferredUsernamer) error {
-	pu := actor.GetActivityStreamsPreferredUsername()
-	if pu == nil || !pu.HasAny() || len(pu.GetXMLSchemaString()) == 0 {
-		return errors.New("user is missing preferredUsername")
-	}
-	user, err := u.Users.UserByPreferredUsername(c, tx, pu.GetXMLSchemaString())
+// checkPreferredUsernameUnique ensures the preferredUsername is unique for
+// webfinger purposes.
+//
+// WARNING: Requires muCheck to be maintained throughout the life of the
+// transaction.
+func (u *Users) checkPreferredUsernameUnique(c util.Context, tx *sql.Tx, prefUsername string) error {
+	user, err := u.Users.UserByPreferredUsername(c, tx, prefUsername)
 	if err != nil {
 		return err
 	} else if user != nil {
 		return errors.New("user does not have a unique preferredUsername")
+	}
+	return nil
+}
+
+// checkNotDuplicateInstanceUser ensures that there is a single instance actor
+// maintained at all times..
+//
+// WARNING: Requires muCheck to be maintained throughout the life of the
+// transaction.
+func (u *Users) checkNotDuplicateInstanceUser(c util.Context, tx *sql.Tx, priv models.Privileges) error {
+	if !priv.InstanceActor {
+		// Do not check when not attempting to create an instance
+		// actor.
+		return nil
+	}
+	user, err := u.Users.InstanceActorUser(c, tx)
+	if err != nil {
+		return err
+	} else if user != nil {
+		return errors.New("instance actor already exists")
 	}
 	return nil
 }
@@ -253,7 +343,7 @@ func (u *Users) UserByUsername(c util.Context, name string) (s *User, err error)
 		s = &User{
 			ID:    a.ID,
 			Email: a.Email,
-			Actor: a.Actor.ActivityStreamsPerson,
+			Actor: vocab.Type(a.Actor),
 		}
 		return nil
 	})
@@ -305,12 +395,14 @@ func (u *Users) Preferences(c util.Context, uuid string, appPref interface{}) (p
 
 type Privileges struct {
 	Admin         bool
+	InstanceActor bool
 	AppPrivileges interface{}
 }
 
 func (p Privileges) toModel() (priv models.Privileges, err error) {
 	priv = models.Privileges{
-		Admin: p.Admin,
+		Admin:         p.Admin,
+		InstanceActor: p.InstanceActor,
 	}
 	priv.Payload, err = json.Marshal(p.AppPrivileges)
 	if err != nil {
@@ -342,6 +434,7 @@ func (u *Users) Privileges(c util.Context, uuid string, appPriv interface{}) (p 
 	}
 	p = &Privileges{
 		Admin:         a.Privileges.Admin,
+		InstanceActor: a.Privileges.InstanceActor,
 		AppPrivileges: appPriv,
 	}
 	return
@@ -359,7 +452,13 @@ func (u *Users) UpdatePreferences(c util.Context, uuid string, p *Preferences) (
 func (u *Users) UpdatePrivileges(c util.Context, uuid string, p *Privileges) (err error) {
 	var priv models.Privileges
 	priv, err = p.toModel()
+
+	u.muCheck.Lock()
+	defer u.muCheck.Unlock()
 	err = doInTx(c, u.DB, func(tx *sql.Tx) error {
+		if err := u.checkNotDuplicateInstanceUser(c, tx, priv); err != nil {
+			return err
+		}
 		return u.Users.UpdatePrivileges(c, tx, uuid, priv)
 	})
 	return

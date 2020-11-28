@@ -1678,6 +1678,16 @@ func runUserModelCalls(ctx util.Context, db *sql.DB) error {
 	if err := runUserModelUpdatePrivileges(ctx, db, userID); err != nil {
 		return err
 	}
+	u, err = runUserModelInstanceActor(ctx, db)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("> InstanceActorUser: %v\n", u)
+	if pb, err := toJSON(u.Actor); err != nil {
+		return err
+	} else {
+		fmt.Printf("> JSON:\n%s\n", pb)
+	}
 	return nil
 }
 
@@ -1786,6 +1796,30 @@ func runUserModelUpdatePrivileges(ctx util.Context, db *sql.DB, id string) error
 	return doWithTx(ctx, db, func(tx *sql.Tx) error {
 		return users.UpdatePrivileges(ctx, tx, id, priv)
 	})
+}
+
+func runUserModelInstanceActor(ctx util.Context, db *sql.DB) (s *models.User, err error) {
+	var id string
+	err = doWithTx(ctx, db, func(tx *sql.Tx) error {
+		cu := &models.CreateUser{
+			Email:       "",
+			Hashpass:    []byte{},
+			Salt:        []byte{},
+			Actor:       models.ActivityStreamsApplication{streams.NewActivityStreamsApplication()},
+			Privileges:  models.Privileges{InstanceActor: true},
+			Preferences: models.Preferences{},
+		}
+		id, err = users.Create(ctx, tx, cu)
+		return err
+	})
+	if err != nil {
+		return
+	}
+	err = doWithTx(ctx, db, func(tx *sql.Tx) error {
+		s, err = users.InstanceActorUser(ctx, tx)
+		return err
+	})
+	return
 }
 
 /* Models */

@@ -144,6 +144,15 @@ type SqlDialect interface {
 	//   Privileges  []byte
 	//  Returns
 	UpdateUserPrivileges() string
+	// InstanceUser:
+	//  Params
+	//  Returns
+	//   ID          string
+	//   Email       string
+	//   Actor       []byte
+	//   Privileges  []byte
+	//   Preferences []byte
+	InstanceUser() string
 
 	// FedExists:
 	//  Params

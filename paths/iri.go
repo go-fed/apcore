@@ -37,6 +37,12 @@ func NormalizeAsIRI(s string) (*url.URL, error) {
 	return Normalize(c), nil
 }
 
+type Actor string
+
+const (
+	InstanceActor Actor = "instance"
+)
+
 type PathKey string
 
 const (
@@ -59,24 +65,55 @@ const (
 	HttpSigPubKeyKey              = "httpsigPubKey"
 )
 
-var knownUserPaths map[PathKey]string = map[PathKey]string{
-	UserPathKey:           "/users/{user}",
-	InboxPathKey:          "/users/{user}/inbox",
-	InboxFirstPathKey:     "/users/{user}/inbox",
-	InboxLastPathKey:      "/users/{user}/inbox",
-	OutboxPathKey:         "/users/{user}/outbox",
-	OutboxFirstPathKey:    "/users/{user}/outbox",
-	OutboxLastPathKey:     "/users/{user}/outbox",
-	FollowersPathKey:      "/users/{user}/followers",
-	FollowersFirstPathKey: "/users/{user}/followers",
-	FollowersLastPathKey:  "/users/{user}/followers",
-	FollowingPathKey:      "/users/{user}/following",
-	FollowingFirstPathKey: "/users/{user}/following",
-	FollowingLastPathKey:  "/users/{user}/following",
-	LikedPathKey:          "/users/{user}/liked",
-	LikedFirstPathKey:     "/users/{user}/liked",
-	LikedLastPathKey:      "/users/{user}/liked",
-	HttpSigPubKeyKey:      "/users/{user}/publicKeys/httpsig",
+var knownPaths map[PathKey]string = map[PathKey]string{
+	UserPathKey:           "{user}",
+	InboxPathKey:          "{user}/inbox",
+	InboxFirstPathKey:     "{user}/inbox",
+	InboxLastPathKey:      "{user}/inbox",
+	OutboxPathKey:         "{user}/outbox",
+	OutboxFirstPathKey:    "{user}/outbox",
+	OutboxLastPathKey:     "{user}/outbox",
+	FollowersPathKey:      "{user}/followers",
+	FollowersFirstPathKey: "{user}/followers",
+	FollowersLastPathKey:  "{user}/followers",
+	FollowingPathKey:      "{user}/following",
+	FollowingFirstPathKey: "{user}/following",
+	FollowingLastPathKey:  "{user}/following",
+	LikedPathKey:          "{user}/liked",
+	LikedFirstPathKey:     "{user}/liked",
+	LikedLastPathKey:      "{user}/liked",
+	HttpSigPubKeyKey:      "{user}/publicKeys/httpsig",
+}
+
+func knownPath(prefix string, k PathKey) string {
+	var b strings.Builder
+	b.WriteRune('/')
+	b.WriteString(prefix)
+	b.WriteRune('/')
+	b.WriteString(knownPaths[k])
+	return b.String()
+}
+
+func knownUserPaths(k PathKey) string {
+	return knownPath("users", k)
+}
+
+func knownActorsPaths(k PathKey) string {
+	return knownPath("actors", k)
+}
+
+func ActorPathFor(k PathKey, c Actor) string {
+	return strings.ReplaceAll(knownActorsPaths(k), "{user}", string(c))
+}
+
+func ActorIRIFor(scheme, host string, k PathKey, c Actor) *url.URL {
+	u := &url.URL{
+		Scheme:   scheme,
+		Host:     host,
+		Path:     ActorPathFor(k, c),
+		RawQuery: uuidPathQueryFor(k),
+	}
+	return u
 }
 
 var knownUserPathQuery map[PathKey]string = map[PathKey]string{
@@ -103,7 +140,7 @@ func UUIDFromUserPath(path string) (UUID, error) {
 }
 
 func UUIDPathFor(k PathKey, uuid UUID) string {
-	return strings.ReplaceAll(knownUserPaths[k], "{user}", string(uuid))
+	return strings.ReplaceAll(knownUserPaths(k), "{user}", string(uuid))
 }
 
 func uuidPathQueryFor(k PathKey) string {
@@ -136,11 +173,11 @@ func IRIForActorID(k PathKey, actorID *url.URL) (*url.URL, error) {
 	return &url.URL{
 		Scheme:   actorID.Scheme,
 		Host:     actorID.Host,
-		Path:     strings.ReplaceAll(knownUserPaths[k], "{user}", string(uuid)),
+		Path:     strings.ReplaceAll(knownUserPaths(k), "{user}", string(uuid)),
 		RawQuery: uuidPathQueryFor(k),
 	}, nil
 }
 
 func Route(k PathKey) string {
-	return knownUserPaths[k]
+	return knownUserPaths(k)
 }

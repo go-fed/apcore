@@ -116,6 +116,9 @@ type Privileges struct {
 	// Admin indicates whether to treat the user as an administrator by the
 	// framework.
 	Admin bool
+	// InstanceActor indicates whether to treat the user as the instance
+	// actor.
+	InstanceActor bool
 	// Payload is additional privilege information that is app-specific.
 	Payload json.RawMessage
 }
@@ -237,6 +240,34 @@ func (a *ActivityStreamsPerson) Scan(src interface{}) error {
 	}
 	res, err := streams.NewJSONResolver(func(ctx context.Context, p vocab.ActivityStreamsPerson) error {
 		a.ActivityStreamsPerson = p
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return res.Resolve(context.Background(), m)
+}
+
+var _ driver.Valuer = ActivityStreamsApplication{nil}
+var _ sql.Scanner = &ActivityStreamsApplication{nil}
+
+// ActivityStreamsApplication is a wrapper around the ActivityStreams type that also
+// knows how to serialize and deserialize itself for SQL database drivers.
+type ActivityStreamsApplication struct {
+	vocab.ActivityStreamsApplication
+}
+
+func (a ActivityStreamsApplication) Value() (driver.Value, error) {
+	return Marshal(a)
+}
+
+func (a *ActivityStreamsApplication) Scan(src interface{}) error {
+	var m map[string]interface{}
+	if err := unmarshal(src, &m); err != nil {
+		return err
+	}
+	res, err := streams.NewJSONResolver(func(ctx context.Context, p vocab.ActivityStreamsApplication) error {
+		a.ActivityStreamsApplication = p
 		return nil
 	})
 	if err != nil {
