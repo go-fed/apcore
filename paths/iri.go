@@ -43,6 +43,8 @@ const (
 	InstanceActor Actor = "instance"
 )
 
+var AllActors []Actor = []Actor{InstanceActor}
+
 type PathKey string
 
 const (

@@ -96,12 +96,12 @@ func BuildHandler(r *Router,
 	// - Following
 	// - Liked
 	if a.S2SEnabled() {
-		r.actorPostInbox(paths.Route(paths.InboxPathKey))
-		r.actorGetInbox(paths.Route(paths.InboxPathKey), a.GetInboxWebHandlerFunc())
+		r.userActorPostInbox()
+		r.userActorGetInbox(a.GetInboxWebHandlerFunc())
 	}
-	r.actorGetOutbox(paths.Route(paths.OutboxPathKey), a.GetOutboxWebHandlerFunc())
+	r.userActorGetOutbox(a.GetOutboxWebHandlerFunc())
 	if a.C2SEnabled() {
-		r.actorPostOutbox(paths.Route(paths.OutboxPathKey))
+		r.userActorPostOutbox()
 	}
 	maybeAddWebFn := func(path string, f func() (http.HandlerFunc, app.AuthorizeFunc)) {
 		web, authFn := f()
@@ -115,6 +115,14 @@ func BuildHandler(r *Router,
 	maybeAddWebFn(paths.Route(paths.FollowingPathKey), a.GetFollowingWebHandlerFunc)
 	maybeAddWebFn(paths.Route(paths.LikedPathKey), a.GetLikedWebHandlerFunc)
 	maybeAddWebFn(paths.Route(paths.UserPathKey), a.GetUserWebHandlerFunc)
+
+	// Built-in routes for non-user actors
+	for _, k := range paths.AllActors {
+		r.knownActorPostInbox(k)
+		r.knownActorGetInbox(k, a.GetInboxWebHandlerFunc())
+		r.knownActorPostOutbox(k)
+		r.knownActorGetOutbox(k, a.GetOutboxWebHandlerFunc())
+	}
 
 	// POST Login and GET logout routes
 	r.NewRoute().Path("/login").Methods("POST").HandlerFunc(postLoginFn(sl, db, badRequestHandler, internalErrorHandler, cy))

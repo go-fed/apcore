@@ -76,3 +76,23 @@ func doInitAdmin(configFilePath string, a app.Application, debug bool, scheme st
 	}
 	return tx.Commit()
 }
+
+func doInitData(configFilePath string, a app.Application, debug bool, scheme string) error {
+	db, users, c, err := newUserService(configFilePath, a, debug, scheme)
+	if err != nil {
+		return err
+	}
+
+	// Create the server actor in the database
+	defer db.Close()
+	tx, err := db.BeginTx(context.Background(), nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	_, err = users.CreateInstanceActorSingleton(util.Context{context.Background()}, scheme, c.ServerConfig.Host, c.ServerConfig.RSAKeySize)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
+}

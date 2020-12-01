@@ -36,17 +36,26 @@ import (
 func newServer(configFileName string, appl app.Application, debug bool) (s *framework.Server, err error) {
 	// Load the configuration
 	c, err := framework.LoadConfigFile(configFileName, appl, debug)
+	if err != nil {
+		return
+	}
 
 	host := c.ServerConfig.Host
 	scheme := schemeFromFlags()
 
 	// Create a server clock, a pub.Clock
 	clock, err := ap.NewClock(c.ActivityPubConfig.ClockTimezone)
+	if err != nil {
+		return
+	}
 
 	// ** Create the Models & Services **
 
 	// Create the SQL database
 	sqldb, dialect, err := db.NewDB(c)
+	if err != nil {
+		return
+	}
 
 	// Create the models & services for higher-level transformations
 	cryp, data, dAttempts, followers, following, inboxes, liked, oauthSrv, outboxes, policies, pkeys, users, nodeinfo, models := createModelsAndServices(sqldb, appl, host, scheme, clock)
@@ -55,9 +64,15 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 
 	// Prepare web sessions behavior
 	sess, err := web.NewSessions(c)
+	if err != nil {
+		return
+	}
 
 	// Prepare OAuth2 server
 	oauth, err := oauth2.NewServer(c, appl, oauthSrv, cryp, sess)
+	if err != nil {
+		return
+	}
 
 	// Create an HTTP client for this server.
 	httpClient := framework.NewHTTPClient(c)
@@ -79,6 +94,9 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 
 	// Create a controller for outbound messaging.
 	tc, err := conn.NewController(c, appl, clock, httpClient, dAttempts, pkeys)
+	if err != nil {
+		return
+	}
 
 	// Hook up ActivityPub Actor behavior for users.
 	actor, err := ap.NewActor(c,
@@ -91,6 +109,17 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 		policies,
 		followers,
 		users,
+		tc)
+	if err != nil {
+		return
+	}
+	// Hook up ActivityPub Actor behavior for non-user actors.
+	actorMap := ap.NewActorMap(c,
+		clock,
+		db,
+		apdb,
+		pkeys,
+		followers,
 		tc)
 
 	// ** Initialize the Web Server **
@@ -109,6 +138,7 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 		mr,
 		oauth,
 		actor,
+		actorMap,
 		clock,
 		apdb,
 		host,

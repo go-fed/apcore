@@ -70,6 +70,27 @@ func (p *PrivateKeys) GetUserHTTPSignatureKey(c util.Context, userID string) (k 
 	return
 }
 
+func (p *PrivateKeys) GetUserHTTPSignatureKeyForInstanceActor(c util.Context) (k *rsa.PrivateKey, iri *url.URL, err error) {
+	var kb []byte
+	err = doInTx(c, p.DB, func(tx *sql.Tx) error {
+		kb, err = p.PrivateKeys.GetInstanceActor(c, tx, pKeyHttpSigPurpose)
+		return err
+	})
+	if err != nil {
+		return
+	}
+	var pk crypto.PrivateKey
+	pk, err = deserializeRSAPrivateKey(kb)
+	var ok bool
+	k, ok = pk.(*rsa.PrivateKey)
+	if !ok {
+		err = errors.New("private key is not of type *rsa.PrivateKey")
+		return
+	}
+	iri = paths.ActorIRIFor(p.Scheme, p.Host, paths.HttpSigPubKeyKey, paths.InstanceActor)
+	return
+}
+
 // CreateKeyFile writes a symmetric key of random bytes to a file.
 func CreateKeyFile(file string) (err error) {
 	c := 64

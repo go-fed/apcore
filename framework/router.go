@@ -41,7 +41,8 @@ type RoutingDatabase interface {
 type Router struct {
 	router            *mux.Router
 	oauth             *oauth2.Server
-	actor             pub.Actor
+	userActor         pub.Actor
+	actorMap          map[paths.Actor]pub.Actor
 	clock             pub.Clock
 	db                RoutingDatabase
 	host              string
@@ -52,7 +53,8 @@ type Router struct {
 
 func NewRouter(router *mux.Router,
 	oauth *oauth2.Server,
-	actor pub.Actor,
+	userActor pub.Actor,
+	actorMap map[paths.Actor]pub.Actor,
 	clock pub.Clock,
 	db RoutingDatabase,
 	host string,
@@ -62,7 +64,8 @@ func NewRouter(router *mux.Router,
 	return &Router{
 		router:            router,
 		oauth:             oauth,
-		actor:             actor,
+		userActor:         userActor,
+		actorMap:          actorMap,
 		clock:             clock,
 		db:                db,
 		host:              host,
@@ -76,7 +79,8 @@ func (r *Router) wrap(route *mux.Route) *Route {
 	return &Route{
 		route:             route,
 		oauth:             r.oauth,
-		actor:             r.actor,
+		userActor:         r.userActor,
+		actorMap:          r.actorMap,
 		clock:             r.clock,
 		db:                r.db,
 		host:              r.host,
@@ -87,20 +91,36 @@ func (r *Router) wrap(route *mux.Route) *Route {
 	}
 }
 
-func (r *Router) actorPostInbox(path string) *Route {
-	return r.wrap(r.router.NewRoute()).actorPostInbox(path)
+func (r *Router) userActorPostInbox() *Route {
+	return r.wrap(r.router.NewRoute()).userActorPostInbox()
 }
 
-func (r *Router) actorPostOutbox(path string) *Route {
-	return r.wrap(r.router.NewRoute()).actorPostOutbox(path)
+func (r *Router) knownActorPostInbox(c paths.Actor) *Route {
+	return r.wrap(r.router.NewRoute()).knownActorPostInbox(c)
 }
 
-func (r *Router) actorGetInbox(path string, web func(http.ResponseWriter, *http.Request, vocab.ActivityStreamsOrderedCollectionPage)) *Route {
-	return r.wrap(r.router.NewRoute()).actorGetInbox(path, web)
+func (r *Router) userActorPostOutbox() *Route {
+	return r.wrap(r.router.NewRoute()).userActorPostOutbox()
 }
 
-func (r *Router) actorGetOutbox(path string, web func(http.ResponseWriter, *http.Request, vocab.ActivityStreamsOrderedCollectionPage)) *Route {
-	return r.wrap(r.router.NewRoute()).actorGetOutbox(path, web)
+func (r *Router) knownActorPostOutbox(c paths.Actor) *Route {
+	return r.wrap(r.router.NewRoute()).knownActorPostOutbox(c)
+}
+
+func (r *Router) userActorGetInbox(web func(http.ResponseWriter, *http.Request, vocab.ActivityStreamsOrderedCollectionPage)) *Route {
+	return r.wrap(r.router.NewRoute()).userActorGetInbox(web)
+}
+
+func (r *Router) knownActorGetInbox(c paths.Actor, web func(w http.ResponseWriter, r *http.Request, inbox vocab.ActivityStreamsOrderedCollectionPage)) *Route {
+	return r.wrap(r.router.NewRoute()).knownActorGetInbox(c, web)
+}
+
+func (r *Router) userActorGetOutbox(web func(http.ResponseWriter, *http.Request, vocab.ActivityStreamsOrderedCollectionPage)) *Route {
+	return r.wrap(r.router.NewRoute()).userActorGetOutbox(web)
+}
+
+func (r *Router) knownActorGetOutbox(c paths.Actor, web func(w http.ResponseWriter, r *http.Request, inbox vocab.ActivityStreamsOrderedCollectionPage)) *Route {
+	return r.wrap(r.router.NewRoute()).knownActorGetOutbox(c, web)
 }
 
 func (r *Router) ActivityPubOnlyHandleFunc(path string, authFn app.AuthorizeFunc) app.Route {
@@ -188,7 +208,8 @@ var _ app.Route = &Route{}
 type Route struct {
 	route             *mux.Route
 	oauth             *oauth2.Server
-	actor             pub.Actor
+	userActor         pub.Actor
+	actorMap          map[paths.Actor]pub.Actor
 	clock             pub.Clock
 	db                RoutingDatabase
 	host              string
@@ -198,7 +219,15 @@ type Route struct {
 	notFoundHandler   http.Handler
 }
 
-func (r *Route) actorPostInbox(path string) *Route {
+func (r *Route) userActorPostInbox() *Route {
+	return r.actorPostInbox(r.userActor, paths.Route(paths.InboxPathKey))
+}
+
+func (r *Route) knownActorPostInbox(c paths.Actor) *Route {
+	return r.actorPostInbox(r.actorMap[c], paths.ActorPathFor(paths.InboxPathKey, c))
+}
+
+func (r *Route) actorPostInbox(actor pub.Actor, path string) *Route {
 	r.route = r.route.Path(path).Schemes(r.scheme).Methods("POST").HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
 			uuid, err := paths.UUIDFromUserPath(path)
@@ -208,7 +237,7 @@ func (r *Route) actorPostInbox(path string) *Route {
 				return
 			}
 			c := util.WithUserAPHTTPContext(r.scheme, r.host, req, uuid)
-			isApRequest, err := r.actor.PostInbox(c.Context, w, req)
+			isApRequest, err := actor.PostInbox(c.Context, w, req)
 			if err != nil {
 				util.ErrorLogger.Errorf("Error in ActorPostInbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
@@ -222,7 +251,15 @@ func (r *Route) actorPostInbox(path string) *Route {
 	return r
 }
 
-func (r *Route) actorPostOutbox(path string) *Route {
+func (r *Route) userActorPostOutbox() *Route {
+	return r.actorPostOutbox(r.userActor, paths.Route(paths.OutboxPathKey))
+}
+
+func (r *Route) knownActorPostOutbox(c paths.Actor) *Route {
+	return r.actorPostOutbox(r.actorMap[c], paths.ActorPathFor(paths.OutboxPathKey, c))
+}
+
+func (r *Route) actorPostOutbox(actor pub.Actor, path string) *Route {
 	r.route = r.route.Path(path).Schemes(r.scheme).Methods("POST").HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
 			uuid, err := paths.UUIDFromUserPath(path)
@@ -232,7 +269,7 @@ func (r *Route) actorPostOutbox(path string) *Route {
 				return
 			}
 			c := util.WithUserAPHTTPContext(r.scheme, r.host, req, uuid)
-			isApRequest, err := r.actor.PostOutbox(c.Context, w, req)
+			isApRequest, err := actor.PostOutbox(c.Context, w, req)
 			if err != nil {
 				util.ErrorLogger.Errorf("Error in ActorPostOutbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
@@ -246,7 +283,15 @@ func (r *Route) actorPostOutbox(path string) *Route {
 	return r
 }
 
-func (r *Route) actorGetInbox(path string, web func(w http.ResponseWriter, r *http.Request, inbox vocab.ActivityStreamsOrderedCollectionPage)) *Route {
+func (r *Route) userActorGetInbox(web func(w http.ResponseWriter, r *http.Request, inbox vocab.ActivityStreamsOrderedCollectionPage)) *Route {
+	return r.actorGetInbox(r.userActor, paths.Route(paths.InboxPathKey), web)
+}
+
+func (r *Route) knownActorGetInbox(c paths.Actor, web func(w http.ResponseWriter, r *http.Request, inbox vocab.ActivityStreamsOrderedCollectionPage)) *Route {
+	return r.actorGetInbox(r.actorMap[c], paths.ActorPathFor(paths.InboxPathKey, c), web)
+}
+
+func (r *Route) actorGetInbox(actor pub.Actor, path string, web func(w http.ResponseWriter, r *http.Request, inbox vocab.ActivityStreamsOrderedCollectionPage)) *Route {
 	r.route = r.route.Path(path).Schemes(r.scheme).Methods("GET").HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
 			uuid, err := paths.UUIDFromUserPath(path)
@@ -256,7 +301,7 @@ func (r *Route) actorGetInbox(path string, web func(w http.ResponseWriter, r *ht
 				return
 			}
 			c := util.WithUserAPHTTPContext(r.scheme, r.host, req, uuid)
-			isApRequest, err := r.actor.GetInbox(c.Context, w, req)
+			isApRequest, err := actor.GetInbox(c.Context, w, req)
 			if err != nil {
 				util.ErrorLogger.Errorf("Error in ActorGetInbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
@@ -284,7 +329,15 @@ func (r *Route) actorGetInbox(path string, web func(w http.ResponseWriter, r *ht
 	return r
 }
 
-func (r *Route) actorGetOutbox(path string, web func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage)) *Route {
+func (r *Route) userActorGetOutbox(web func(w http.ResponseWriter, r *http.Request, inbox vocab.ActivityStreamsOrderedCollectionPage)) *Route {
+	return r.actorGetOutbox(r.userActor, paths.Route(paths.OutboxPathKey), web)
+}
+
+func (r *Route) knownActorGetOutbox(c paths.Actor, web func(w http.ResponseWriter, r *http.Request, inbox vocab.ActivityStreamsOrderedCollectionPage)) *Route {
+	return r.actorGetOutbox(r.actorMap[c], paths.ActorPathFor(paths.OutboxPathKey, c), web)
+}
+
+func (r *Route) actorGetOutbox(actor pub.Actor, path string, web func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage)) *Route {
 	r.route = r.route.Path(path).Schemes(r.scheme).Methods("GET").HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
 			uuid, err := paths.UUIDFromUserPath(path)
@@ -294,7 +347,7 @@ func (r *Route) actorGetOutbox(path string, web func(w http.ResponseWriter, r *h
 				return
 			}
 			c := util.WithUserAPHTTPContext(r.scheme, r.host, req, uuid)
-			isApRequest, err := r.actor.GetOutbox(c.Context, w, req)
+			isApRequest, err := actor.GetOutbox(c.Context, w, req)
 			if err != nil {
 				util.ErrorLogger.Errorf("Error in ActorGetOutbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)

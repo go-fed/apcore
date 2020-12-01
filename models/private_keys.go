@@ -29,6 +29,7 @@ var _ Model = &PrivateKeys{}
 type PrivateKeys struct {
 	createPrivateKey *sql.Stmt
 	getByUserID      *sql.Stmt
+	getInstanceActor *sql.Stmt
 }
 
 func (p *PrivateKeys) Prepare(db *sql.DB, s SqlDialect) error {
@@ -36,6 +37,7 @@ func (p *PrivateKeys) Prepare(db *sql.DB, s SqlDialect) error {
 		stmtPairs{
 			{&(p.createPrivateKey), s.CreatePrivateKey()},
 			{&(p.getByUserID), s.GetPrivateKeyByUserID()},
+			{&(p.getInstanceActor), s.GetPrivateKeyForInstanceActor()},
 		})
 }
 
@@ -47,6 +49,7 @@ func (p *PrivateKeys) CreateTable(t *sql.Tx, s SqlDialect) error {
 func (p *PrivateKeys) Close() {
 	p.createPrivateKey.Close()
 	p.getByUserID.Close()
+	p.getInstanceActor.Close()
 }
 
 // Create a new private key entry in the database.
@@ -63,7 +66,20 @@ func (p *PrivateKeys) GetByUserID(c util.Context, tx *sql.Tx, userID, purpose st
 		return
 	}
 	defer rows.Close()
-	return b, enforceOneRow(rows, "GetByUserID", func(r singleRow) error {
+	return b, enforceOneRow(rows, "PrivateKeys.GetByUserID", func(r singleRow) error {
+		return r.Scan(&(b))
+	})
+}
+
+// GetInstanceActor fetches a private key for the single instance actor.
+func (p *PrivateKeys) GetInstanceActor(c util.Context, tx *sql.Tx, purpose string) (b []byte, err error) {
+	var rows *sql.Rows
+	rows, err = tx.Stmt(p.getInstanceActor).QueryContext(c, purpose)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	return b, enforceOneRow(rows, "PrivateKeys.GetInstanceActor", func(r singleRow) error {
 		return r.Scan(&(b))
 	})
 }

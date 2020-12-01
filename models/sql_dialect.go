@@ -418,6 +418,12 @@ type SqlDialect interface {
 	//  Returns
 	//   PrivKey     []byte
 	GetPrivateKeyByUserID() string
+	// GetPrivateKeyForInstanceActor:
+	//  Params
+	//   Purpose     string
+	//  Returns
+	//   PrivKey     []byte
+	GetPrivateKeyForInstanceActor() string
 
 	// CreateClientInfo:
 	//  Params

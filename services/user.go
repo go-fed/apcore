@@ -111,8 +111,6 @@ func (u *Users) CreateAdminUser(c util.Context, params CreateUserParameters, pas
 		prefs)
 }
 
-// TODO: Create this an init time
-// TODO: Serve this actor at its special endpoint
 func (u *Users) CreateInstanceActorSingleton(c util.Context, scheme, host string, rsaKeySize int) (userID string, err error) {
 	return u.createApplicationActor(c, paths.InstanceActor, scheme, host, rsaKeySize, models.Privileges{
 		Admin:         false,

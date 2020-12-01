@@ -788,6 +788,15 @@ func (p *pgV0) GetPrivateKeyByUserID() string {
 	return `SELECT priv_key FROM ` + p.schema + `private_keys WHERE user_id = $1 AND purpose = $2`
 }
 
+func (p *pgV0) GetPrivateKeyForInstanceActor() string {
+	return `SELECT
+  pk.priv_key
+FROM ` + p.schema + `private_keys AS pk
+LEFT JOIN ` + p.schema + `users AS u
+ON u.id = pk.user_id
+WHERE u.privileges->>'InstanceActor' = 'true' AND purpose = $1`
+}
+
 func (p *pgV0) CreateClientInfosTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `oauth_clients

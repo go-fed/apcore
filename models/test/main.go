@@ -940,6 +940,11 @@ func runPrivateKeysCalls(ctx util.Context, db *sql.DB) error {
 		return err
 	}
 	fmt.Printf("> GetByUserID: %v\n", b)
+	b, err = runPrivateKeysGetForInstanceActor(ctx, db)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("> GetForInstanceActor: %v\n", b)
 	return nil
 }
 
@@ -960,6 +965,23 @@ func runPrivateKeysGetByUserID(ctx util.Context, db *sql.DB) (b []byte, err erro
 	}
 	return b, doWithTx(ctx, db, func(tx *sql.Tx) error {
 		b, err = privateKeys.GetByUserID(ctx, tx, id, "test")
+		return err
+	})
+}
+
+func runPrivateKeysGetForInstanceActor(ctx util.Context, db *sql.DB) (b []byte, err error) {
+	id, err := getInstanceActorUserID(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	err = doWithTx(ctx, db, func(tx *sql.Tx) error {
+		return privateKeys.Create(ctx, tx, id, "test", []byte{1, 1, 0, 0, 2, 2, 4, 4, 3, 3})
+	})
+	if err != nil {
+		return
+	}
+	return b, doWithTx(ctx, db, func(tx *sql.Tx) error {
+		b, err = privateKeys.GetInstanceActor(ctx, tx, "test")
 		return err
 	})
 }
@@ -1896,6 +1918,18 @@ func getUserID(ctx util.Context, db *sql.DB) (id string, err error) {
 	var s *models.SensitiveUser
 	if err = doWithTx(ctx, db, func(tx *sql.Tx) error {
 		s, err = users.SensitiveUserByEmail(ctx, tx, testEmail1)
+		return err
+	}); err != nil {
+		return
+	}
+	id = s.ID
+	return
+}
+
+func getInstanceActorUserID(ctx util.Context, db *sql.DB) (id string, err error) {
+	var s *models.User
+	if err = doWithTx(ctx, db, func(tx *sql.Tx) error {
+		s, err = users.InstanceActorUser(ctx, tx)
 		return err
 	}); err != nil {
 		return

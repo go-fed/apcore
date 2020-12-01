@@ -222,8 +222,12 @@ Moo~! That was the "init-admin" action. We are done, but before you run the
 func initDbFn(a app.Application) error {
 	fmt.Println(framework.ClarkeSays(`
 We're connecting to the database using the specs in the config file, creating
-tables, and then closing all connections.`))
+tables, seeding initial data, and then closing all connections.`))
 	err := doCreateTables(*configFlag, a, *devFlag, schemeFromFlags())
+	if err != nil {
+		return err
+	}
+	err = doInitData(*configFlag, a, *devFlag, schemeFromFlags())
 	if err != nil {
 		return err
 	}
