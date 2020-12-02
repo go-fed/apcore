@@ -145,14 +145,15 @@ func nodeInfoHandler(ni *srv.NodeInfo, s, apcore app.Software) http.HandlerFunc 
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", `application/json; profile="http://nodeinfo.diaspora.software/ns/schema/2.1#"`)
 
-		t, err := ni.GetAnonymizedStats()
+		ctx := util.Context{r.Context()}
+		t, err := ni.GetAnonymizedStats(ctx)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("error serving nodeinfo response"), http.StatusInternalServerError)
 			util.ErrorLogger.Errorf("error in getting anonymized stats for nodeinfo response: %s", err)
 			return
 		}
 
-		p, err := ni.GetServerProfile()
+		p, err := ni.GetServerProfile(ctx)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("error serving nodeinfo response"), http.StatusInternalServerError)
 			util.ErrorLogger.Errorf("error in getting server profile for nodeinfo response: %s", err)

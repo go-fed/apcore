@@ -153,6 +153,26 @@ type SqlDialect interface {
 	//   Privileges  []byte
 	//   Preferences []byte
 	InstanceUser() string
+	// GetInstanceActorProfile:
+	//  Params
+	//  Returns
+	//   OpenRegistrations bool
+	//   ServerBaseURL     string
+	//   ServerName        string
+	//   OrgName           string
+	//   OrgContact        string
+	//   OrgAccount        string
+	GetInstanceActorProfile() string
+	// GetLocalActivityStats:
+	//  Params
+	//  Returns
+	//   TotalUsers     int
+	//   ActiveHalfYear int
+	//   ActiveMonth    int
+	//   ActiveWeek     int
+	//   NLocalPosts    int
+	//   NLocalComments int
+	GetLocalActivityStats() string
 
 	// FedExists:
 	//  Params

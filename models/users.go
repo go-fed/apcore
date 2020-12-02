@@ -62,6 +62,8 @@ type Users struct {
 	updatePreferences       *sql.Stmt
 	updatePrivileges        *sql.Stmt
 	instanceUser            *sql.Stmt
+	instanceActorProfile    *sql.Stmt
+	activityStats           *sql.Stmt
 }
 
 func (u *Users) Prepare(db *sql.DB, s SqlDialect) error {
@@ -77,6 +79,8 @@ func (u *Users) Prepare(db *sql.DB, s SqlDialect) error {
 			{&(u.updatePreferences), s.UpdateUserPreferences()},
 			{&(u.updatePrivileges), s.UpdateUserPrivileges()},
 			{&(u.instanceUser), s.InstanceUser()},
+			{&(u.instanceActorProfile), s.GetInstanceActorProfile()},
+			{&(u.activityStats), s.GetLocalActivityStats()},
 		})
 }
 
@@ -96,6 +100,8 @@ func (u *Users) Close() {
 	u.updatePreferences.Close()
 	u.updatePrivileges.Close()
 	u.instanceUser.Close()
+	u.instanceActorProfile.Close()
+	u.activityStats.Close()
 }
 
 // Create a User in the database.
@@ -220,4 +226,58 @@ func (u *Users) UpdatePrivileges(c util.Context, tx *sql.Tx, id string, p Privil
 		id,
 		p)
 	return mustChangeOneRow(r, err, "Users.UpdatePrivileges")
+}
+
+type InstanceUserProfile struct {
+	OpenRegistrations bool
+	ServerBaseURL     string
+	ServerName        string
+	OrgName           string
+	OrgContact        string
+	OrgAccount        string
+}
+
+// InstanceActorProfile fetches the Server's profile from the instance actor.
+func (u *Users) InstanceActorProfile(c util.Context, tx *sql.Tx) (iup InstanceUserProfile, err error) {
+	var rows *sql.Rows
+	rows, err = tx.Stmt(u.instanceActorProfile).QueryContext(c)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	return iup, enforceOneRow(rows, "Users.InstanceActorProfile", func(r singleRow) error {
+		return r.Scan(&(iup.OpenRegistrations),
+			&(iup.ServerBaseURL),
+			&(iup.ServerName),
+			&(iup.OrgName),
+			&(iup.OrgContact),
+			&(iup.OrgAccount))
+	})
+}
+
+type UserActivityStats struct {
+	TotalUsers     int
+	ActiveHalfYear int
+	ActiveMonth    int
+	ActiveWeek     int
+	NLocalPosts    int
+	NLocalComments int
+}
+
+// ActivityStats obtains statistics about the activity of users.
+func (u *Users) ActivityStats(c util.Context, tx *sql.Tx) (uas UserActivityStats, err error) {
+	var rows *sql.Rows
+	rows, err = tx.Stmt(u.activityStats).QueryContext(c)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	return uas, enforceOneRow(rows, "Users.ActivityStats", func(r singleRow) error {
+		return r.Scan(&(uas.TotalUsers),
+			&(uas.ActiveHalfYear),
+			&(uas.ActiveMonth),
+			&(uas.ActiveWeek),
+			&(uas.NLocalPosts),
+			&(uas.NLocalComments))
+	})
 }

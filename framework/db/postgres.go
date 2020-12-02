@@ -111,6 +111,16 @@ func (p *pgV0) InstanceUser() string {
 	return "SELECT id, email, actor, privileges, preferences FROM " + p.schema + "users WHERE privileges->>'InstanceActor' = 'true'"
 }
 
+func (p *pgV0) GetInstanceActorProfile() string {
+	// TODO
+	return ``
+}
+
+func (p *pgV0) GetLocalActivityStats() string {
+	// TODO
+	return ``
+}
+
 func (p *pgV0) CreateFedDataTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `fed_data

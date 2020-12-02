@@ -126,14 +126,15 @@ func nodeInfo2WellKnownHandler(ni *srv.NodeInfo, s, apcore app.Software) http.Ha
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", `application/json`)
 
-		t, err := ni.GetAnonymizedStats()
+		ctx := util.Context{r.Context()}
+		t, err := ni.GetAnonymizedStats(ctx)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("error serving nodeinfo2 response"), http.StatusInternalServerError)
 			util.ErrorLogger.Errorf("error in getting anonymized stats for nodeinfo2 response: %s", err)
 			return
 		}
 
-		p, err := ni.GetServerProfile()
+		p, err := ni.GetServerProfile(ctx)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("error serving nodeinfo2 response"), http.StatusInternalServerError)
 			util.ErrorLogger.Errorf("error in getting server profile for nodeinfo2 response: %s", err)
