@@ -163,6 +163,16 @@ type SqlDialect interface {
 	//   OrgContact        string
 	//   OrgAccount        string
 	GetInstanceActorProfile() string
+	// SetInstanceActorProfile:
+	//  Params
+	//   OpenRegistrations bool
+	//   ServerBaseURL     string
+	//   ServerName        string
+	//   OrgName           string
+	//   OrgContact        string
+	//   OrgAccount        string
+	//  Returns
+	SetInstanceActorProfile() string
 	// GetLocalActivityStats:
 	//  Params
 	//  Returns

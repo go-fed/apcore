@@ -116,6 +116,11 @@ func (p *pgV0) GetInstanceActorProfile() string {
 	return ``
 }
 
+func (p *pgV0) SetInstanceActorProfile() string {
+	// TODO
+	return ``
+}
+
 func (p *pgV0) GetLocalActivityStats() string {
 	// TODO
 	return ``

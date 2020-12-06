@@ -118,6 +118,21 @@ func (n *NodeInfo) GetServerProfile(c util.Context) (p ServerProfile, err error)
 	return
 }
 
+func (n *NodeInfo) SetProfile(c util.Context, p ServerProfile) (err error) {
+	iup := models.InstanceUserProfile{
+		OpenRegistrations: p.OpenRegistrations,
+		ServerBaseURL:     p.ServerBaseURL,
+		ServerName:        p.ServerName,
+		OrgName:           p.OrgName,
+		OrgContact:        p.OrgContact,
+		OrgAccount:        p.OrgAccount,
+	}
+	err = doInTx(c, n.DB, func(tx *sql.Tx) error {
+		return n.Users.SetInstanceActorProfile(c, tx, iup)
+	})
+	return
+}
+
 // applyNoise ensures that the NodeInfoStats for small instances contains some
 // noise around the true value, so that ballpark-correct statistics can be
 // obtained from small instances without allowing peers to monitor changes over

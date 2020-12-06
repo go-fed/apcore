@@ -63,6 +63,7 @@ type Users struct {
 	updatePrivileges        *sql.Stmt
 	instanceUser            *sql.Stmt
 	instanceActorProfile    *sql.Stmt
+	setInstanceActorProfile *sql.Stmt
 	activityStats           *sql.Stmt
 }
 
@@ -80,6 +81,7 @@ func (u *Users) Prepare(db *sql.DB, s SqlDialect) error {
 			{&(u.updatePrivileges), s.UpdateUserPrivileges()},
 			{&(u.instanceUser), s.InstanceUser()},
 			{&(u.instanceActorProfile), s.GetInstanceActorProfile()},
+			{&(u.setInstanceActorProfile), s.SetInstanceActorProfile()},
 			{&(u.activityStats), s.GetLocalActivityStats()},
 		})
 }
@@ -101,6 +103,7 @@ func (u *Users) Close() {
 	u.updatePrivileges.Close()
 	u.instanceUser.Close()
 	u.instanceActorProfile.Close()
+	u.setInstanceActorProfile.Close()
 	u.activityStats.Close()
 }
 
@@ -253,6 +256,18 @@ func (u *Users) InstanceActorProfile(c util.Context, tx *sql.Tx) (iup InstanceUs
 			&(iup.OrgContact),
 			&(iup.OrgAccount))
 	})
+}
+
+// SetInstanceActorProfile sets the Server's profile on the instance actor.
+func (u *Users) SetInstanceActorProfile(c util.Context, tx *sql.Tx, iup InstanceUserProfile) (err error) {
+	r, err := tx.Stmt(u.setInstanceActorProfile).ExecContext(c,
+		iup.OpenRegistrations,
+		iup.ServerBaseURL,
+		iup.ServerName,
+		iup.OrgName,
+		iup.OrgContact,
+		iup.OrgAccount)
+	return mustChangeOneRow(r, err, "Users.SetInstanceActorProfile")
 }
 
 type UserActivityStats struct {
