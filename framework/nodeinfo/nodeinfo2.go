@@ -81,7 +81,7 @@ type feature2 struct {
 	Version string `json:"version"`
 }
 
-func toNodeInfo2(s, apcore app.Software, t srv.NodeInfoStats, p srv.ServerProfile) nodeInfo2 {
+func toNodeInfo2(s, apcore app.Software, t srv.NodeInfoStats, p srv.ServerPreferences) nodeInfo2 {
 	n := nodeInfo2{
 		Version: nodeInfo2Version,
 		Server: server2{
@@ -122,7 +122,7 @@ func toNodeInfo2(s, apcore app.Software, t srv.NodeInfoStats, p srv.ServerProfil
 	return n
 }
 
-func nodeInfo2WellKnownHandler(ni *srv.NodeInfo, s, apcore app.Software) http.HandlerFunc {
+func nodeInfo2WellKnownHandler(ni *srv.NodeInfo, u *srv.Users, s, apcore app.Software) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", `application/json`)
 
@@ -134,7 +134,7 @@ func nodeInfo2WellKnownHandler(ni *srv.NodeInfo, s, apcore app.Software) http.Ha
 			return
 		}
 
-		p, err := ni.GetServerProfile(ctx)
+		p, err := u.GetServerPreferences(ctx)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("error serving nodeinfo2 response"), http.StatusInternalServerError)
 			util.ErrorLogger.Errorf("error in getting server profile for nodeinfo2 response: %s", err)

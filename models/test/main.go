@@ -1520,6 +1520,16 @@ func runLocalDataCalls(ctx util.Context, db *sql.DB) error {
 		return err
 	}
 	fmt.Printf("> Exists(%s): %v\n", testActivity5IRI, ex)
+	st, err := runLocalDataStats(ctx, db)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("> Stats: %v\n", st)
+	if pb, err := toJSON(st); err != nil {
+		return err
+	} else {
+		fmt.Printf("> JSON:\n%s\n", pb)
+	}
 	return nil
 }
 
@@ -1562,6 +1572,14 @@ func runLocalDataGet(ctx util.Context, db *sql.DB) (v models.ActivityStreams, er
 func runLocalDataExists(ctx util.Context, db *sql.DB, id string) (v bool, err error) {
 	err = doWithTx(ctx, db, func(tx *sql.Tx) error {
 		v, err = localData.Exists(ctx, tx, mustParse(id))
+		return err
+	})
+	return
+}
+
+func runLocalDataStats(ctx util.Context, db *sql.DB) (st models.LocalDataActivity, err error) {
+	err = doWithTx(ctx, db, func(tx *sql.Tx) error {
+		st, err = localData.Stats(ctx, tx)
 		return err
 	})
 	return
@@ -1710,6 +1728,29 @@ func runUserModelCalls(ctx util.Context, db *sql.DB) error {
 	} else {
 		fmt.Printf("> JSON:\n%s\n", pb)
 	}
+	if err := runUserModelSetInstanceActorPreferences(ctx, db); err != nil {
+		return err
+	}
+	iap, err := runUserModelInstanceActorPreferences(ctx, db)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("> InstanceActorPreferences: %v\n", iap)
+	if pb, err := toJSON(iap); err != nil {
+		return err
+	} else {
+		fmt.Printf("> JSON:\n%s\n", pb)
+	}
+	st, err := runUserModelUserActivityStats(ctx, db)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("> UserActivityStats: %v\n", st)
+	if pb, err := toJSON(st); err != nil {
+		return err
+	} else {
+		fmt.Printf("> JSON:\n%s\n", pb)
+	}
 	return nil
 }
 
@@ -1844,6 +1885,35 @@ func runUserModelInstanceActor(ctx util.Context, db *sql.DB) (s *models.User, er
 	return
 }
 
+func runUserModelSetInstanceActorPreferences(ctx util.Context, db *sql.DB) error {
+	return doWithTx(ctx, db, func(tx *sql.Tx) error {
+		return users.SetInstanceActorPreferences(ctx, tx, models.InstanceActorPreferences{
+			OpenRegistrations: true,
+			ServerBaseURL:     "https://example.com/test/base/url",
+			ServerName:        "test server name",
+			OrgName:           "test org",
+			OrgContact:        "test org contact",
+			OrgAccount:        "test org account",
+		})
+	})
+}
+
+func runUserModelInstanceActorPreferences(ctx util.Context, db *sql.DB) (iap models.InstanceActorPreferences, err error) {
+	err = doWithTx(ctx, db, func(tx *sql.Tx) error {
+		iap, err = users.InstanceActorPreferences(ctx, tx)
+		return err
+	})
+	return
+}
+
+func runUserModelUserActivityStats(ctx util.Context, db *sql.DB) (st models.UserActivityStats, err error) {
+	err = doWithTx(ctx, db, func(tx *sql.Tx) error {
+		st, err = users.ActivityStats(ctx, tx)
+		return err
+	})
+	return
+}
+
 /* Models */
 
 func createTables(ctx util.Context, db *sql.DB, d models.SqlDialect) error {
@@ -1906,12 +1976,17 @@ func doWithTx(ctx util.Context, db *sql.DB, fn func(*sql.Tx) error) error {
 	return tx.Commit()
 }
 
-func toJSON(v vocab.Type) ([]byte, error) {
-	m, err := streams.Serialize(v)
-	if err != nil {
-		return nil, err
+func toJSON(i interface{}) ([]byte, error) {
+	switch v := i.(type) {
+	case vocab.Type:
+		m, err := streams.Serialize(v)
+		if err != nil {
+			return nil, err
+		}
+		return json.MarshalIndent(m, "", "  ")
+	default:
+		return json.MarshalIndent(i, "", "  ")
 	}
-	return json.MarshalIndent(m, "", "  ")
 }
 
 func getUserID(ctx util.Context, db *sql.DB) (id string, err error) {

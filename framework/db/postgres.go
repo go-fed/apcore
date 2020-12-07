@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `users
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   create_time timestamp with time zone NOT NULL DEFAULT current_timestamp,
+  last_seen timestamp with time zone NOT NULL DEFAULT current_timestamp,
   email text NOT NULL,
   hashpass bytea NOT NULL,
   salt bytea NOT NULL,
@@ -111,19 +112,25 @@ func (p *pgV0) InstanceUser() string {
 	return "SELECT id, email, actor, privileges, preferences FROM " + p.schema + "users WHERE privileges->>'InstanceActor' = 'true'"
 }
 
-func (p *pgV0) GetInstanceActorProfile() string {
-	// TODO
-	return ``
+func (p *pgV0) GetInstanceActorPreferences() string {
+	return `SELECT preferences
+FROM ` + p.schema + `users
+WHERE privileges->>'InstanceActor' = 'true'`
 }
 
-func (p *pgV0) SetInstanceActorProfile() string {
-	// TODO
-	return ``
+func (p *pgV0) SetInstanceActorPreferences() string {
+	return `UPDATE ` + p.schema + `users
+SET preferences = $1
+WHERE privileges->>'InstanceActor' = 'true'`
 }
 
-func (p *pgV0) GetLocalActivityStats() string {
-	// TODO
-	return ``
+func (p *pgV0) GetUserActivityStats() string {
+	return `SELECT
+  COUNT(*),
+  COUNT(*) FILTER (WHERE current_timestamp - last_seen < '180 DAY'),
+  COUNT(*) FILTER (WHERE current_timestamp - last_seen < '30 DAY'),
+  COUNT(*) FILTER (WHERE current_timestamp - last_seen < '7 DAY')
+FROM ` + p.schema + `users`
 }
 
 func (p *pgV0) CreateFedDataTable() string {
@@ -206,6 +213,13 @@ func (p *pgV0) LocalUpdate() string {
 
 func (p *pgV0) LocalDelete() string {
 	return `DELETE FROM ` + p.schema + `local_data WHERE payload->>'id' = $1`
+}
+
+func (p *pgV0) LocalStats() string {
+	return `SELECT
+  COUNT(*) FILTER (WHERE (payload->'inReplyTo') IS NULL),
+  COUNT(*) FILTER (WHERE (payload->'inReplyTo') IS NOT NULL)
+FROM ` + p.schema + `local_data`
 }
 
 func (p *pgV0) CreateInboxesTable() string {

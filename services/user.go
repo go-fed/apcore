@@ -461,3 +461,44 @@ func (u *Users) UpdatePrivileges(c util.Context, uuid string, p *Privileges) (er
 	})
 	return
 }
+
+func (u *Users) GetServerPreferences(c util.Context) (p ServerPreferences, err error) {
+	var iap models.InstanceActorPreferences
+	if err = doInTx(c, u.DB, func(tx *sql.Tx) error {
+		iap, err = u.Users.InstanceActorPreferences(c, tx)
+		if err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return
+	}
+	p = ServerPreferences{
+		OnFollow:          pub.OnFollowBehavior(iap.OnFollow),
+		OpenRegistrations: iap.OpenRegistrations,
+		ServerBaseURL:     iap.ServerBaseURL,
+		ServerName:        iap.ServerName,
+		OrgName:           iap.OrgName,
+		OrgContact:        iap.OrgContact,
+		OrgAccount:        iap.OrgAccount,
+		Payload:           iap.Payload,
+	}
+	return
+}
+
+func (u *Users) SetServerPreferences(c util.Context, p ServerPreferences) (err error) {
+	iap := models.InstanceActorPreferences{
+		OnFollow:          models.OnFollowBehavior(p.OnFollow),
+		OpenRegistrations: p.OpenRegistrations,
+		ServerBaseURL:     p.ServerBaseURL,
+		ServerName:        p.ServerName,
+		OrgName:           p.OrgName,
+		OrgContact:        p.OrgContact,
+		OrgAccount:        p.OrgAccount,
+		Payload:           p.Payload,
+	}
+	err = doInTx(c, u.DB, func(tx *sql.Tx) error {
+		return u.Users.SetInstanceActorPreferences(c, tx, iap)
+	})
+	return
+}

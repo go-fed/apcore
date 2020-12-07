@@ -47,7 +47,7 @@ type PathHandler struct {
 	Handler http.HandlerFunc
 }
 
-func GetNodeInfoHandlers(scheme, host string, ni *srv.NodeInfo, s, apcore app.Software) []PathHandler {
+func GetNodeInfoHandlers(scheme, host string, ni *srv.NodeInfo, u *srv.Users, s, apcore app.Software) []PathHandler {
 	return []PathHandler{
 		{
 			Path:    nodeInfoWellKnownPath,
@@ -55,11 +55,11 @@ func GetNodeInfoHandlers(scheme, host string, ni *srv.NodeInfo, s, apcore app.So
 		},
 		{
 			Path:    nodeInfoPath,
-			Handler: nodeInfoHandler(ni, s, apcore),
+			Handler: nodeInfoHandler(ni, u, s, apcore),
 		},
 		{
 			Path:    nodeInfo2WellKnownPath,
-			Handler: nodeInfo2WellKnownHandler(ni, s, apcore),
+			Handler: nodeInfo2WellKnownHandler(ni, u, s, apcore),
 		},
 	}
 }

@@ -156,33 +156,21 @@ type SqlDialect interface {
 	// GetInstanceActorProfile:
 	//  Params
 	//  Returns
-	//   OpenRegistrations bool
-	//   ServerBaseURL     string
-	//   ServerName        string
-	//   OrgName           string
-	//   OrgContact        string
-	//   OrgAccount        string
-	GetInstanceActorProfile() string
+	//   Prefs          []byte
+	GetInstanceActorPreferences() string
 	// SetInstanceActorProfile:
 	//  Params
-	//   OpenRegistrations bool
-	//   ServerBaseURL     string
-	//   ServerName        string
-	//   OrgName           string
-	//   OrgContact        string
-	//   OrgAccount        string
+	//   Prefs          []byte
 	//  Returns
-	SetInstanceActorProfile() string
-	// GetLocalActivityStats:
+	SetInstanceActorPreferences() string
+	// GetUserActivityStats:
 	//  Params
 	//  Returns
 	//   TotalUsers     int
 	//   ActiveHalfYear int
 	//   ActiveMonth    int
 	//   ActiveWeek     int
-	//   NLocalPosts    int
-	//   NLocalComments int
-	GetLocalActivityStats() string
+	GetUserActivityStats() string
 
 	// FedExists:
 	//  Params
@@ -241,6 +229,12 @@ type SqlDialect interface {
 	//   ID          string
 	//  Returns
 	LocalDelete() string
+	// LocalStats:
+	//  Params
+	//  Returns
+	//   NLocalPosts    int
+	//   NLocalComments int
+	LocalStats() string
 
 	// InsertInbox:
 	//  Params

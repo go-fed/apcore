@@ -52,19 +52,19 @@ var _ Model = &Users{}
 // Users is a Model that provides additional database methods for the
 // Users type.
 type Users struct {
-	insertUser              *sql.Stmt
-	updateActor             *sql.Stmt
-	sensitiveUserByEmail    *sql.Stmt
-	userByID                *sql.Stmt
-	userByPreferredUsername *sql.Stmt
-	actorIDForOutbox        *sql.Stmt
-	actorIDForInbox         *sql.Stmt
-	updatePreferences       *sql.Stmt
-	updatePrivileges        *sql.Stmt
-	instanceUser            *sql.Stmt
-	instanceActorProfile    *sql.Stmt
-	setInstanceActorProfile *sql.Stmt
-	activityStats           *sql.Stmt
+	insertUser                  *sql.Stmt
+	updateActor                 *sql.Stmt
+	sensitiveUserByEmail        *sql.Stmt
+	userByID                    *sql.Stmt
+	userByPreferredUsername     *sql.Stmt
+	actorIDForOutbox            *sql.Stmt
+	actorIDForInbox             *sql.Stmt
+	updatePreferences           *sql.Stmt
+	updatePrivileges            *sql.Stmt
+	instanceUser                *sql.Stmt
+	instanceActorPreferences    *sql.Stmt
+	setInstanceActorPreferences *sql.Stmt
+	activityStats               *sql.Stmt
 }
 
 func (u *Users) Prepare(db *sql.DB, s SqlDialect) error {
@@ -80,9 +80,9 @@ func (u *Users) Prepare(db *sql.DB, s SqlDialect) error {
 			{&(u.updatePreferences), s.UpdateUserPreferences()},
 			{&(u.updatePrivileges), s.UpdateUserPrivileges()},
 			{&(u.instanceUser), s.InstanceUser()},
-			{&(u.instanceActorProfile), s.GetInstanceActorProfile()},
-			{&(u.setInstanceActorProfile), s.SetInstanceActorProfile()},
-			{&(u.activityStats), s.GetLocalActivityStats()},
+			{&(u.instanceActorPreferences), s.GetInstanceActorPreferences()},
+			{&(u.setInstanceActorPreferences), s.SetInstanceActorPreferences()},
+			{&(u.activityStats), s.GetUserActivityStats()},
 		})
 }
 
@@ -102,8 +102,8 @@ func (u *Users) Close() {
 	u.updatePreferences.Close()
 	u.updatePrivileges.Close()
 	u.instanceUser.Close()
-	u.instanceActorProfile.Close()
-	u.setInstanceActorProfile.Close()
+	u.instanceActorPreferences.Close()
+	u.setInstanceActorPreferences.Close()
 	u.activityStats.Close()
 }
 
@@ -231,43 +231,25 @@ func (u *Users) UpdatePrivileges(c util.Context, tx *sql.Tx, id string, p Privil
 	return mustChangeOneRow(r, err, "Users.UpdatePrivileges")
 }
 
-type InstanceUserProfile struct {
-	OpenRegistrations bool
-	ServerBaseURL     string
-	ServerName        string
-	OrgName           string
-	OrgContact        string
-	OrgAccount        string
-}
-
-// InstanceActorProfile fetches the Server's profile from the instance actor.
-func (u *Users) InstanceActorProfile(c util.Context, tx *sql.Tx) (iup InstanceUserProfile, err error) {
+// InstanceActorPreferences fetches the Server's preferences from the instance
+// actor.
+func (u *Users) InstanceActorPreferences(c util.Context, tx *sql.Tx) (iap InstanceActorPreferences, err error) {
 	var rows *sql.Rows
-	rows, err = tx.Stmt(u.instanceActorProfile).QueryContext(c)
+	rows, err = tx.Stmt(u.instanceActorPreferences).QueryContext(c)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
-	return iup, enforceOneRow(rows, "Users.InstanceActorProfile", func(r singleRow) error {
-		return r.Scan(&(iup.OpenRegistrations),
-			&(iup.ServerBaseURL),
-			&(iup.ServerName),
-			&(iup.OrgName),
-			&(iup.OrgContact),
-			&(iup.OrgAccount))
+	return iap, enforceOneRow(rows, "Users.InstanceActorPreferences", func(r singleRow) error {
+		return r.Scan(&iap)
 	})
 }
 
-// SetInstanceActorProfile sets the Server's profile on the instance actor.
-func (u *Users) SetInstanceActorProfile(c util.Context, tx *sql.Tx, iup InstanceUserProfile) (err error) {
-	r, err := tx.Stmt(u.setInstanceActorProfile).ExecContext(c,
-		iup.OpenRegistrations,
-		iup.ServerBaseURL,
-		iup.ServerName,
-		iup.OrgName,
-		iup.OrgContact,
-		iup.OrgAccount)
-	return mustChangeOneRow(r, err, "Users.SetInstanceActorProfile")
+// SetInstanceActorPreferences sets the Server's preferences on the instance
+// actor.
+func (u *Users) SetInstanceActorPreferences(c util.Context, tx *sql.Tx, iap InstanceActorPreferences) (err error) {
+	r, err := tx.Stmt(u.setInstanceActorPreferences).ExecContext(c, iap)
+	return mustChangeOneRow(r, err, "Users.SetInstanceActorPreferences")
 }
 
 type UserActivityStats struct {
@@ -275,8 +257,6 @@ type UserActivityStats struct {
 	ActiveHalfYear int
 	ActiveMonth    int
 	ActiveWeek     int
-	NLocalPosts    int
-	NLocalComments int
 }
 
 // ActivityStats obtains statistics about the activity of users.
@@ -291,8 +271,6 @@ func (u *Users) ActivityStats(c util.Context, tx *sql.Tx) (uas UserActivityStats
 		return r.Scan(&(uas.TotalUsers),
 			&(uas.ActiveHalfYear),
 			&(uas.ActiveMonth),
-			&(uas.ActiveWeek),
-			&(uas.NLocalPosts),
-			&(uas.NLocalComments))
+			&(uas.ActiveWeek))
 	})
 }

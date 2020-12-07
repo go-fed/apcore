@@ -18,11 +18,13 @@ package services
 
 import (
 	"database/sql"
+	"encoding/json"
 	"math"
 	"math/rand"
 	"sync"
 	"time"
 
+	"github.com/go-fed/activity/pub"
 	"github.com/go-fed/apcore/models"
 	"github.com/go-fed/apcore/util"
 )
@@ -36,18 +38,21 @@ type NodeInfoStats struct {
 	NLocalComments int
 }
 
-type ServerProfile struct {
+type ServerPreferences struct {
+	OnFollow          pub.OnFollowBehavior
 	OpenRegistrations bool
 	ServerBaseURL     string
 	ServerName        string
 	OrgName           string
 	OrgContact        string
 	OrgAccount        string
+	Payload           json.RawMessage
 }
 
 type NodeInfo struct {
 	DB               *sql.DB
 	Users            *models.Users
+	LocalData        *models.LocalData
 	Rand             *rand.Rand
 	Mu               *sync.RWMutex
 	CacheInvalidated time.Duration
@@ -73,8 +78,13 @@ func (n *NodeInfo) GetAnonymizedStats(c util.Context) (t NodeInfoStats, err erro
 	}
 	// ... or we are the one to refresh it.
 	var uas models.UserActivityStats
+	var lda models.LocalDataActivity
 	if err = doInTx(c, n.DB, func(tx *sql.Tx) error {
 		uas, err = n.Users.ActivityStats(c, tx)
+		if err != nil {
+			return err
+		}
+		lda, err = n.LocalData.Stats(c, tx)
 		if err != nil {
 			return err
 		}
@@ -88,48 +98,11 @@ func (n *NodeInfo) GetAnonymizedStats(c util.Context) (t NodeInfoStats, err erro
 		ActiveHalfYear: uas.ActiveHalfYear,
 		ActiveMonth:    uas.ActiveMonth,
 		ActiveWeek:     uas.ActiveWeek,
-		NLocalPosts:    uas.NLocalPosts,
-		NLocalComments: uas.NLocalComments,
+		NLocalPosts:    lda.NLocalPosts,
+		NLocalComments: lda.NLocalComments,
 	}
 	n.applyNoise(&t)
 	n.setCachedAnonymizedStats(t, now)
-	return
-}
-
-func (n *NodeInfo) GetServerProfile(c util.Context) (p ServerProfile, err error) {
-	var iup models.InstanceUserProfile
-	if err = doInTx(c, n.DB, func(tx *sql.Tx) error {
-		iup, err = n.Users.InstanceActorProfile(c, tx)
-		if err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
-		return
-	}
-	p = ServerProfile{
-		OpenRegistrations: iup.OpenRegistrations,
-		ServerBaseURL:     iup.ServerBaseURL,
-		ServerName:        iup.ServerName,
-		OrgName:           iup.OrgName,
-		OrgContact:        iup.OrgContact,
-		OrgAccount:        iup.OrgAccount,
-	}
-	return
-}
-
-func (n *NodeInfo) SetProfile(c util.Context, p ServerProfile) (err error) {
-	iup := models.InstanceUserProfile{
-		OpenRegistrations: p.OpenRegistrations,
-		ServerBaseURL:     p.ServerBaseURL,
-		ServerName:        p.ServerName,
-		OrgName:           p.OrgName,
-		OrgContact:        p.OrgContact,
-		OrgAccount:        p.OrgAccount,
-	}
-	err = doInTx(c, n.DB, func(tx *sql.Tx) error {
-		return n.Users.SetInstanceActorProfile(c, tx, iup)
-	})
 	return
 }
 

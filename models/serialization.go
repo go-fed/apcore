@@ -152,6 +152,43 @@ func (p *Preferences) Scan(src interface{}) error {
 	return unmarshal(src, p)
 }
 
+var _ driver.Valuer = InstanceActorPreferences{}
+var _ sql.Scanner = &InstanceActorPreferences{}
+
+// InstanceActorPreferences are the preferences for an instance actor which are
+// serializable and deserializable into JSON for database storage.
+type InstanceActorPreferences struct {
+	// OnFollow indicates default behavior when a Follow request is received
+	// by a user.
+	OnFollow OnFollowBehavior
+	// OpenRegistrations indicates whether registrations are open for this
+	// software.
+	OpenRegistrations bool
+	// ServerBaseURL indicates the "base URL" of this server.
+	ServerBaseURL string
+	// ServerName contains the name of this particular server.
+	ServerName string
+	// OrgName contains the name of the wider organization this server
+	// belongs to.
+	OrgName string
+	// OrgContact contains the contact information for the Organization this
+	// server belongs to.
+	OrgContact string
+	// OrgAccount contains the account information representing the
+	// Organization this server belongs to.
+	OrgAccount string
+	// Payload is additional preference information that is app-specific.
+	Payload json.RawMessage
+}
+
+func (p InstanceActorPreferences) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
+
+func (p *InstanceActorPreferences) Scan(src interface{}) error {
+	return unmarshal(src, p)
+}
+
 var _ driver.Valuer = OnFollowBehavior(0)
 var _ sql.Scanner = (*OnFollowBehavior)(nil)
 

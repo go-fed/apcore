@@ -33,6 +33,7 @@ type LocalData struct {
 	localCreate *sql.Stmt
 	localUpdate *sql.Stmt
 	localDelete *sql.Stmt
+	stats       *sql.Stmt
 }
 
 func (f *LocalData) Prepare(db *sql.DB, s SqlDialect) error {
@@ -43,6 +44,7 @@ func (f *LocalData) Prepare(db *sql.DB, s SqlDialect) error {
 			{&(f.localCreate), s.LocalCreate()},
 			{&(f.localUpdate), s.LocalUpdate()},
 			{&(f.localDelete), s.LocalDelete()},
+			{&(f.stats), s.LocalStats()},
 		})
 }
 
@@ -60,6 +62,7 @@ func (f *LocalData) Close() {
 	f.localCreate.Close()
 	f.localUpdate.Close()
 	f.localDelete.Close()
+	f.stats.Close()
 }
 
 // Exists determines if the ID is stored in the local table.
@@ -106,4 +109,21 @@ func (f *LocalData) Update(c util.Context, tx *sql.Tx, localIDIRI *url.URL, v Ac
 func (f *LocalData) Delete(c util.Context, tx *sql.Tx, localIDIRI *url.URL) error {
 	r, err := tx.Stmt(f.localDelete).ExecContext(c, localIDIRI.String())
 	return mustChangeOneRow(r, err, "LocalData.Delete")
+}
+
+type LocalDataActivity struct {
+	NLocalPosts    int
+	NLocalComments int
+}
+
+func (f *LocalData) Stats(c util.Context, tx *sql.Tx) (la LocalDataActivity, err error) {
+	var rows *sql.Rows
+	rows, err = tx.Stmt(f.stats).QueryContext(c)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	return la, enforceOneRow(rows, "LocalData.Stats", func(r singleRow) error {
+		return r.Scan(&(la.NLocalPosts), &(la.NLocalComments))
+	})
 }

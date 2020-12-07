@@ -88,7 +88,7 @@ func sanitizeSoftwareName(name string) string {
 	return b.String()
 }
 
-func toNodeInfo(s, apcore app.Software, t srv.NodeInfoStats, p srv.ServerProfile) nodeInfo {
+func toNodeInfo(s, apcore app.Software, t srv.NodeInfoStats, p srv.ServerPreferences) nodeInfo {
 	n := nodeInfo{
 		Version: nodeInfoVersion,
 		Software: software{
@@ -141,7 +141,7 @@ func nodeInfoWellKnownHandler(scheme, host string) http.HandlerFunc {
 	}
 }
 
-func nodeInfoHandler(ni *srv.NodeInfo, s, apcore app.Software) http.HandlerFunc {
+func nodeInfoHandler(ni *srv.NodeInfo, u *srv.Users, s, apcore app.Software) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", `application/json; profile="http://nodeinfo.diaspora.software/ns/schema/2.1#"`)
 
@@ -153,7 +153,7 @@ func nodeInfoHandler(ni *srv.NodeInfo, s, apcore app.Software) http.HandlerFunc 
 			return
 		}
 
-		p, err := ni.GetServerProfile(ctx)
+		p, err := u.GetServerPreferences(ctx)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("error serving nodeinfo response"), http.StatusInternalServerError)
 			util.ErrorLogger.Errorf("error in getting server profile for nodeinfo response: %s", err)
