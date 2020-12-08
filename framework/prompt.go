@@ -18,9 +18,12 @@ package framework
 
 import (
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
+	"github.com/go-fed/activity/pub"
+	"github.com/go-fed/apcore/services"
 	"github.com/manifoldco/promptui"
 )
 
@@ -199,5 +202,39 @@ func PromptAdminUser() (username, email, password string, err error) {
 		return
 	}
 	password, err = promptPassword("Enter the new admin account's password")
+	return
+}
+
+func PromptServerProfile(scheme, host string) (sp services.ServerPreferences, err error) {
+	sp.OnFollow = pub.OnFollowDoNothing
+	baseURL := &url.URL{
+		Scheme: scheme,
+		Host:   host,
+	}
+	sp.ServerBaseURL = baseURL.String()
+	sp.OrgName, err = promptString(
+		"Please enter the name of the organization this server belongs to. This may be made available to the public")
+	if err != nil {
+		return
+	}
+	sp.OrgContact, err = promptString(
+		"Please enter the name of the organization's contact for this server. This may be made avialable to the public")
+	if err != nil {
+		return
+	}
+	sp.OrgAccount, err = promptString(
+		"Please enter an account contact information (username, webfinger address, email address, etc) for the organization's contact for this server. This may be made avialable to the public")
+	if err != nil {
+		return
+	}
+	sp.ServerName, err = promptString(
+		"Please enter this server's name, which may be publicly shared")
+	if err != nil {
+		return
+	}
+	sp.OpenRegistrations, err = promptYN("Are registrations on this server open to the general public?")
+	if err != nil {
+		return
+	}
 	return
 }

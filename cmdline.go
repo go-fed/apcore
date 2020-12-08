@@ -231,6 +231,13 @@ tables, seeding initial data, and then closing all connections.`))
 	if err != nil {
 		return err
 	}
+	fmt.Println(framework.ClarkeSays(`
+We're now going to prompt for optional information about your server and the
+organization running it, in order to complete the server profile.`))
+	err = doInitServerProfile(*configFlag, a, *devFlag, schemeFromFlags())
+	if err != nil {
+		return err
+	}
 	fmt.Println(framework.ClarkeSays(`Database initialization udderly complete!`))
 	return nil
 }

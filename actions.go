@@ -96,3 +96,26 @@ func doInitData(configFilePath string, a app.Application, debug bool, scheme str
 	}
 	return tx.Commit()
 }
+
+func doInitServerProfile(configFilePath string, a app.Application, debug bool, scheme string) error {
+	db, users, c, err := newUserService(configFilePath, a, debug, scheme)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	sp, err := framework.PromptServerProfile(scheme, c.ServerConfig.Host)
+	if err != nil {
+		return err
+	}
+	tx, err := db.BeginTx(context.Background(), nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	err = users.SetServerPreferences(util.Context{context.Background()}, sp)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
+}
