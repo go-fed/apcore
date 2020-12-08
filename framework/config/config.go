@@ -22,6 +22,7 @@ type Config struct {
 	OAuthConfig       OAuth2Config      `ini:"oauth" comment:"OAuth 2 configuration"`
 	DatabaseConfig    DatabaseConfig    `ini:"database" comment:"Database configuration"`
 	ActivityPubConfig ActivityPubConfig `ini:"activitypub" comment:"ActivityPub configuration"`
+	NodeInfoConfig    NodeInfoConfig    `ini:"nodeinfo" comment:"NodeInfo configuration"`
 }
 
 // Configuration section specifically for the HTTP server.
@@ -97,4 +98,12 @@ type PostgresConfig struct {
 	SSLKey                  string `ini:"pg_ssl_key" comment:"PEM-encoded private key file location"`
 	SSLRootCert             string `ini:"pg_ssl_root_cert" comment:"PEM-encoded root certificate file location"`
 	Schema                  string `ini:"pg_schema" comment:"Postgres schema prefix to use"`
+}
+
+// Configuration section specifically for NodeInfo.
+type NodeInfoConfig struct {
+	EnableNodeInfo                         bool `ini:"ni_enable_nodeinfo" comment:"(default: true) Whether to share basic server and software information at a somewhat-Fediverse-understood endpoint for public use; NodeInfo is upstream of the NodeInfo2 fork and in general admins will either wish to enable or disable both"`
+	EnableNodeInfo2                        bool `ini:"ni_enable_nodeinfo2" comment:"(default: true) Whether to share basic server, organization, and software information at a somewhat-Fediverse-understood endpoint for public use; NodeInfo2 is a fork of NodeInfo and in general admins will either wish to enable or disable both"`
+	EnableAnonymousStatsSharing            bool `ini:"ni_enable_anon_stats_sharing" comment:"(default: true) Whether to share anonymized statistics about user counts, counts of user activity over various periods of time, local post counts, and local comment counts to the public; for sufficiently small instances the statistics are always shared with noise introduced; if none of the NodeInfos are enabled then this option does nothing"`
+	AnonymizedStatsCacheInvalidatedSeconds int  `ini:"ni_anon_stats_cache_invalidated_seconds" comment:"(default: 86400) The number of seconds before the anonymized node statistics are refreshed and updated; in the meantime the existing values will be cached and served for this period of time"`
 }

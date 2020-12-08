@@ -81,7 +81,7 @@ type feature2 struct {
 	Version string `json:"version"`
 }
 
-func toNodeInfo2(s, apcore app.Software, t srv.NodeInfoStats, p srv.ServerPreferences) nodeInfo2 {
+func toNodeInfo2(s, apcore app.Software, t *srv.NodeInfoStats, p srv.ServerPreferences) nodeInfo2 {
 	n := nodeInfo2{
 		Version: nodeInfo2Version,
 		Server: server2{
@@ -101,7 +101,16 @@ func toNodeInfo2(s, apcore app.Software, t srv.NodeInfoStats, p srv.ServerPrefer
 			Outbound: []string{},
 		},
 		OpenRegistrations: p.OpenRegistrations,
-		Usage: usage2{
+		Relay:             "",
+		OtherFeatures: []feature2{
+			{
+				Name:    apcore.Name,
+				Version: apcore.Version(),
+			},
+		},
+	}
+	if t != nil {
+		n.Usage = usage2{
 			Users: users2{
 				Total:          t.TotalUsers,
 				ActiveHalfYear: t.ActiveHalfYear,
@@ -110,28 +119,25 @@ func toNodeInfo2(s, apcore app.Software, t srv.NodeInfoStats, p srv.ServerPrefer
 			},
 			LocalPosts:    t.NLocalPosts,
 			LocalComments: t.NLocalComments,
-		},
-		Relay: "",
-		OtherFeatures: []feature2{
-			{
-				Name:    apcore.Name,
-				Version: apcore.Version(),
-			},
-		},
+		}
 	}
 	return n
 }
 
-func nodeInfo2WellKnownHandler(ni *srv.NodeInfo, u *srv.Users, s, apcore app.Software) http.HandlerFunc {
+func nodeInfo2WellKnownHandler(ni *srv.NodeInfo, u *srv.Users, s, apcore app.Software, useStats bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", `application/json`)
 
 		ctx := util.Context{r.Context()}
-		t, err := ni.GetAnonymizedStats(ctx)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("error serving nodeinfo2 response"), http.StatusInternalServerError)
-			util.ErrorLogger.Errorf("error in getting anonymized stats for nodeinfo2 response: %s", err)
-			return
+		var t *srv.NodeInfoStats
+		if useStats {
+			st, err := ni.GetAnonymizedStats(ctx)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("error serving nodeinfo2 response"), http.StatusInternalServerError)
+				util.ErrorLogger.Errorf("error in getting anonymized stats for nodeinfo2 response: %s", err)
+				return
+			}
+			t = &st
 		}
 
 		p, err := u.GetServerPreferences(ctx)

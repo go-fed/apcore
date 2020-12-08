@@ -54,7 +54,7 @@ type NodeInfo struct {
 	Users            *models.Users
 	LocalData        *models.LocalData
 	Rand             *rand.Rand
-	Mu               *sync.RWMutex
+	mu               sync.RWMutex
 	CacheInvalidated time.Duration
 	cache            NodeInfoStats
 	cacheSet         bool
@@ -63,15 +63,15 @@ type NodeInfo struct {
 
 func (n *NodeInfo) GetAnonymizedStats(c util.Context) (t NodeInfoStats, err error) {
 	// Cache-hit
-	n.Mu.RLock()
+	n.mu.RLock()
 	if t, ok := n.getCachedAnonymizedStats(); ok {
-		n.Mu.RUnlock()
+		n.mu.RUnlock()
 		return t, nil
 	}
-	n.Mu.RUnlock()
+	n.mu.RUnlock()
 	// Cache-miss...
-	n.Mu.Lock()
-	defer n.Mu.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	// ... but another goroutine may have refreshed ...
 	if t, ok := n.getCachedAnonymizedStats(); ok {
 		return t, nil

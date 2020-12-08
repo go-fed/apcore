@@ -39,6 +39,7 @@ import (
 	"net/http"
 
 	"github.com/go-fed/apcore/app"
+	"github.com/go-fed/apcore/framework/config"
 	srv "github.com/go-fed/apcore/services"
 )
 
@@ -47,19 +48,23 @@ type PathHandler struct {
 	Handler http.HandlerFunc
 }
 
-func GetNodeInfoHandlers(scheme, host string, ni *srv.NodeInfo, u *srv.Users, s, apcore app.Software) []PathHandler {
-	return []PathHandler{
-		{
+func GetNodeInfoHandlers(c config.NodeInfoConfig, scheme, host string, ni *srv.NodeInfo, u *srv.Users, s, apcore app.Software) []PathHandler {
+	var ph []PathHandler
+	if c.EnableNodeInfo {
+		ph = append(ph, PathHandler{
 			Path:    nodeInfoWellKnownPath,
 			Handler: nodeInfoWellKnownHandler(scheme, host),
-		},
-		{
+		})
+		ph = append(ph, PathHandler{
 			Path:    nodeInfoPath,
-			Handler: nodeInfoHandler(ni, u, s, apcore),
-		},
-		{
-			Path:    nodeInfo2WellKnownPath,
-			Handler: nodeInfo2WellKnownHandler(ni, u, s, apcore),
-		},
+			Handler: nodeInfoHandler(ni, u, s, apcore, c.EnableAnonymousStatsSharing),
+		})
 	}
+	if c.EnableNodeInfo2 {
+		ph = append(ph, PathHandler{
+			Path:    nodeInfo2WellKnownPath,
+			Handler: nodeInfo2WellKnownHandler(ni, u, s, apcore, c.EnableAnonymousStatsSharing),
+		})
+	}
+	return ph
 }

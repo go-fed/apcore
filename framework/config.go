@@ -107,6 +107,15 @@ func defaultPostgresConfig() config.PostgresConfig {
 	return config.PostgresConfig{}
 }
 
+func defaultNodeInfoConfig() config.NodeInfoConfig {
+	return config.NodeInfoConfig{
+		EnableNodeInfo:                         true,
+		EnableNodeInfo2:                        true,
+		EnableAnonymousStatsSharing:            true,
+		AnonymizedStatsCacheInvalidatedSeconds: 86400,
+	}
+}
+
 func LoadConfigFile(filename string, a app.Application, debug bool) (c *config.Config, err error) {
 	util.InfoLogger.Infof("Loading config file: %s", filename)
 	var cfg *ini.File

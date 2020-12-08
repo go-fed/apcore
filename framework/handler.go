@@ -83,7 +83,7 @@ func BuildHandler(r *Router,
 		webfingerHandler(scheme, c.ServerConfig.Host, badRequestHandler, internalErrorHandler, users))
 
 	// Node-info
-	for _, ph := range nodeinfo.GetNodeInfoHandlers(scheme, c.ServerConfig.Host, ni, users, sw, apcore) {
+	for _, ph := range nodeinfo.GetNodeInfoHandlers(c.NodeInfoConfig, scheme, c.ServerConfig.Host, ni, users, sw, apcore) {
 		r.WebOnlyHandleFunc(ph.Path, ph.Handler)
 	}
 

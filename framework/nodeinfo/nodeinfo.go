@@ -88,7 +88,7 @@ func sanitizeSoftwareName(name string) string {
 	return b.String()
 }
 
-func toNodeInfo(s, apcore app.Software, t srv.NodeInfoStats, p srv.ServerPreferences) nodeInfo {
+func toNodeInfo(s, apcore app.Software, t *srv.NodeInfoStats, p srv.ServerPreferences) nodeInfo {
 	n := nodeInfo{
 		Version: nodeInfoVersion,
 		Software: software{
@@ -102,7 +102,15 @@ func toNodeInfo(s, apcore app.Software, t srv.NodeInfoStats, p srv.ServerPrefere
 			Outbound: []string{},
 		},
 		OpenRegistrations: p.OpenRegistrations,
-		Usage: usage{
+		Metadata: map[string]interface{}{
+			apcore.Name: map[string]interface{}{
+				"version":    apcore.Version(),
+				"repository": apcore.Repository,
+			},
+		},
+	}
+	if t != nil {
+		n.Usage = usage{
 			Users: users{
 				Total:          t.TotalUsers,
 				ActiveHalfYear: t.ActiveHalfYear,
@@ -110,13 +118,7 @@ func toNodeInfo(s, apcore app.Software, t srv.NodeInfoStats, p srv.ServerPrefere
 			},
 			LocalPosts:    t.NLocalPosts,
 			LocalComments: t.NLocalComments,
-		},
-		Metadata: map[string]interface{}{
-			apcore.Name: map[string]interface{}{
-				"version":    apcore.Version(),
-				"repository": apcore.Repository,
-			},
-		},
+		}
 	}
 	return n
 }
@@ -141,16 +143,20 @@ func nodeInfoWellKnownHandler(scheme, host string) http.HandlerFunc {
 	}
 }
 
-func nodeInfoHandler(ni *srv.NodeInfo, u *srv.Users, s, apcore app.Software) http.HandlerFunc {
+func nodeInfoHandler(ni *srv.NodeInfo, u *srv.Users, s, apcore app.Software, useStats bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", `application/json; profile="http://nodeinfo.diaspora.software/ns/schema/2.1#"`)
 
 		ctx := util.Context{r.Context()}
-		t, err := ni.GetAnonymizedStats(ctx)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("error serving nodeinfo response"), http.StatusInternalServerError)
-			util.ErrorLogger.Errorf("error in getting anonymized stats for nodeinfo response: %s", err)
-			return
+		var t *srv.NodeInfoStats
+		if useStats {
+			st, err := ni.GetAnonymizedStats(ctx)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("error serving nodeinfo response"), http.StatusInternalServerError)
+				util.ErrorLogger.Errorf("error in getting anonymized stats for nodeinfo response: %s", err)
+				return
+			}
+			t = &st
 		}
 
 		p, err := u.GetServerPreferences(ctx)

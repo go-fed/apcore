@@ -18,6 +18,8 @@ package apcore
 
 import (
 	"database/sql"
+	"math/rand"
+	"time"
 
 	"github.com/go-fed/activity/pub"
 	"github.com/go-fed/apcore/ap"
@@ -58,7 +60,7 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 	}
 
 	// Create the models & services for higher-level transformations
-	cryp, data, dAttempts, followers, following, inboxes, liked, oauthSrv, outboxes, policies, pkeys, users, nodeinfo, models := createModelsAndServices(sqldb, appl, host, scheme, clock)
+	cryp, data, dAttempts, followers, following, inboxes, liked, oauthSrv, outboxes, policies, pkeys, users, nodeinfo, models := createModelsAndServices(c, sqldb, appl, host, scheme, clock)
 
 	// ** Create Misc Helpers **
 
@@ -205,7 +207,7 @@ func newModels(configFileName string, appl app.Application, debug bool, scheme s
 		return
 	}
 
-	_, _, _, _, _, _, _, _, _, _, _, _, _, m = createModelsAndServices(sqldb, appl, host, scheme, clock)
+	_, _, _, _, _, _, _, _, _, _, _, _, _, m = createModelsAndServices(c, sqldb, appl, host, scheme, clock)
 	return
 }
 
@@ -230,11 +232,11 @@ func newUserService(configFileName string, appl app.Application, debug bool, sch
 		return
 	}
 
-	_, _, _, _, _, _, _, _, _, _, _, users, _, _ = createModelsAndServices(sqldb, appl, host, scheme, clock)
+	_, _, _, _, _, _, _, _, _, _, _, users, _, _ = createModelsAndServices(c, sqldb, appl, host, scheme, clock)
 	return
 }
 
-func createModelsAndServices(sqldb *sql.DB, appl app.Application, host, scheme string, clock pub.Clock) (cryp *services.Crypto,
+func createModelsAndServices(c *config.Config, sqldb *sql.DB, appl app.Application, host, scheme string, clock pub.Clock) (cryp *services.Crypto,
 	data *services.Data,
 	dAttempts *services.DeliveryAttempts,
 	followers *services.Followers,
@@ -341,7 +343,11 @@ func createModelsAndServices(sqldb *sql.DB, appl app.Application, host, scheme s
 		Liked:       li,
 	}
 	nodeinfo = &services.NodeInfo{
-		// TODO
+		DB:               sqldb,
+		Users:            us,
+		LocalData:        ld,
+		Rand:             rand.New(rand.NewSource(time.Now().UnixNano())),
+		CacheInvalidated: time.Second * time.Duration(c.NodeInfoConfig.AnonymizedStatsCacheInvalidatedSeconds),
 	}
 	return
 }

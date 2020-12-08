@@ -34,6 +34,9 @@ func (c *Config) Verify() error {
 	if err := c.ActivityPubConfig.Verify(); err != nil {
 		return err
 	}
+	if err := c.NodeInfoConfig.Verify(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -124,5 +127,9 @@ func (c *HttpSignaturesConfig) Verify() error {
 }
 
 func (c *PostgresConfig) Verify() error {
+	return nil
+}
+
+func (c *NodeInfoConfig) Verify() error {
 	return nil
 }
