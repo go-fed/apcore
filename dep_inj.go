@@ -62,6 +62,12 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 	// Create the models & services for higher-level transformations
 	cryp, data, dAttempts, followers, following, inboxes, liked, oauthSrv, outboxes, policies, pkeys, users, nodeinfo, models := createModelsAndServices(c, sqldb, appl, host, scheme, clock)
 
+	// Ensure the SQL statements are prepared
+	err = prepare(models, sqldb, dialect)
+	if err != nil {
+		return
+	}
+
 	// ** Create Misc Helpers **
 
 	// Prepare web sessions behavior
@@ -227,12 +233,15 @@ func newUserService(configFileName string, appl app.Application, debug bool, sch
 	}
 
 	// Create the SQL database
-	sqldb, _, err = db.NewDB(c)
+	var dialect models.SqlDialect
+	sqldb, dialect, err = db.NewDB(c)
 	if err != nil {
 		return
 	}
 
-	_, _, _, _, _, _, _, _, _, _, _, users, _, _ = createModelsAndServices(c, sqldb, appl, host, scheme, clock)
+	var ml []models.Model
+	_, _, _, _, _, _, _, _, _, _, _, users, _, ml = createModelsAndServices(c, sqldb, appl, host, scheme, clock)
+	err = prepare(ml, sqldb, dialect)
 	return
 }
 
@@ -350,4 +359,13 @@ func createModelsAndServices(c *config.Config, sqldb *sql.DB, appl app.Applicati
 		CacheInvalidated: time.Second * time.Duration(c.NodeInfoConfig.AnonymizedStatsCacheInvalidatedSeconds),
 	}
 	return
+}
+
+func prepare(ml []models.Model, db *sql.DB, d models.SqlDialect) error {
+	for _, m := range ml {
+		if err := m.Prepare(db, d); err != nil {
+			return err
+		}
+	}
+	return nil
 }
