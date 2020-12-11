@@ -141,13 +141,13 @@ Let's go!`)))
 	}
 	c.ActivityPubConfig.OutboundRateLimitQPS, err = promptFloat64WithDefault(
 		"Please enter the steady-state rate limit for outbound ActivityPub QPS",
-		10)
+		2)
 	if err != nil {
 		return
 	}
 	c.ActivityPubConfig.OutboundRateLimitBurst, err = promptIntWithDefault(
 		"Please enter the burst limit for outbound ActivityPub QPS",
-		50)
+		5)
 	if err != nil {
 		return
 	}
@@ -174,12 +174,6 @@ Let's go!`)))
 
 func promptPostgresConfig(c *config.Config) (err error) {
 	fmt.Println("Prompting for Postgres database configuration options...")
-	c.DatabaseConfig.PostgresConfig.DatabaseName, err = promptStringWithDefault(
-		"Enter the postgres database name",
-		"pgdb")
-	if err != nil {
-		return
-	}
 	c.DatabaseConfig.PostgresConfig.UserName, err = promptStringWithDefault(
 		"Enter the postgres user name",
 		"pguser")
@@ -220,6 +214,16 @@ Toodlemoo~`,
 			"pg_ssl_cert",
 			"pg_ssl_key",
 			"pg_ssl_root_cert")))
+	}
+	c.DatabaseConfig.PostgresConfig.DatabaseName, err = promptStringWithDefault(
+		"Enter the postgres database name",
+		"pgdb")
+	if err != nil {
+		return
+	}
+	c.DatabaseConfig.PostgresConfig.Schema, err = promptString("Enter the postgres schema name")
+	if err != nil {
+		return
 	}
 	return
 }
