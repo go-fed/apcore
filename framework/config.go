@@ -41,6 +41,7 @@ func defaultConfig(dbkind string) (c *config.Config, err error) {
 		OAuthConfig:       defaultOAuth2Config(),
 		DatabaseConfig:    dbc,
 		ActivityPubConfig: defaultActivityPubConfig(),
+		NodeInfoConfig:    defaultNodeInfoConfig(),
 	}
 	return
 }
@@ -82,15 +83,17 @@ func defaultDatabaseConfig(dbkind string) (d config.DatabaseConfig, err error) {
 
 func defaultActivityPubConfig() config.ActivityPubConfig {
 	return config.ActivityPubConfig{
-		ClockTimezone:                    "UTC",
-		OutboundRateLimitQPS:             2,
-		OutboundRateLimitBurst:           5,
-		HttpSignaturesConfig:             defaultHttpSignaturesConfig(),
-		MaxInboxForwardingRecursionDepth: 50,
-		MaxDeliveryRecursionDepth:        50,
-		RetryPageSize:                    25,
-		RetryAbandonLimit:                10,
-		RetrySleepPeriod:                 300,
+		ClockTimezone:                       "UTC",
+		OutboundRateLimitQPS:                2,
+		OutboundRateLimitBurst:              5,
+		HttpSignaturesConfig:                defaultHttpSignaturesConfig(),
+		MaxInboxForwardingRecursionDepth:    50,
+		MaxDeliveryRecursionDepth:           50,
+		RetryPageSize:                       25,
+		RetryAbandonLimit:                   10,
+		RetrySleepPeriod:                    300,
+		OutboundRateLimitPrunePeriodSeconds: 60,
+		OutboundRateLimitPruneAgeSeconds:    30,
 	}
 }
 
@@ -129,9 +132,11 @@ func LoadConfigFile(filename string, a app.Application, debug bool) (c *config.C
 		return
 	}
 	appCfg := a.NewConfiguration()
-	err = cfg.MapTo(appCfg)
-	if err != nil {
-		return
+	if appCfg != nil {
+		err = cfg.MapTo(appCfg)
+		if err != nil {
+			return
+		}
 	}
 	err = c.Verify()
 	if err != nil {
@@ -155,6 +160,9 @@ func SaveConfigFile(filename string, c *config.Config, others ...interface{}) er
 		return err
 	}
 	for _, o := range others {
+		if o == nil {
+			continue
+		}
 		err = ini.ReflectFrom(cfg, o)
 		if err != nil {
 			return err
