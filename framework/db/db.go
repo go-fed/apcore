@@ -24,15 +24,18 @@ import (
 	"github.com/go-fed/apcore/framework/config"
 	"github.com/go-fed/apcore/models"
 	"github.com/go-fed/apcore/util"
+	_ "github.com/jackc/pgx/v4/stdlib"
 )
 
 func NewDB(c *config.Config) (sqldb *sql.DB, d models.SqlDialect, err error) {
 	kind := c.DatabaseConfig.DatabaseKind
 	var conn string
+	var driver string
 	switch kind {
 	case "postgres":
 		conn, err = postgresConn(c.DatabaseConfig.PostgresConfig)
 		d = NewPgV0(c.DatabaseConfig.PostgresConfig.Schema)
+		driver = "pgx"
 	default:
 		err = fmt.Errorf("unhandled database_kind in config: %s", kind)
 	}
@@ -41,7 +44,7 @@ func NewDB(c *config.Config) (sqldb *sql.DB, d models.SqlDialect, err error) {
 	}
 
 	util.InfoLogger.Infof("Calling sql.Open...")
-	sqldb, err = sql.Open(kind, conn)
+	sqldb, err = sql.Open(driver, conn)
 	if err != nil {
 		return
 	}
