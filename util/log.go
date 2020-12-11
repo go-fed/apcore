@@ -27,26 +27,31 @@ var (
 	// These loggers will only respect the logging flags while the call to
 	// Run is executing. Otherwise, they log to os.Stdout and os.Stderr.
 	InfoLogger  *logger.Logger = logger.Init("apcore", false, false, os.Stdout)
+	infoClose   bool           = false
 	ErrorLogger *logger.Logger = logger.Init("apcore", false, false, os.Stderr)
+	errorClose  bool           = false
 )
 
 func LogInfoTo(system bool, w io.Writer) {
-	closeAndLogTo(&InfoLogger, system, w)
+	maybeCloseAndLogTo(&InfoLogger, system, w, &infoClose)
 }
 
 func LogErrorTo(system bool, w io.Writer) {
-	closeAndLogTo(&ErrorLogger, system, w)
+	maybeCloseAndLogTo(&ErrorLogger, system, w, &errorClose)
 }
 
 func LogInfoToStdout() {
-	closeAndLogTo(&InfoLogger, false, os.Stdout)
+	maybeCloseAndLogTo(&InfoLogger, false, os.Stdout, &infoClose)
 }
 
 func LogErrorToStderr() {
-	closeAndLogTo(&ErrorLogger, false, os.Stderr)
+	maybeCloseAndLogTo(&ErrorLogger, false, os.Stderr, &errorClose)
 }
 
-func closeAndLogTo(l **logger.Logger, system bool, w io.Writer) {
-	(*l).Close()
+func maybeCloseAndLogTo(l **logger.Logger, system bool, w io.Writer, shouldClose *bool) {
+	if *shouldClose {
+		(*l).Close()
+	}
 	*l = logger.Init("apcore", false, system, w)
+	*shouldClose = !(w == os.Stdout || w == os.Stderr)
 }
