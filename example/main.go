@@ -18,6 +18,7 @@ package main
 
 import (
 	"github.com/go-fed/apcore"
+	"github.com/go-fed/apcore/app"
 )
 
 func main() {
@@ -32,19 +33,9 @@ func main() {
 	// go-fed/activity, which has the opposite philosophy: assume as little
 	// as possible, provide more powerful but time-consuming interfaces to
 	// satisfy.
-	var a apcore.Application
+	var a app.Application
 	var e error
-	a, e = newApplication(
-		/*tmpls=*/ []string{
-			"templates/nav.html",
-			"templates/inline_css.html",
-			"templates/footer.html",
-			"templates/header.html",
-			"templates/home.html",
-			"templates/login.html",
-			"templates/users.html",
-		},
-	)
+	a, e = newApplication("templates/*.tmpl")
 	if e != nil {
 		panic(e)
 	}

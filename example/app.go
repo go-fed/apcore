@@ -27,24 +27,40 @@ import (
 	"github.com/go-fed/activity/pub"
 	"github.com/go-fed/activity/streams"
 	"github.com/go-fed/activity/streams/vocab"
-	"github.com/go-fed/apcore"
+	"github.com/go-fed/apcore/app"
+	"github.com/go-fed/apcore/framework"
+	"github.com/go-fed/apcore/util"
 )
 
-var _ apcore.Application = &App{}
+const (
+	notFoundTemplate      = "not_found.tmpl"
+	notAllowedTemplate    = "not_allowed.tmpl"
+	internalErrorTemplate = "internal_error.tmpl"
+	badRequestTemplate    = "bad_request.tmpl"
+	loginTemplate         = "login.tmpl"
+	authTemplate          = "auth.tmpl"
+	inboxTemplate         = "inbox.tmpl"
+	outboxTemplate        = "outbox.tmpl"
+	followersTemplate     = "followers.tmpl"
+	followingTemplate     = "following.tmpl"
+	usersTemplate         = "users.tmpl"
+	listUsersTemplate     = "list_users.tmpl"
+	homeTemplate          = "home.tmpl"
+)
+
+var _ app.Application = &App{}
 
 // App is an example application that minimally implements the
-// apcore.Application interface.
+// app.Application interface.
 type App struct {
-	// config is populated by SetConfiguration
-	config *MyConfig
 	// startTime is set when Start is called
 	startTime time.Time
 	templates *template.Template
 }
 
 // newApplication creates a new App for the framework to use.
-func newApplication(tmpls []string) (*App, error) {
-	t, err := template.ParseFiles(tmpls...)
+func newApplication(glob string) (*App, error) {
+	t, err := template.ParseGlob(glob)
 	if err != nil {
 		return nil, err
 	}
@@ -66,11 +82,7 @@ func (a *App) Stop() error { return nil }
 // administrators running our software. These values don't do anything in our
 // example application.
 func (a *App) NewConfiguration() interface{} {
-	return &MyConfig{
-		FieldS: "blah",
-		FieldT: 5,
-		FieldU: time.Now(),
-	}
+	return nil
 }
 
 // SetConfiguration is called with the same type that is returned in
@@ -80,11 +92,6 @@ func (a *App) NewConfiguration() interface{} {
 // Note we don't do anything with the configuration values in this example
 // application. But don't let that stop your imagination from taking off!
 func (a *App) SetConfiguration(i interface{}) error {
-	m, ok := i.(*MyConfig)
-	if !ok {
-		return fmt.Errorf("SetConfiguration not given a *MyConfig: %T", i)
-	}
-	a.config = m
 	return nil
 }
 
@@ -105,9 +112,8 @@ func (a *App) S2SEnabled() bool {
 // NotFoundHandler returns our spiffy 404 page.
 func (a *App) NotFoundHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text")
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("not found"))
+		a.templates.ExecuteTemplate(w, notFoundTemplate, a.getTemplateData(nil))
 	})
 }
 
@@ -116,9 +122,8 @@ func (a *App) NotFoundHandler() http.Handler {
 // a boring reply.
 func (a *App) MethodNotAllowedHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text")
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		w.Write([]byte("method not allowed"))
+		a.templates.ExecuteTemplate(w, notAllowedTemplate, a.getTemplateData(nil))
 	})
 }
 
@@ -126,9 +131,8 @@ func (a *App) MethodNotAllowedHandler() http.Handler {
 // out corner. Haha, just kidding, that was a joke. Laugh.
 func (a *App) InternalServerErrorHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text")
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("internal server error"))
+		a.templates.ExecuteTemplate(w, internalErrorTemplate, a.getTemplateData(nil))
 	})
 }
 
@@ -138,9 +142,8 @@ func (a *App) InternalServerErrorHandler() http.Handler {
 // soulless enterprisey software, you came to the wrong place.
 func (a *App) BadRequestHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text")
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("bad request"))
+		a.templates.ExecuteTemplate(w, badRequestTemplate, a.getTemplateData(nil))
 	})
 }
 
@@ -152,23 +155,24 @@ func (a *App) BadRequestHandler() http.Handler {
 // message.
 func (a *App) GetLoginWebHandlerFunc() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		a.templates.ExecuteTemplate(w, "login.html", a.getTemplateData())
+		a.templates.ExecuteTemplate(w, loginTemplate, a.getTemplateData(nil))
 	}
 }
 
 // GetAuthWebHandlerFunc returns a handler that renders the authorization page
 // for the user to approve in the OAuth2 flow.
 func (a *App) GetAuthWebHandlerFunc() http.HandlerFunc {
-	// TODO
-	return nil
+	return func(w http.ResponseWriter, r *http.Request) {
+		a.templates.ExecuteTemplate(w, authTemplate, a.getTemplateData(nil))
+	}
 }
 
 // GetInboxWebHandlerFunc returns a function rendering the outbox. The framework
 // passes in a public-only or private view of the outbox, depending on the
 // authorization of the incoming request.
 func (a *App) GetInboxWebHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
-	return func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
-		// TODO: Write a template and execute it.
+	return func(w http.ResponseWriter, r *http.Request, inbox vocab.ActivityStreamsOrderedCollectionPage) {
+		a.templates.ExecuteTemplate(w, inboxTemplate, a.getTemplateData(inbox))
 	}
 }
 
@@ -177,38 +181,50 @@ func (a *App) GetInboxWebHandlerFunc() func(w http.ResponseWriter, r *http.Reque
 // the authorization of the incoming request.
 func (a *App) GetOutboxWebHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
 	return func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
-		// TODO: Write a template and execute it.
+		a.templates.ExecuteTemplate(w, outboxTemplate, a.getTemplateData(outbox))
 	}
 }
 
-func (a *App) GetFollowersWebHandlerFunc() (http.HandlerFunc, apcore.AuthorizeFunc) {
-	// TODO
-	return nil, nil
+func (a *App) GetFollowersWebHandlerFunc() (http.HandlerFunc, app.AuthorizeFunc) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// TODO: Pass in followers
+			a.templates.ExecuteTemplate(w, followersTemplate, a.getTemplateData(nil))
+		}), func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
+			return true, nil
+		}
 }
 
-func (a *App) GetFollowingWebHandlerFunc() (http.HandlerFunc, apcore.AuthorizeFunc) {
-	// TODO
-	return nil, nil
+func (a *App) GetFollowingWebHandlerFunc() (http.HandlerFunc, app.AuthorizeFunc) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// TODO: Pass in following
+			a.templates.ExecuteTemplate(w, followingTemplate, a.getTemplateData(nil))
+		}), func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
+			return true, nil
+		}
 }
 
 // GetLikedWebHandlerFunc would have us fetch the user's liked collection and
 // then display it in a webpage. Instead, we return null so there's no way to
 // view the content as a webpage, but instead it is only obtainable as public
 // ActivityStreams data.
-func (a *App) GetLikedWebHandlerFunc() (http.HandlerFunc, apcore.AuthorizeFunc) {
+func (a *App) GetLikedWebHandlerFunc() (http.HandlerFunc, app.AuthorizeFunc) {
 	return nil, nil
 }
 
-func (a *App) GetUserWebHandlerFunc() (http.HandlerFunc, apcore.AuthorizeFunc) {
-	// TODO
-	return nil, nil
+func (a *App) GetUserWebHandlerFunc() (http.HandlerFunc, app.AuthorizeFunc) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// TODO: Pass in users
+			a.templates.ExecuteTemplate(w, usersTemplate, a.getTemplateData(nil))
+		}), func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
+			return true, nil
+		}
 }
 
 // BuildRoutes takes a Router and builds the endpoint http.Handler core.
 //
 // A database handle and a supplementary Framework object are provided for
 // convenience and use in the server's handlers.
-func (a *App) BuildRoutes(r *apcore.Router, db apcore.Database, f apcore.Framework) error {
+func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error {
 	// When building routes, the framework already provides actors at the
 	// endpoint:
 	//
@@ -243,16 +259,15 @@ func (a *App) BuildRoutes(r *apcore.Router, db apcore.Database, f apcore.Framewo
 	//
 	// It is sugar for Path(...).HandlerFunc(...)
 	r.WebOnlyHandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		a.templates.ExecuteTemplate(w, "home.html", a.getTemplateData())
+		a.templates.ExecuteTemplate(w, homeTemplate, a.getTemplateData(nil))
 	})
 	r.WebOnlyHandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
-		// TODO: List users
-		d := a.getTemplateData()
-		a.templates.ExecuteTemplate(w, "users.html", d)
+		// TODO: Fetch users
+		a.templates.ExecuteTemplate(w, listUsersTemplate, a.getTemplateData(nil))
 	})
 	// ActivityPubHandleFunc is a convenience function for endpoints with
 	// only ActivityPub content; no web content exists at this endpoint.
-	r.ActivityPubOnlyHandleFunc("/activities/{activity}", func(c apcore.Context, w http.ResponseWriter, r *http.Request, db apcore.Database) (permit bool, err error) {
+	r.ActivityPubOnlyHandleFunc("/activities/{activity}", func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
 		// TODO: Based on activity and any auth, permit or deny
 		return false, nil
 	})
@@ -267,8 +282,8 @@ func (a *App) BuildRoutes(r *apcore.Router, db apcore.Database, f apcore.Framewo
 	// First, we need an authentication function to make sure whoever views
 	// the ActivityStreams data has proper credentials to view the web or
 	// ActivityStreams data.
-	authFn := func(c apcore.Context, w http.ResponseWriter, r *http.Request, db apcore.Database) (permit bool, err error) {
-		vars := apcore.Vars(r)
+	authFn := func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
+		vars := framework.Vars(r)
 		_ = vars["note"]
 		// TODO: Based on the note and any auth, permit or deny
 		return false, nil
@@ -282,7 +297,7 @@ func (a *App) BuildRoutes(r *apcore.Router, db apcore.Database, f apcore.Framewo
 		// Ensure the user is logged in.
 		_, authd, err := f.ValidateOAuth2AccessToken(w, r)
 		if err != nil {
-			apcore.ErrorLogger.Errorf("error validating oauth2 token in GET /notes/create: %s", err)
+			util.ErrorLogger.Errorf("error validating oauth2 token in GET /notes/create: %s", err)
 			internalErrorHandler.ServeHTTP(w, r)
 			return
 		}
@@ -291,14 +306,13 @@ func (a *App) BuildRoutes(r *apcore.Router, db apcore.Database, f apcore.Framewo
 			return
 		}
 		// Render the webpage.
-		d := a.getTemplateData()
-		a.templates.ExecuteTemplate(w, "create_note.html", d)
+		a.templates.ExecuteTemplate(w, "create_note.html", a.getTemplateData(nil))
 	})
 	r.NewRoute().Path("/notes/create").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Ensure the user is logged in.
 		_, authd, err := f.ValidateOAuth2AccessToken(w, r)
 		if err != nil {
-			apcore.ErrorLogger.Errorf("error validating oauth2 token in POST /notes/create: %s", err)
+			util.ErrorLogger.Errorf("error validating oauth2 token in POST /notes/create: %s", err)
 			internalErrorHandler.ServeHTTP(w, r)
 			return
 		}
@@ -312,15 +326,16 @@ func (a *App) BuildRoutes(r *apcore.Router, db apcore.Database, f apcore.Framewo
 		var create vocab.ActivityStreamsCreate
 		// TODO: Build a new Create activity here
 		if err := f.Send(r.Context(), outboxURI, create); err != nil {
-			apcore.ErrorLogger.Errorf("error sending when creating note")
+			util.ErrorLogger.Errorf("error sending when creating note")
 			internalErrorHandler.ServeHTTP(w, r)
 		}
+		// TODO: Redirect to newly created URI
 		http.Redirect(w, r, "/notes", http.StatusFound)
 	})
 	return nil
 }
 
-func (a *App) NewId(c context.Context, t vocab.Type) (id *url.URL, err error) {
+func (a *App) NewID(c context.Context, t vocab.Type) (id *url.URL, err error) {
 	// TODO
 	return
 }
@@ -384,19 +399,31 @@ func (a *App) ScopePermitsPrivateGetOutbox(scope string) (permitted bool, err er
 //
 // Warning: Nothing inherently prevents your application from lying and
 // attempting to masquerade as another set of software. Don't be that jerk.
-func (a *App) Software() apcore.Software {
-	return apcore.Software{
-		Name:         "apcore example",
+func (a *App) Software() app.Software {
+	return app.Software{
+		Name:         "BLand",
 		MajorVersion: 0,
 		MinorVersion: 1,
 		PatchVersion: 0,
 	}
 }
 
+func (a *App) DefaultUserPreferences() interface{} {
+	return nil
+}
+
+func (a *App) DefaultUserPrivileges() interface{} {
+	return nil
+}
+func (a *App) DefaultAdminPrivileges() interface{} {
+	return nil
+}
+
 // This is a helper function to generate common data needed in the web
 // templates.
-func (a *App) getTemplateData() map[string]interface{} {
+func (a *App) getTemplateData(other interface{}) map[string]interface{} {
 	return map[string]interface{}{
+		"Other": other,
 		"Nav": []struct {
 			Href string
 			Name string
