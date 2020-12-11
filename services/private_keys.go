@@ -119,7 +119,7 @@ func createAndSerializeRSAKeys(n int) (priv []byte, pub string, err error) {
 	if err != nil {
 		return
 	}
-	pub, err = marshalPublicKey(k.PublicKey)
+	pub, err = marshalPublicKey(&(k.PublicKey))
 	return
 }
 
