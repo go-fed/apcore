@@ -94,7 +94,9 @@ func (u *Users) CreateUser(c util.Context, params CreateUserParameters, password
 }
 
 func (u *Users) CreateAdminUser(c util.Context, params CreateUserParameters, password string) (userID string, err error) {
-	var roles models.Privileges
+	roles := models.Privileges{
+		Admin: true,
+	}
 	roles.Payload, err = json.Marshal(u.App.DefaultAdminPrivileges())
 	if err != nil {
 		return
