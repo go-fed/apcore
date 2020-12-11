@@ -227,6 +227,9 @@ tables, seeding initial data, and then closing all connections.`))
 	if err != nil {
 		return err
 	}
+	fmt.Println(framework.ClarkeSays(`
+Next up is seeeeding the database with basic information to get your server
+Moooooving~.`))
 	err = doInitData(*configFlag, a, *devFlag, schemeFromFlags())
 	if err != nil {
 		return err
