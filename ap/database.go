@@ -32,8 +32,8 @@ import (
 var _ app.Database = &Database{}
 
 type Database struct {
-	scheme string
-	host string
+	scheme                string
+	host                  string
 	inboxes               *services.Inboxes
 	outboxes              *services.Outboxes
 	users                 *services.Users
@@ -55,8 +55,8 @@ func NewDatabase(scheme string,
 	following *services.Following,
 	liked *services.Liked) *Database {
 	return &Database{
-		scheme: scheme,
-		host: c.ServerConfig.Host,
+		scheme:                scheme,
+		host:                  c.ServerConfig.Host,
 		inboxes:               inboxes,
 		outboxes:              outboxes,
 		users:                 users,

@@ -91,8 +91,8 @@ func (a *APDB) NewID(c context.Context, t vocab.Type) (id *url.URL, err error) {
 	}
 	id = &url.URL{
 		Scheme: a.scheme,
-		Host: a.host,
-		Path: path,
+		Host:   a.host,
+		Path:   path,
 	}
 	return
 }
