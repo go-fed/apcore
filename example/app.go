@@ -47,6 +47,7 @@ const (
 	usersTemplate         = "users.tmpl"
 	listUsersTemplate     = "list_users.tmpl"
 	homeTemplate          = "home.tmpl"
+	createNoteTemplate    = "create_note.tmpl"
 )
 
 var _ app.Application = &App{}
@@ -64,6 +65,10 @@ func newApplication(glob string) (*App, error) {
 	t, err := template.ParseGlob(glob)
 	if err != nil {
 		return nil, err
+	}
+	util.InfoLogger.Infof("Templates found:")
+	for _, tp := range t.Templates() {
+		util.InfoLogger.Infof("%s", tp.Name())
 	}
 	return &App{
 		templates: t,
@@ -114,7 +119,10 @@ func (a *App) S2SEnabled() bool {
 func (a *App) NotFoundHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		a.templates.ExecuteTemplate(w, notFoundTemplate, a.getTemplateData(nil))
+		err := a.templates.ExecuteTemplate(w, notFoundTemplate, a.getTemplateData(nil))
+		if err != nil {
+			util.ErrorLogger.Errorf("Error serving NotFoundHandler: %v", err)
+		}
 	})
 }
 
@@ -124,7 +132,10 @@ func (a *App) NotFoundHandler() http.Handler {
 func (a *App) MethodNotAllowedHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		a.templates.ExecuteTemplate(w, notAllowedTemplate, a.getTemplateData(nil))
+		err := a.templates.ExecuteTemplate(w, notAllowedTemplate, a.getTemplateData(nil))
+		if err != nil {
+			util.ErrorLogger.Errorf("Error serving MethodNotAllowedHandler: %v", err)
+		}
 	})
 }
 
@@ -133,7 +144,10 @@ func (a *App) MethodNotAllowedHandler() http.Handler {
 func (a *App) InternalServerErrorHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		a.templates.ExecuteTemplate(w, internalErrorTemplate, a.getTemplateData(nil))
+		err := a.templates.ExecuteTemplate(w, internalErrorTemplate, a.getTemplateData(nil))
+		if err != nil {
+			util.ErrorLogger.Errorf("Error serving InternalServerErrorHandler: %v", err)
+		}
 	})
 }
 
@@ -144,7 +158,10 @@ func (a *App) InternalServerErrorHandler() http.Handler {
 func (a *App) BadRequestHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
-		a.templates.ExecuteTemplate(w, badRequestTemplate, a.getTemplateData(nil))
+		err := a.templates.ExecuteTemplate(w, badRequestTemplate, a.getTemplateData(nil))
+		if err != nil {
+			util.ErrorLogger.Errorf("Error serving BadRequestHandler: %v", err)
+		}
 	})
 }
 
@@ -156,7 +173,11 @@ func (a *App) BadRequestHandler() http.Handler {
 // message.
 func (a *App) GetLoginWebHandlerFunc() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		a.templates.ExecuteTemplate(w, loginTemplate, a.getTemplateData(nil))
+		// TODO: If logged in, redirect to home page
+		err := a.templates.ExecuteTemplate(w, loginTemplate, a.getTemplateData(nil))
+		if err != nil {
+			util.ErrorLogger.Errorf("Error serving GetLoginWebHandlerFunc: %v", err)
+		}
 	}
 }
 
@@ -164,7 +185,10 @@ func (a *App) GetLoginWebHandlerFunc() http.HandlerFunc {
 // for the user to approve in the OAuth2 flow.
 func (a *App) GetAuthWebHandlerFunc() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		a.templates.ExecuteTemplate(w, authTemplate, a.getTemplateData(nil))
+		err := a.templates.ExecuteTemplate(w, authTemplate, a.getTemplateData(nil))
+		if err != nil {
+			util.ErrorLogger.Errorf("Error serving GetAuthWebHandlerFunc: %v", err)
+		}
 	}
 }
 
@@ -173,7 +197,10 @@ func (a *App) GetAuthWebHandlerFunc() http.HandlerFunc {
 // authorization of the incoming request.
 func (a *App) GetInboxWebHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
 	return func(w http.ResponseWriter, r *http.Request, inbox vocab.ActivityStreamsOrderedCollectionPage) {
-		a.templates.ExecuteTemplate(w, inboxTemplate, a.getTemplateData(inbox))
+		err := a.templates.ExecuteTemplate(w, inboxTemplate, a.getTemplateData(inbox))
+		if err != nil {
+			util.ErrorLogger.Errorf("Error serving GetInboxWebHandlerFunc: %v", err)
+		}
 	}
 }
 
@@ -182,14 +209,20 @@ func (a *App) GetInboxWebHandlerFunc() func(w http.ResponseWriter, r *http.Reque
 // the authorization of the incoming request.
 func (a *App) GetOutboxWebHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
 	return func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
-		a.templates.ExecuteTemplate(w, outboxTemplate, a.getTemplateData(outbox))
+		err := a.templates.ExecuteTemplate(w, outboxTemplate, a.getTemplateData(outbox))
+		if err != nil {
+			util.ErrorLogger.Errorf("Error serving GetOutboxWebHandlerFunc: %v", err)
+		}
 	}
 }
 
 func (a *App) GetFollowersWebHandlerFunc() (http.HandlerFunc, app.AuthorizeFunc) {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// TODO: Pass in followers
-			a.templates.ExecuteTemplate(w, followersTemplate, a.getTemplateData(nil))
+			err := a.templates.ExecuteTemplate(w, followersTemplate, a.getTemplateData(nil))
+			if err != nil {
+				util.ErrorLogger.Errorf("Error serving GetFollowersWebHandlerFunc: %v", err)
+			}
 		}), func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
 			return true, nil
 		}
@@ -198,7 +231,10 @@ func (a *App) GetFollowersWebHandlerFunc() (http.HandlerFunc, app.AuthorizeFunc)
 func (a *App) GetFollowingWebHandlerFunc() (http.HandlerFunc, app.AuthorizeFunc) {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// TODO: Pass in following
-			a.templates.ExecuteTemplate(w, followingTemplate, a.getTemplateData(nil))
+			err := a.templates.ExecuteTemplate(w, followingTemplate, a.getTemplateData(nil))
+			if err != nil {
+				util.ErrorLogger.Errorf("Error serving GetFollowingWebHandlerFunc: %v", err)
+			}
 		}), func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
 			return true, nil
 		}
@@ -215,7 +251,10 @@ func (a *App) GetLikedWebHandlerFunc() (http.HandlerFunc, app.AuthorizeFunc) {
 func (a *App) GetUserWebHandlerFunc() (http.HandlerFunc, app.AuthorizeFunc) {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// TODO: Pass in users
-			a.templates.ExecuteTemplate(w, usersTemplate, a.getTemplateData(nil))
+			err := a.templates.ExecuteTemplate(w, usersTemplate, a.getTemplateData(nil))
+			if err != nil {
+				util.ErrorLogger.Errorf("Error serving GetUserWebHandlerFunc: %v", err)
+			}
 		}), func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
 			return true, nil
 		}
@@ -260,11 +299,17 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 	//
 	// It is sugar for Path(...).HandlerFunc(...)
 	r.WebOnlyHandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		a.templates.ExecuteTemplate(w, homeTemplate, a.getTemplateData(nil))
+		err := a.templates.ExecuteTemplate(w, homeTemplate, a.getTemplateData(nil))
+		if err != nil {
+			util.ErrorLogger.Errorf("Error serving home template: %v", err)
+		}
 	})
 	r.WebOnlyHandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
 		// TODO: Fetch users
-		a.templates.ExecuteTemplate(w, listUsersTemplate, a.getTemplateData(nil))
+		err := a.templates.ExecuteTemplate(w, listUsersTemplate, a.getTemplateData(nil))
+		if err != nil {
+			util.ErrorLogger.Errorf("Error serving list users template: %v", err)
+		}
 	})
 	// ActivityPubHandleFunc is a convenience function for endpoints with
 	// only ActivityPub content; no web content exists at this endpoint.
@@ -307,7 +352,10 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			return
 		}
 		// Render the webpage.
-		a.templates.ExecuteTemplate(w, "create_note.html", a.getTemplateData(nil))
+		err = a.templates.ExecuteTemplate(w, createNoteTemplate, a.getTemplateData(nil))
+		if err != nil {
+			util.ErrorLogger.Errorf("Error serving create note template: %v", err)
+		}
 	})
 	r.NewRoute().Path("/notes/create").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Ensure the user is logged in.
