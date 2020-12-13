@@ -177,7 +177,7 @@ func (s *Server) startHTTPS() error {
 
 func (s *Server) startHTTP() error {
 	util.InfoLogger.Infof("Launching http server")
-	err := s.httpsServer.ListenAndServe()
+	err := s.httpServer.ListenAndServe()
 	if err != http.ErrServerClosed {
 		util.ErrorLogger.Errorf("Error shutting down http server: %s", err)
 	} else {
