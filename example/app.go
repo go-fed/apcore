@@ -30,6 +30,7 @@ import (
 	"github.com/go-fed/apcore/app"
 	"github.com/go-fed/apcore/framework"
 	"github.com/go-fed/apcore/util"
+	"github.com/google/uuid"
 )
 
 const (
@@ -335,8 +336,13 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 	return nil
 }
 
-func (a *App) NewID(c context.Context, t vocab.Type) (id *url.URL, err error) {
-	// TODO
+func (a *App) NewIDPath(c context.Context, t vocab.Type) (path string, err error) {
+	switch t.GetTypeName() {
+	case "Note":
+		path = fmt.Sprintf("/notes/%s", uuid.New().String())
+	default:
+		err = fmt.Errorf("NewID unhandled type name: %s", t.GetTypeName())
+	}
 	return
 }
 

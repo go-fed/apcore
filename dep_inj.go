@@ -88,7 +88,8 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 	// ** Initialize the ActivityPub behavior **
 
 	// Create a RoutingDatabase
-	db := ap.NewDatabase(c,
+	db := ap.NewDatabase(scheme,
+		c,
 		inboxes,
 		outboxes,
 		users,

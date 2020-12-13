@@ -7,6 +7,7 @@ require (
 	github.com/go-fed/activity v1.0.0
 	github.com/go-fed/httpsig v0.1.1-0.20190924171022-f4c36041199d
 	github.com/google/logger v1.0.1
+	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.7.3
 	github.com/gorilla/sessions v1.2.0
 	github.com/jackc/pgx/v4 v4.9.0

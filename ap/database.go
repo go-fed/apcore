@@ -32,6 +32,8 @@ import (
 var _ app.Database = &Database{}
 
 type Database struct {
+	scheme string
+	host string
 	inboxes               *services.Inboxes
 	outboxes              *services.Outboxes
 	users                 *services.Users
@@ -43,7 +45,8 @@ type Database struct {
 	maxCollectionPageSize int
 }
 
-func NewDatabase(c *config.Config,
+func NewDatabase(scheme string,
+	c *config.Config,
 	inboxes *services.Inboxes,
 	outboxes *services.Outboxes,
 	users *services.Users,
@@ -52,6 +55,8 @@ func NewDatabase(c *config.Config,
 	following *services.Following,
 	liked *services.Liked) *Database {
 	return &Database{
+		scheme: scheme,
+		host: c.ServerConfig.Host,
 		inboxes:               inboxes,
 		outboxes:              outboxes,
 		users:                 users,

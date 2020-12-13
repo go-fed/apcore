@@ -84,5 +84,15 @@ func (a *APDB) Unlock(c context.Context, id *url.URL) error {
 }
 
 func (a *APDB) NewID(c context.Context, t vocab.Type) (id *url.URL, err error) {
-	return a.app.NewID(c, t)
+	var path string
+	path, err = a.app.NewIDPath(c, t)
+	if err != nil {
+		return
+	}
+	id = &url.URL{
+		Scheme: a.scheme,
+		Host: a.host,
+		Path: path,
+	}
+	return
 }

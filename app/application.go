@@ -19,7 +19,6 @@ package app
 import (
 	"context"
 	"net/http"
-	"net/url"
 
 	"github.com/go-fed/activity/pub"
 	"github.com/go-fed/activity/streams/vocab"
@@ -227,14 +226,16 @@ type Application interface {
 	// These calls are made when the server is handling requests, but are
 	// not called during server initialization.
 
-	// NewID creates a new id IRI for the content being created.
+	// NewIDPath creates a new id IRI path component for the content being
+	// created.
 	//
-	// A peer making a GET request to this IRI on this server should then
-	// serve the ActivityPub value provided in this call.
+	// A peer making a GET request to this path on this server should then
+	// serve the ActivityPub value provided in this call. For example:
+	//   "/notes/abcd0123-4567-890a-bcd0-1234567890ab"
 	//
-	// Ensure the route returned by NewID will be servable by a handler
+	// Ensure the route returned by NewIDPath will be servable by a handler
 	// created in the BuildRoutes call.
-	NewID(c context.Context, t vocab.Type) (id *url.URL, err error)
+	NewIDPath(c context.Context, t vocab.Type) (path string, err error)
 	// ApplyFederatingCallbacks injects ActivityPub specific behaviors for
 	// federated data.
 	//
