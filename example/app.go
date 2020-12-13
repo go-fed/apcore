@@ -51,6 +51,8 @@ const (
 )
 
 var _ app.Application = &App{}
+var _ app.S2SApplication = &App{}
+var _ app.C2SApplication = &App{}
 
 // App is an example application that minimally implements the
 // app.Application interface.

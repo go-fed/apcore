@@ -25,7 +25,9 @@ import (
 )
 
 // Application is an ActivityPub application built on top of apcore's
-// infrastructure.
+// infrastructure. Your application must also implement C2SApplication,
+// S2SApplication, or both interfaces in order to gain the benefits of
+// federating using ActivityPub's Social or Federating Protocols.
 type Application interface {
 	// CALLS MADE AT SERVER STARTUP
 	//
@@ -82,25 +84,6 @@ type Application interface {
 	// function is only called once during application initialization.
 	SetConfiguration(interface{}) error
 
-	// Whether this application supports ActivityPub's C2S protocol, or the
-	// Social API.
-	//
-	// This and S2SEnabled may both be true. If C2SEnabled and S2SEnabled
-	// both return false, an error will arise at startup.
-	//
-	// This is only checked at startup time. Attempting to enable or disable
-	// C2S at runtime has no effect.
-	C2SEnabled() bool
-	// Whether this application supports ActivityPub's S2S protocol, or the
-	// Federating API.
-	//
-	// This and C2SEnabled may both be true. If C2SEnabled and S2SEnabled
-	// both return false, an error will arise at startup.
-	//
-	// This is only checked at startup time. Attempting to enable or disable
-	// S2S at runtime has no effect.
-	S2SEnabled() bool
-
 	// The handler for the application's "404 Not Found" webpage.
 	NotFoundHandler() http.Handler
 	// The handler when a request makes an unsupported HTTP method against
@@ -131,24 +114,11 @@ type Application interface {
 
 	// Web handlers for ActivityPub related data
 
-	// Web handler for a call to GET an actor's inbox. The framework applies
-	// OAuth2 authorizations to fetch a public-only or private snapshot of
-	// the inbox, and passes it into this handler function.
-	//
-	// The builtin ActivityPub handler will use the OAuth authorization.
-	//
-	// Only called if S2SEnabled is true.
-	//
-	// Returning a nil handler is allowed, and doing so results in only
-	// ActivityStreams content being served.
-	GetInboxWebHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage)
 	// Web handler for a call to GET an actor's outbox. The framework
 	// applies OAuth2 authorizations to fetch a public-only or private
 	// snapshot of the outbox, and passes it to this handler function.
 	//
 	// The builtin ActivityPub handler will use the OAuth authorization.
-	//
-	// Always called regardless whether C2SEnabled or S2SEnabled is true.
 	//
 	// Returning a nil handler is allowed, and doing so results in only
 	// ActivityStreams content being served.
@@ -159,8 +129,6 @@ type Application interface {
 	//
 	// Also returns for the corresponding AuthorizeFunc handler, which will
 	// be applied to both ActivityPub and web requests.
-	//
-	// Always called regardless whether C2SEnabled or S2SEnabled is true.
 	//
 	// Returning a nil handler is allowed, and doing so results in only
 	// ActivityStreams content being served. Returning a nil AuthorizeFunc
@@ -173,8 +141,6 @@ type Application interface {
 	// Also returns for the corresponding AuthorizeFunc handler, which will
 	// be applied to both ActivityPub and web requests.
 	//
-	// Always called regardless whether C2SEnabled or S2SEnabled is true.
-	//
 	// Returning a nil handler is allowed, and doing so results in only
 	// ActivityStreams content being served. Returning a nil AuthorizeFunc
 	// results in public access.
@@ -186,8 +152,6 @@ type Application interface {
 	// Also returns for the corresponding AuthorizeFunc handler, which will
 	// be applied to both ActivityPub and web requests.
 	//
-	// Always called regardless whether C2SEnabled or S2SEnabled is true.
-	//
 	// Returning a nil handler is allowed, and doing so results in only
 	// ActivityStreams content being served. Returning a nil AuthorizeFunc
 	// results in public access.
@@ -197,8 +161,6 @@ type Application interface {
 	//
 	// Also returns for the corresponding AuthorizeFunc handler, which will
 	// be applied to both ActivityPub and web requests.
-	//
-	// Always called regardless whether C2SEnabled or S2SEnabled is true.
 	//
 	// Returning a nil handler is allowed, and doing so results in only
 	// ActivityStreams content being served. Returning a nil AuthorizeFunc
@@ -236,6 +198,99 @@ type Application interface {
 	// Ensure the route returned by NewIDPath will be servable by a handler
 	// created in the BuildRoutes call.
 	NewIDPath(c context.Context, t vocab.Type) (path string, err error)
+
+	// ScopePermitsPrivateGetInbox determines if an OAuth token scope
+	// permits the bearer to view private (non-Public) messages in an
+	// actor's inbox.
+	ScopePermitsPrivateGetInbox(scope string) (permitted bool, err error)
+	// ScopePermitsPrivateGetOutbox determines if an OAuth token scope
+	// permits the bearer to view private (non-Public) messages in an
+	// actor's outbox.
+	ScopePermitsPrivateGetOutbox(scope string) (permitted bool, err error)
+
+	// DefaultUserPreferences returns an application-specific preferences
+	// struct to be serialized into JSON and used as initial user app
+	// preferences.
+	DefaultUserPreferences() interface{}
+	// DefaultUserPrivileges returns an application-specific privileges
+	// struct to be serialized into JSON and used as initial user app
+	// privileges.
+	DefaultUserPrivileges() interface{}
+	// DefaultAdminPrivileges returns an application-specific privileges
+	// struct to be serialized into JSON and used as initial user app
+	// privileges for new admins.
+	DefaultAdminPrivileges() interface{}
+
+	// CALLS MADE BOTH AT STARTUP AND SERVING TIME
+	//
+	// These calls are made at least once during server initialization, and
+	// are called when the server is handling requests.
+
+	// Information about this application's software. This will be shown at
+	// the command line and used for NodeInfo statistics, as well as for
+	// user agent information.
+	Software() Software
+}
+
+// C2SApplication is an Application with additional methods required to support
+// the C2S, or Social, ActivityPub protocol.
+type C2SApplication interface {
+	// ScopePermitsPostOutbox determines if an OAuth token scope permits the
+	// bearer to post to an actor's outbox.
+	ScopePermitsPostOutbox(scope string) (permitted bool, err error)
+
+	// ApplySocialCallbacks injects ActivityPub specific behaviors for
+	// social, or C2S, data.
+	//
+	// Additional behavior for out-of-the-box supported types, such as the
+	// Create type, can be set by directly defining a function on the
+	// callback passed in:
+	//
+	//     func (m *myImpl) ApplySocialCallbacks(swc *pub.SocialWrappedCallbacks) (others []interface{}) {
+	//       swc.Create = func(c context.Context, as vocab.ActivityStreamsCreate) error {
+	//         // Additional application behavior for the Create activity.
+	//       }
+	//     }
+	//
+	// To use less common types that do no have out-of-the-box behavior,
+	// such as the Listen type, return the functions in `others` that
+	// implement the behavior. The functions in `others` must be in the
+	// form:
+	//
+	//     func(c context.Context, as vocab.ActivityStreamsListen) error {
+	//       // Application behavior for the Listen activity.
+	//     }
+	//
+	// Caution: returning an out-of-the-box supported type in `others` will
+	// override the framework-provided default behavior for that type. For
+	// example, the "Create" behavior's default behavior of creating
+	// ActivityStreams types in the database can be overridden by:
+	//
+	//     func (m *myImpl) ApplySocialCallbacks(swc *pub.SocialWrappedCallbacks) (others []interface{}) {
+	//       others = []interface{}{
+	//         func(c context.Context, as vocab.ActivityStreamsCreate) error {
+	//           // New behavior for the Create activity that overrides the
+	//           // framework provided defaults.
+	//         },
+	//       }
+	//       return
+	//     }
+	ApplySocialCallbacks(swc *pub.SocialWrappedCallbacks) (others []interface{})
+}
+
+// S2SApplication is an Application with the additional methods required to
+// support the S2S, or Federating, ActivityPub protocol.
+type S2SApplication interface {
+	// Web handler for a call to GET an actor's inbox. The framework applies
+	// OAuth2 authorizations to fetch a public-only or private snapshot of
+	// the inbox, and passes it into this handler function.
+	//
+	// The builtin ActivityPub handler will use the OAuth authorization.
+	//
+	// Returning a nil handler is allowed, and doing so results in only
+	// ActivityStreams content being served.
+	GetInboxWebHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage)
+
 	// ApplyFederatingCallbacks injects ActivityPub specific behaviors for
 	// federated data.
 	//
@@ -275,84 +330,5 @@ type Application interface {
 	//
 	// Note: The `OnFollow` value will already be populated by the user's
 	// preferred behavior upon receiving a Follow request.
-	//
-	// Only called if S2SEnabled returned true at startup time.
 	ApplyFederatingCallbacks(fwc *pub.FederatingWrappedCallbacks) (others []interface{})
-	// ApplySocialCallbacks injects ActivityPub specific behaviors for
-	// social, or C2S, data.
-	//
-	// Additional behavior for out-of-the-box supported types, such as the
-	// Create type, can be set by directly defining a function on the
-	// callback passed in:
-	//
-	//     func (m *myImpl) ApplySocialCallbacks(swc *pub.SocialWrappedCallbacks) (others []interface{}) {
-	//       swc.Create = func(c context.Context, as vocab.ActivityStreamsCreate) error {
-	//         // Additional application behavior for the Create activity.
-	//       }
-	//     }
-	//
-	// To use less common types that do no have out-of-the-box behavior,
-	// such as the Listen type, return the functions in `others` that
-	// implement the behavior. The functions in `others` must be in the
-	// form:
-	//
-	//     func(c context.Context, as vocab.ActivityStreamsListen) error {
-	//       // Application behavior for the Listen activity.
-	//     }
-	//
-	// Caution: returning an out-of-the-box supported type in `others` will
-	// override the framework-provided default behavior for that type. For
-	// example, the "Create" behavior's default behavior of creating
-	// ActivityStreams types in the database can be overridden by:
-	//
-	//     func (m *myImpl) ApplySocialCallbacks(swc *pub.SocialWrappedCallbacks) (others []interface{}) {
-	//       others = []interface{}{
-	//         func(c context.Context, as vocab.ActivityStreamsCreate) error {
-	//           // New behavior for the Create activity that overrides the
-	//           // framework provided defaults.
-	//         },
-	//       }
-	//       return
-	//     }
-	//
-	// Only called if C2SEnabled returned true at startup time.
-	ApplySocialCallbacks(swc *pub.SocialWrappedCallbacks) (others []interface{})
-
-	// ScopePermitsPostOutbox determines if an OAuth token scope permits the
-	// bearer to post to an actor's outbox. It is only called if C2S is
-	// enabled.
-	ScopePermitsPostOutbox(scope string) (permitted bool, err error)
-	// ScopePermitsPrivateGetInbox determines if an OAuth token scope
-	// permits the bearer to view private (non-Public) messages in an
-	// actor's inbox. It is always called, regardless whether C2S or S2S is
-	// enabled.
-	ScopePermitsPrivateGetInbox(scope string) (permitted bool, err error)
-	// ScopePermitsPrivateGetOutbox determines if an OAuth token scope
-	// permits the bearer to view private (non-Public) messages in an
-	// actor's outbox. It is always called, regardless whether C2S or S2S is
-	// enabled.
-	ScopePermitsPrivateGetOutbox(scope string) (permitted bool, err error)
-
-	// DefaultUserPreferences returns an application-specific preferences
-	// struct to be serialized into JSON and used as initial user app
-	// preferences.
-	DefaultUserPreferences() interface{}
-	// DefaultUserPrivileges returns an application-specific privileges
-	// struct to be serialized into JSON and used as initial user app
-	// privileges.
-	DefaultUserPrivileges() interface{}
-	// DefaultAdminPrivileges returns an application-specific privileges
-	// struct to be serialized into JSON and used as initial user app
-	// privileges for new admins.
-	DefaultAdminPrivileges() interface{}
-
-	// CALLS MADE BOTH AT STARTUP AND SERVING TIME
-	//
-	// These calls are made at least once during server initialization, and
-	// are called when the server is handling requests.
-
-	// Information about this application's software. This will be shown at
-	// the command line and used for NodeInfo statistics, as well as for
-	// user agent information.
-	Software() Software
 }

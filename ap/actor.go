@@ -40,26 +40,28 @@ func NewActor(c *config.Config,
 	tc *conn.Controller) (actor pub.Actor, err error) {
 
 	common := NewCommonBehavior(a, db, tc, o, pk)
-	if cs, ss := a.C2SEnabled(), a.S2SEnabled(); !cs && !ss {
-		err = fmt.Errorf("neither C2S nor S2S are enabled by the Application")
-	} else if cs && ss {
-		c2s := NewSocialBehavior(a, o)
-		s2s := NewFederatingBehavior(c, a, db, po, pk, f, u, tc)
+	ca, isC2S := a.(app.C2SApplication)
+	sa, isS2S := a.(app.S2SApplication)
+	if !isC2S && !isS2S {
+		err = fmt.Errorf("the Application is neither a C2SApplication nor a S2SApplication")
+	} else if isC2S && isS2S {
+		c2s := NewSocialBehavior(ca, o)
+		s2s := NewFederatingBehavior(c, sa, db, po, pk, f, u, tc)
 		actor = pub.NewActor(
 			common,
 			c2s,
 			s2s,
 			apdb,
 			clock)
-	} else if cs {
-		c2s := NewSocialBehavior(a, o)
+	} else if isC2S {
+		c2s := NewSocialBehavior(ca, o)
 		actor = pub.NewSocialActor(
 			common,
 			c2s,
 			apdb,
 			clock)
-	} else if ss {
-		s2s := NewFederatingBehavior(c, a, db, po, pk, f, u, tc)
+	} else {
+		s2s := NewFederatingBehavior(c, sa, db, po, pk, f, u, tc)
 		actor = pub.NewFederatingActor(
 			common,
 			s2s,

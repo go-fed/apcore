@@ -156,7 +156,7 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 		badRequestHandler)
 
 	// Build framework for auxiliary behaviors
-	fw := framework.NewFramework(oauth, actor, appl.S2SEnabled())
+	fw := framework.NewFramework(oauth, actor, appl)
 
 	// Build application routes for default web support
 	h, err := framework.BuildHandler(r,

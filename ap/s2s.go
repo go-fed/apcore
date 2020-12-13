@@ -35,7 +35,7 @@ var _ pub.FederatingProtocol = &FederatingBehavior{}
 type FederatingBehavior struct {
 	maxInboxForwardingDepth int
 	maxDeliveryDepth        int
-	app                     app.Application
+	app                     app.S2SApplication
 	db                      *Database
 	po                      *services.Policies
 	pk                      *services.PrivateKeys
@@ -45,7 +45,7 @@ type FederatingBehavior struct {
 }
 
 func NewFederatingBehavior(c *config.Config,
-	a app.Application,
+	a app.S2SApplication,
 	db *Database,
 	po *services.Policies,
 	pk *services.PrivateKeys,

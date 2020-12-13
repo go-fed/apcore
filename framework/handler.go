@@ -96,12 +96,12 @@ func BuildHandler(r *Router,
 	// - Followers
 	// - Following
 	// - Liked
-	if a.S2SEnabled() {
+	if sa, isS2S := a.(app.S2SApplication); isS2S {
 		r.userActorPostInbox()
-		r.userActorGetInbox(a.GetInboxWebHandlerFunc())
+		r.userActorGetInbox(sa.GetInboxWebHandlerFunc())
 	}
 	r.userActorGetOutbox(a.GetOutboxWebHandlerFunc())
-	if a.C2SEnabled() {
+	if _, isC2S := a.(app.C2SApplication); isC2S {
 		r.userActorPostOutbox()
 	}
 	maybeAddWebFn := func(path string, f func() (http.HandlerFunc, app.AuthorizeFunc)) {
@@ -120,9 +120,9 @@ func BuildHandler(r *Router,
 	// Built-in routes for non-user actors
 	for _, k := range paths.AllActors {
 		r.knownActorPostInbox(k)
-		r.knownActorGetInbox(k, a.GetInboxWebHandlerFunc())
+		r.knownActorGetInbox(k, nil)
 		r.knownActorPostOutbox(k)
-		r.knownActorGetOutbox(k, a.GetOutboxWebHandlerFunc())
+		r.knownActorGetOutbox(k, nil)
 	}
 
 	// POST Login and GET logout routes

@@ -37,11 +37,12 @@ type Framework struct {
 	federationEnabled bool
 }
 
-func NewFramework(o *oauth2.Server, actor pub.Actor, federationEnabled bool) *Framework {
+func NewFramework(o *oauth2.Server, actor pub.Actor, a app.Application) *Framework {
+	_, isS2S := a.(app.S2SApplication)
 	return &Framework{
 		o:                 o,
 		actor:             actor,
-		federationEnabled: federationEnabled,
+		federationEnabled: isS2S,
 	}
 }
 

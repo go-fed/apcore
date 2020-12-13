@@ -32,11 +32,11 @@ import (
 var _ pub.SocialProtocol = &SocialBehavior{}
 
 type SocialBehavior struct {
-	app app.Application
+	app app.C2SApplication
 	o   *oauth2.Server
 }
 
-func NewSocialBehavior(app app.Application, o *oauth2.Server) *SocialBehavior {
+func NewSocialBehavior(app app.C2SApplication, o *oauth2.Server) *SocialBehavior {
 	return &SocialBehavior{
 		app: app,
 		o:   o,
