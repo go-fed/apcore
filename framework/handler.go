@@ -35,6 +35,7 @@ import (
 	"github.com/go-fed/apcore/paths"
 	"github.com/go-fed/apcore/services"
 	"github.com/go-fed/apcore/util"
+	"github.com/gorilla/mux"
 )
 
 const (
@@ -70,7 +71,7 @@ func BuildHandler(r *Router,
 	} else {
 		util.InfoLogger.Infof("Serving static directory: %s", sd)
 		fs := http.FileServer(http.Dir(sd))
-		r.PathPrefix("/").Handler(fs)
+		r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
 	}
 
 	// Dynamic Routes
@@ -158,6 +159,34 @@ func BuildHandler(r *Router,
 		r.Use(requestLogger)
 		util.InfoLogger.Info("Adding request timing middleware for debugging")
 		r.Use(timingLogger)
+		util.InfoLogger.Info("Printing all registered routes for debugging")
+		err := r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+			pathTemplate, err := route.GetPathTemplate()
+			if err == nil {
+				util.InfoLogger.Infof("ROUTE: %s", pathTemplate)
+			}
+			pathRegexp, err := route.GetPathRegexp()
+			if err == nil {
+				util.InfoLogger.Infof("Path regexp: %s", pathRegexp)
+			}
+			queriesTemplates, err := route.GetQueriesTemplates()
+			if err == nil {
+				util.InfoLogger.Infof("Queries templates: %s", strings.Join(queriesTemplates, ","))
+			}
+			queriesRegexps, err := route.GetQueriesRegexp()
+			if err == nil {
+				util.InfoLogger.Infof("Queries regexps: %s", strings.Join(queriesRegexps, ","))
+			}
+			methods, err := route.GetMethods()
+			if err == nil {
+				util.InfoLogger.Infof("Methods: %s", strings.Join(methods, ","))
+			}
+			util.InfoLogger.Infof("")
+			return nil
+		})
+		if err != nil {
+			util.ErrorLogger.Errorf("Error walking the registered handlers: %v", err)
+		}
 	}
 
 	rt = r.router
