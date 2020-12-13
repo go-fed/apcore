@@ -31,6 +31,7 @@ func NewActorMap(c *config.Config,
 	pk *services.PrivateKeys,
 	f *services.Followers,
 	tc *conn.Controller) (actorMap map[paths.Actor]pub.Actor) {
+	actorMap = make(map[paths.Actor]pub.Actor, 1)
 	actorMap[paths.InstanceActor] = newInstanceActor(c, clock, db, apdb, pk, f, tc)
 	return
 }
