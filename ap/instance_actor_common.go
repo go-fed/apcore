@@ -50,11 +50,13 @@ func newInstanceActorCommonBehavior(
 
 func (a *instanceActorCommonBehavior) AuthenticateGetInbox(c context.Context, w http.ResponseWriter, r *http.Request) (newCtx context.Context, authenticated bool, err error) {
 	authenticated = true
+	newCtx = c
 	return
 }
 
 func (a *instanceActorCommonBehavior) AuthenticateGetOutbox(c context.Context, w http.ResponseWriter, r *http.Request) (newCtx context.Context, authenticated bool, err error) {
 	authenticated = true
+	newCtx = c
 	return
 }
 
