@@ -40,8 +40,8 @@ type instanceActorCommonBehavior struct {
 func newInstanceActorCommonBehavior(
 	db *Database,
 	tc *conn.Controller,
-	pk *services.PrivateKeys) *CommonBehavior {
-	return &CommonBehavior{
+	pk *services.PrivateKeys) *instanceActorCommonBehavior {
+	return &instanceActorCommonBehavior{
 		tc: tc,
 		db: db,
 		pk: pk,

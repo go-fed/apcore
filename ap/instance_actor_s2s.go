@@ -44,8 +44,8 @@ func newInstanceActorFederatingBehavior(c *config.Config,
 	db *Database,
 	pk *services.PrivateKeys,
 	f *services.Followers,
-	tc *conn.Controller) *FederatingBehavior {
-	return &FederatingBehavior{
+	tc *conn.Controller) *instanceActorFederatingBehavior {
+	return &instanceActorFederatingBehavior{
 		maxInboxForwardingDepth: c.ActivityPubConfig.MaxInboxForwardingRecursionDepth,
 		maxDeliveryDepth:        c.ActivityPubConfig.MaxDeliveryRecursionDepth,
 		db:                      db,
