@@ -403,9 +403,9 @@ only_public AS (
     SELECT
       *
     FROM local_public) AS i
-)
-SELECT
-  i.inbox ||
+),
+single_public AS (
+  SELECT
     jsonb_build_object(
       'orderedItems',
       op.page,
@@ -413,8 +413,18 @@ SELECT
       jsonb_path_query(op.page, '$.size()'),
       'type',
       'OrderedCollectionPage') AS page,
+    op.isEnd AS isEnd
+  FROM only_public AS op
+  UNION ALL
+  SELECT
+    '{"orderedItems":[],"totalItems":0,"type":"OrderedCollectionPage"}'::jsonb AS page,
+    true AS isEnd
+  LIMIT 1
+)
+SELECT
+  i.inbox || op.page,
   op.isEnd
-  FROM inbox AS i, only_public AS op`
+  FROM inbox AS i, single_public AS op`
 }
 
 func (p *pgV0) GetPublicOutbox() string {
@@ -468,9 +478,9 @@ only_public AS (
     SELECT
       *
     FROM local_public) AS i
-)
-SELECT
-  i.outbox ||
+),
+single_public AS (
+  SELECT
     jsonb_build_object(
       'orderedItems',
       op.page,
@@ -478,8 +488,18 @@ SELECT
       jsonb_path_query(op.page, '$.size()'),
       'type',
       'OrderedCollectionPage') AS page,
+    op.isEnd AS isEnd
+  FROM only_public AS op
+  UNION ALL
+  SELECT
+    '{"orderedItems":[],"totalItems":0,"type":"OrderedCollectionPage"}'::jsonb AS page,
+    true AS isEnd
+  LIMIT 1
+)
+SELECT
+  i.outbox || op.page,
   op.isEnd
-  FROM outbox AS i, only_public AS op`
+  FROM outbox AS i, single_public AS op`
 }
 
 func (p *pgV0) GetInboxLastPage() string {
@@ -605,18 +625,28 @@ only_public AS (
         GREATEST(0, n - $2))) AS page,
 	GREATEST(0, n - $2) AS startIndex
   FROM merged
-)
-SELECT
-  i.inbox ||
+),
+single_public AS (
+  SELECT
     jsonb_build_object(
       'orderedItems',
       op.page,
       'totalItems',
       jsonb_path_query(op.page, '$.size()'),
       'type',
-      'OrderedCollectionPage') AS inbox,
+      'OrderedCollectionPage') AS page,
+    op.startIndex AS startIndex
+  FROM only_public AS op
+  UNION ALL
+  SELECT
+    '{"orderedItems":[],"totalItems":0,"type":"OrderedCollectionPage"}'::jsonb AS page,
+    0 AS startIndex
+  LIMIT 1
+)
+SELECT
+  i.inbox || op.page,
   op.startIndex
-FROM inbox AS i, only_public AS op`
+FROM inbox AS i, single_public AS op`
 }
 
 func (p *pgV0) GetPublicOutboxLastPage() string {
@@ -674,18 +704,28 @@ only_public AS (
         GREATEST(0, n - $2))) AS page,
 	GREATEST(0, n - $2) AS startIndex
   FROM merged
-)
-SELECT
-  i.outbox ||
+),
+single_public AS (
+  SELECT
     jsonb_build_object(
       'orderedItems',
       op.page,
       'totalItems',
       jsonb_path_query(op.page, '$.size()'),
       'type',
-      'OrderedCollectionPage') AS outbox,
+      'OrderedCollectionPage') AS page,
+    op.startIndex AS startIndex
+  FROM only_public AS op
+  UNION ALL
+  SELECT
+    '{"orderedItems":[],"totalItems":0,"type":"OrderedCollectionPage"}'::jsonb AS page,
+    0 AS startIndex
+  LIMIT 1
+)
+SELECT
+  i.outbox || op.page,
   op.startIndex
-FROM outbox AS i, only_public AS op`
+FROM outbox AS i, single_public AS op`
 }
 
 func (p *pgV0) PrependInboxItem() string {
