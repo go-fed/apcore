@@ -183,3 +183,7 @@ func IRIForActorID(k PathKey, actorID *url.URL) (*url.URL, error) {
 func Route(k PathKey) string {
 	return knownUserPaths(k)
 }
+
+func IsUserPath(id *url.URL) bool {
+	return strings.Contains(id.Path, "users") || strings.Contains(id.Path, "actors")
+}

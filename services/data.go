@@ -23,6 +23,7 @@ import (
 	"github.com/go-fed/activity/pub"
 	"github.com/go-fed/activity/streams/vocab"
 	"github.com/go-fed/apcore/models"
+	"github.com/go-fed/apcore/paths"
 	"github.com/go-fed/apcore/util"
 )
 
@@ -31,6 +32,7 @@ type Data struct {
 	Hostname  string
 	FedData   *models.FedData
 	LocalData *models.LocalData
+	Users     *models.Users
 }
 
 // Owns determines if this IRI is a local or federated piece of data.
@@ -58,15 +60,33 @@ func (d *Data) Exists(c util.Context, id *url.URL) (exists bool, err error) {
 // Get obtains the federated or local ActivityStreams data.
 func (d *Data) Get(c util.Context, id *url.URL) (v vocab.Type, err error) {
 	if d.Owns(id) {
-		err = doInTx(c, d.DB, func(tx *sql.Tx) error {
-			var as models.ActivityStreams
-			as, err = d.LocalData.Get(c, tx, id)
+		// Determine whether this is a user, or local data
+		if paths.IsUserPath(id) {
+			var uid paths.UUID
+			uid, err = paths.UUIDFromUserPath(id.Path)
 			if err != nil {
-				return err
+				return
 			}
-			v = as.Type
-			return nil
-		})
+			err = doInTx(c, d.DB, func(tx *sql.Tx) error {
+				var as *models.User
+				as, err = d.Users.UserByID(c, tx, string(uid))
+				if err != nil {
+					return err
+				}
+				v = as.Actor.Type
+				return nil
+			})
+		} else {
+			err = doInTx(c, d.DB, func(tx *sql.Tx) error {
+				var as models.ActivityStreams
+				as, err = d.LocalData.Get(c, tx, id)
+				if err != nil {
+					return err
+				}
+				v = as.Type
+				return nil
+			})
+		}
 	} else {
 		err = doInTx(c, d.DB, func(tx *sql.Tx) error {
 			var as models.ActivityStreams
@@ -79,7 +99,6 @@ func (d *Data) Get(c util.Context, id *url.URL) (v vocab.Type, err error) {
 		})
 	}
 	return
-
 }
 
 // Create stores the ActivityStreams payload locally or federated.

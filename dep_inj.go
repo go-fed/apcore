@@ -299,6 +299,7 @@ func createModelsAndServices(c *config.Config, sqldb *sql.DB, appl app.Applicati
 		Hostname:  host,
 		FedData:   fd,
 		LocalData: ld,
+		Users:     us,
 	}
 	dAttempts = &services.DeliveryAttempts{
 		DB:               sqldb,
