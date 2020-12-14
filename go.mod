@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
-	github.com/go-fed/activity v1.0.0
+	github.com/go-fed/activity v1.0.1-0.20201213224552-472d90163f3a
 	github.com/go-fed/httpsig v0.1.1-0.20190924171022-f4c36041199d
 	github.com/google/logger v1.0.1
 	github.com/google/uuid v1.1.2
