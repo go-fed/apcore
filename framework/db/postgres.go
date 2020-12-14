@@ -1058,9 +1058,9 @@ func (p *pgV0) getCollection(name string) string {
     $3::integer + 1 >= jsonb_path_query(` + name + `, '$.items.size()')::numeric AS isEnd
   FROM ` + p.schema + name + `
   WHERE ` + name + `->'id' ? $1
-)
-SELECT
-  ` + name + `||
+),
+single_page AS (
+  SELECT
     jsonb_build_object(
       'items',
       page,
@@ -1068,8 +1068,18 @@ SELECT
       jsonb_path_query(page, '$.size()'),
       'type',
       'CollectionPage') AS page,
-  isEnd
-  FROM page`
+    isEnd AS isEnd
+  FROM page
+  UNION ALL
+  SELECT
+    '{"items":[],"totalItems":0,"type":"CollectionPage"}'::jsonb AS page,
+    true AS isEnd
+  LIMIT 1
+)
+SELECT
+  ` + name + ` || sp.page,
+  sp.isEnd
+  FROM page, single_page AS sp`
 }
 
 func (p *pgV0) getCollectionLastPage(name string) string {
@@ -1092,18 +1102,28 @@ page AS (
         'min',
         startIndex)) AS page
   FROM stats
+),
+single_page AS (
+  SELECT
+    jsonb_build_object(
+      'items',
+      page,
+      'totalItems',
+      jsonb_path_query(page, '$.size()'),
+      'type',
+      'CollectionPage') AS page,
+    startIndex
+  FROM page
+  UNION ALL
+  SELECT
+    '{"items":[],"totalItems":0,"type":"CollectionPage"}'::jsonb AS page,
+    0 AS startIndex
+  LIMIT 1
 )
 SELECT
-  ` + name + `||
-    jsonb_build_object(
-    'items',
-    page,
-    'totalItems',
-    jsonb_path_query(page, '$.size()'),
-    'type',
-    'CollectionPage') AS ` + name + `,
-  startIndex
-FROM page`
+  ` + name + ` || sp.page,
+  sp.startIndex
+FROM page, single_page AS sp`
 }
 
 func (p *pgV0) prependCollectionItem(name string) string {
