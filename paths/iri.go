@@ -172,10 +172,15 @@ func IRIForActorID(k PathKey, actorID *url.URL) (*url.URL, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Must first check special cases
+	var pFn func(k PathKey) string = knownUserPaths
+	if string(uuid) == string(InstanceActor) {
+		pFn = knownActorsPaths
+	}
 	return &url.URL{
 		Scheme:   actorID.Scheme,
 		Host:     actorID.Host,
-		Path:     strings.ReplaceAll(knownUserPaths(k), "{user}", string(uuid)),
+		Path:     strings.ReplaceAll(pFn(k), "{user}", string(uuid)),
 		RawQuery: uuidPathQueryFor(k),
 	}, nil
 }
