@@ -93,6 +93,16 @@ func (d *Data) Get(c util.Context, id *url.URL) (v vocab.Type, err error) {
 				d.MaxCollectionPageSize,
 				any,
 				last)
+		} else if paths.IsInstanceActorPath(id) {
+			err = doInTx(c, d.DB, func(tx *sql.Tx) error {
+				var as *models.User
+				as, err = d.Users.InstanceActorUser(c, tx)
+				if err != nil {
+					return err
+				}
+				v = as.Actor.Type
+				return nil
+			})
 		} else if paths.IsUserPath(id) {
 			var uid paths.UUID
 			uid, err = paths.UUIDFromUserPath(id.Path)

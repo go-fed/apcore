@@ -119,6 +119,7 @@ func BuildHandler(r *Router,
 
 	// Built-in routes for non-user actors
 	for _, k := range paths.AllActors {
+		r.knownActor(k)
 		r.knownActorPostInbox(k)
 		r.knownActorGetInbox(k, nil)
 		r.knownActorPostOutbox(k)

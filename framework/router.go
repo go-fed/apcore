@@ -91,6 +91,10 @@ func (r *Router) wrap(route *mux.Route) *Route {
 	}
 }
 
+func (r *Router) knownActor(c paths.Actor) app.Route {
+	return r.wrap(r.router.NewRoute()).knownActor(c)
+}
+
 func (r *Router) userActorPostInbox() *Route {
 	return r.wrap(r.router.NewRoute()).userActorPostInbox()
 }
@@ -217,6 +221,10 @@ type Route struct {
 	errorHandler      http.Handler
 	badRequestHandler http.Handler
 	notFoundHandler   http.Handler
+}
+
+func (r *Route) knownActor(c paths.Actor) app.Route {
+	return r.ActivityPubOnlyHandleFunc(paths.ActorPathFor(paths.UserPathKey, c), nil)
 }
 
 func (r *Route) userActorPostInbox() *Route {

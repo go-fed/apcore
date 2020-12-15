@@ -191,8 +191,12 @@ func Route(k PathKey) string {
 
 func IsUserPath(id *url.URL) bool {
 	s := strings.Split(id.Path, "/")
-	return len(s) == 3 &&
-		(strings.Contains(id.Path, "users") || strings.Contains(id.Path, "actors"))
+	return len(s) == 3 && strings.Contains(id.Path, "users")
+}
+
+func IsInstanceActorPath(id *url.URL) bool {
+	s := strings.Split(id.Path, "/")
+	return len(s) == 3 && strings.Contains(id.Path, "actors")
 }
 
 func IsFollowersPath(id *url.URL) bool {
