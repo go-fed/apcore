@@ -28,11 +28,16 @@ import (
 )
 
 type Data struct {
-	DB        *sql.DB
-	Hostname  string
-	FedData   *models.FedData
-	LocalData *models.LocalData
-	Users     *models.Users
+	DB                    *sql.DB
+	Hostname              string
+	FedData               *models.FedData
+	LocalData             *models.LocalData
+	Users                 *models.Users
+	Following             *Following
+	Followers             *Followers
+	Liked                 *Liked
+	DefaultCollectionSize int
+	MaxCollectionPageSize int
 }
 
 // Owns determines if this IRI is a local or federated piece of data.
@@ -60,8 +65,35 @@ func (d *Data) Exists(c util.Context, id *url.URL) (exists bool, err error) {
 // Get obtains the federated or local ActivityStreams data.
 func (d *Data) Get(c util.Context, id *url.URL) (v vocab.Type, err error) {
 	if d.Owns(id) {
-		// Determine whether this is a user, or local data
-		if paths.IsUserPath(id) {
+		// Determine whether this is a user, any of a user's sub-path data, or local data
+		if paths.IsFollowersPath(id) {
+			any := d.Followers.GetPage
+			last := d.Followers.GetLastPage
+			v, err = DoCollectionPagination(c,
+				id,
+				d.DefaultCollectionSize,
+				d.MaxCollectionPageSize,
+				any,
+				last)
+		} else if paths.IsFollowingPath(id) {
+			any := d.Following.GetPage
+			last := d.Following.GetLastPage
+			v, err = DoCollectionPagination(c,
+				id,
+				d.DefaultCollectionSize,
+				d.MaxCollectionPageSize,
+				any,
+				last)
+		} else if paths.IsLikedPath(id) {
+			any := d.Liked.GetPage
+			last := d.Liked.GetLastPage
+			v, err = DoCollectionPagination(c,
+				id,
+				d.DefaultCollectionSize,
+				d.MaxCollectionPageSize,
+				any,
+				last)
+		} else if paths.IsUserPath(id) {
 			var uid paths.UUID
 			uid, err = paths.UUIDFromUserPath(id.Path)
 			if err != nil {

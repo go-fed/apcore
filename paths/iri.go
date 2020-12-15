@@ -190,5 +190,26 @@ func Route(k PathKey) string {
 }
 
 func IsUserPath(id *url.URL) bool {
-	return strings.Contains(id.Path, "users") || strings.Contains(id.Path, "actors")
+	s := strings.Split(id.Path, "/")
+	return len(s) == 3 &&
+		(strings.Contains(id.Path, "users") || strings.Contains(id.Path, "actors"))
+}
+
+func IsFollowersPath(id *url.URL) bool {
+	return isSubPath(id, "followers")
+}
+
+func IsFollowingPath(id *url.URL) bool {
+	return isSubPath(id, "following")
+}
+
+func IsLikedPath(id *url.URL) bool {
+	return isSubPath(id, "liked")
+}
+
+func isSubPath(id *url.URL, sub string) bool {
+	s := strings.Split(id.Path, "/")
+	return len(s) > 3 &&
+		(strings.Contains(id.Path, "users") || strings.Contains(id.Path, "actors")) &&
+		strings.Contains(s[3], sub)
 }

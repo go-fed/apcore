@@ -52,3 +52,32 @@ func DoOrderedCollectionPagination(c util.Context, iri *url.URL, defaultSize, ma
 		return
 	}
 }
+
+// AnyCPageFn fetches any arbitrary CollectionPage
+type AnyCPageFn func(c util.Context, iri *url.URL, min, n int) (vocab.ActivityStreamsCollectionPage, error)
+
+// LastCPageFn fetches the last page of an Collection.
+type LastCPageFn func(c util.Context, iri *url.URL, n int) (vocab.ActivityStreamsCollectionPage, error)
+
+// DoCollectionPagination examines the query parameters of an IRI, and uses it
+// to either fetch the bare ordered collection without values, the very last
+// ordered collection page, or an arbitrary ordered collection page using the
+// provided fetching functions.
+func DoCollectionPagination(c util.Context, iri *url.URL, defaultSize, maxSize int, any AnyCPageFn, last LastCPageFn) (p vocab.ActivityStreamsCollectionPage, err error) {
+	if paths.IsGetCollectionPage(iri) && paths.IsGetCollectionEnd(iri) {
+		// The last page was requested
+		n := paths.GetNumOrDefault(iri, defaultSize, maxSize)
+		p, err = last(c, paths.Normalize(iri), n)
+		return
+	} else {
+		// The first page, or an arbitrary page, was requested
+		offset, n := 0, defaultSize
+		if paths.IsGetCollectionPage(iri) {
+			// An arbitrary page was requested
+			offset = paths.GetOffsetOrDefault(iri, 0)
+			n = paths.GetNumOrDefault(iri, defaultSize, maxSize)
+		}
+		p, err = any(c, paths.Normalize(iri), offset, n)
+		return
+	}
+}

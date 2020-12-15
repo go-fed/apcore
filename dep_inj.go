@@ -294,13 +294,6 @@ func createModelsAndServices(c *config.Config, sqldb *sql.DB, appl app.Applicati
 		DB:    sqldb,
 		Users: us,
 	}
-	data = &services.Data{
-		DB:        sqldb,
-		Hostname:  host,
-		FedData:   fd,
-		LocalData: ld,
-		Users:     us,
-	}
 	dAttempts = &services.DeliveryAttempts{
 		DB:               sqldb,
 		DeliveryAttempts: da,
@@ -320,6 +313,18 @@ func createModelsAndServices(c *config.Config, sqldb *sql.DB, appl app.Applicati
 	liked = &services.Liked{
 		DB:    sqldb,
 		Liked: li,
+	}
+	data = &services.Data{
+		DB:                    sqldb,
+		Hostname:              host,
+		FedData:               fd,
+		LocalData:             ld,
+		Users:                 us,
+		Following:             following,
+		Followers:             followers,
+		Liked:                 liked,
+		DefaultCollectionSize: c.DatabaseConfig.DefaultCollectionPageSize,
+		MaxCollectionPageSize: c.DatabaseConfig.MaxCollectionPageSize,
 	}
 	oauth = &services.OAuth2{
 		DB:     sqldb,
