@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/go-fed/apcore/util"
-	"gopkg.in/oauth2.v3"
+	"github.com/go-oauth2/oauth2/v4"
 )
 
 var _ oauth2.TokenInfo = &TokenInfo{}

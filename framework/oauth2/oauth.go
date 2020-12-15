@@ -27,11 +27,10 @@ import (
 	"github.com/go-fed/apcore/framework/web"
 	"github.com/go-fed/apcore/services"
 	"github.com/go-fed/apcore/util"
-	"gopkg.in/oauth2.v3"
-	"gopkg.in/oauth2.v3/errors"
-	oaerrors "gopkg.in/oauth2.v3/errors"
-	"gopkg.in/oauth2.v3/manage"
-	oaserver "gopkg.in/oauth2.v3/server"
+	"github.com/go-oauth2/oauth2/v4"
+	oaerrors "github.com/go-oauth2/oauth2/v4/errors"
+	"github.com/go-oauth2/oauth2/v4/manage"
+	oaserver "github.com/go-oauth2/oauth2/v4/server"
 )
 
 type Server struct {
@@ -140,16 +139,16 @@ func NewServer(c *config.Config, a app.Application, d *services.OAuth2, y *servi
 		}
 		return
 	})
-	srv.SetInternalErrorHandler(func(err error) (re *errors.Response) {
-		re = &errors.Response{
-			Error:       errors.ErrServerError,
+	srv.SetInternalErrorHandler(func(err error) (re *oaerrors.Response) {
+		re = &oaerrors.Response{
+			Error:       oaerrors.ErrServerError,
 			ErrorCode:   http.StatusInternalServerError,
 			Description: "Internal Error",
 			StatusCode:  http.StatusInternalServerError,
 		}
 		return
 	})
-	srv.SetResponseErrorHandler(func(re *errors.Response) {
+	srv.SetResponseErrorHandler(func(re *oaerrors.Response) {
 		util.ErrorLogger.Errorf("oauth2 response error: %s", re.Error.Error())
 	})
 	s = &Server{
@@ -188,6 +187,6 @@ func (o *Server) ValidateOAuth2AccessToken(w http.ResponseWriter, r *http.Reques
 	return
 }
 
-func (o *Server) RemoveByAccess(t oauth2.TokenInfo) error {
-	return o.m.RemoveAccessToken(t.GetAccess())
+func (o *Server) RemoveByAccess(ctx util.Context, t oauth2.TokenInfo) error {
+	return o.m.RemoveAccessToken(ctx.Context, t.GetAccess())
 }

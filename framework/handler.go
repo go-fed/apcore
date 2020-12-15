@@ -136,7 +136,7 @@ func BuildHandler(r *Router,
 			return
 		}
 		if authd {
-			if err = oauth.RemoveByAccess(t); err != nil {
+			if err = oauth.RemoveByAccess(util.Context{r.Context()}, t); err != nil {
 				internalErrorHandler.ServeHTTP(w, r)
 				return
 			}

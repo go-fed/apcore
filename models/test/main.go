@@ -31,8 +31,8 @@ import (
 	"github.com/go-fed/apcore/framework/db"
 	"github.com/go-fed/apcore/models"
 	"github.com/go-fed/apcore/util"
+	"github.com/go-oauth2/oauth2/v4"
 	_ "github.com/jackc/pgx/v4/stdlib"
-	"gopkg.in/oauth2.v3"
 )
 
 var dburl = flag.String("db", "", "database url to connect to")
