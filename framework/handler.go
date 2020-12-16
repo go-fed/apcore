@@ -143,9 +143,9 @@ func BuildHandler(r *Router,
 		}
 		http.Redirect(w, r, "/login", http.StatusFound)
 	})
-	r.NewRoute().Path("/authorize").Methods("GET").HandlerFunc(getAuthFn(sl, internalErrorHandler, getAuthWebHandler))
-	r.NewRoute().Path("/authorize").Methods("POST").HandlerFunc(postAuthFn(sl, oauth, internalErrorHandler))
-	r.NewRoute().Path("/token").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	r.NewRoute().Path("oauth2/authorize").Methods("GET").HandlerFunc(getAuthFn(sl, internalErrorHandler, getAuthWebHandler))
+	r.NewRoute().Path("oauth2/authorize").Methods("POST").HandlerFunc(postAuthFn(sl, oauth, internalErrorHandler))
+	r.NewRoute().Path("oauth2/token").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		oauth.HandleAccessTokenRequest(w, r)
 	})
 

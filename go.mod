@@ -6,7 +6,7 @@ require (
 	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
 	github.com/go-fed/activity v1.0.1-0.20201213224552-472d90163f3a
 	github.com/go-fed/httpsig v0.1.1-0.20190924171022-f4c36041199d
-	github.com/go-oauth2/oauth2/v4 v4.1.2
+	github.com/go-fed/oauth2 v1.2.1-0.20201216115557-3ad6eea84720
 	github.com/google/logger v1.0.1
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.8.0

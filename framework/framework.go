@@ -26,7 +26,7 @@ import (
 	"github.com/go-fed/activity/streams/vocab"
 	"github.com/go-fed/apcore/app"
 	"github.com/go-fed/apcore/framework/oauth2"
-	oa2 "github.com/go-oauth2/oauth2/v4"
+	oa2 "github.com/go-fed/oauth2"
 )
 
 var _ app.Framework = &Framework{}

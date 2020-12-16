@@ -17,7 +17,6 @@
 package oauth2
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -27,10 +26,10 @@ import (
 	"github.com/go-fed/apcore/framework/web"
 	"github.com/go-fed/apcore/services"
 	"github.com/go-fed/apcore/util"
-	"github.com/go-oauth2/oauth2/v4"
-	oaerrors "github.com/go-oauth2/oauth2/v4/errors"
-	"github.com/go-oauth2/oauth2/v4/manage"
-	oaserver "github.com/go-oauth2/oauth2/v4/server"
+	"github.com/go-fed/oauth2"
+	oaerrors "github.com/go-fed/oauth2/errors"
+	"github.com/go-fed/oauth2/manage"
+	oaserver "github.com/go-fed/oauth2/server"
 )
 
 type Server struct {
@@ -66,7 +65,7 @@ func NewServer(c *config.Config, a app.Application, d *services.OAuth2, y *servi
 	})
 	m.MapTokenStorage(d)
 	m.MapClientStorage(d)
-	// OAuth2 server
+	// OAuth2 server: PKCE + Authorization Code
 	srv := oaserver.NewServer(&oaserver.Config{
 		TokenType: "Bearer",
 		// Must follow the spec.
@@ -74,19 +73,18 @@ func NewServer(c *config.Config, a app.Application, d *services.OAuth2, y *servi
 		// Support only the non-implicit flow.
 		AllowedResponseTypes: []oauth2.ResponseType{oauth2.Code},
 		// Allow:
-		// - Authorization Code (for third parties)
+		// - Authorization Code (for first & third parties)
 		// - Refreshing Tokens
-		// - Client secrets
 		//
 		// Deny:
 		// - Resource owner secrets (password grant)
+		// - Client secrets
 		AllowedGrantTypes: []oauth2.GrantType{
 			oauth2.AuthorizationCode,
 			oauth2.Refreshing,
-			oauth2.ClientCredentials,
 		},
 	}, m)
-	// Parse tokens in POST body.
+	// Parse tokens in POST body. TODO: Revisit this
 	srv.SetClientInfoHandler(oaserver.ClientFormHandler)
 	// Determines the user to use when granting an authorization token. If
 	// no user is present, then they have not yet logged in and need to do
@@ -120,23 +118,6 @@ func NewServer(c *config.Config, a app.Application, d *services.OAuth2, y *servi
 			return
 		}
 		// User is already logged in
-		return
-	})
-	// Called when requesting a token through the password credential grant
-	// flow.
-	//
-	// NOTE: This grant type is currently not supported, but the handler is
-	// here if it were to be enabled.
-	srv.SetPasswordAuthorizationHandler(func(email, password string) (userID string, err error) {
-		// TODO: Fix oauth2 to support request contexts.
-		var valid bool
-		userID, valid, err = y.Valid(util.Context{context.Background()}, email, password)
-		if err != nil {
-			return
-		} else if !valid {
-			err = fmt.Errorf("username and/or password is invalid")
-			return
-		}
 		return
 	})
 	srv.SetInternalErrorHandler(func(err error) (re *oaerrors.Response) {

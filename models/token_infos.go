@@ -21,25 +21,27 @@ import (
 	"time"
 
 	"github.com/go-fed/apcore/util"
-	"github.com/go-oauth2/oauth2/v4"
+	"github.com/go-fed/oauth2"
 )
 
 var _ oauth2.TokenInfo = &TokenInfo{}
 
 type TokenInfo struct {
-	ClientID       string
-	UserID         string
-	RedirectURI    string
-	Scope          string
-	Code           sql.NullString
-	CodeCreated    sql.NullTime
-	CodeExpires    NullDuration
-	Access         sql.NullString
-	AccessCreated  sql.NullTime
-	AccessExpires  NullDuration
-	Refresh        sql.NullString
-	RefreshCreated sql.NullTime
-	RefreshExpires NullDuration
+	ClientID            string
+	UserID              string
+	RedirectURI         string
+	Scope               string
+	Code                sql.NullString
+	CodeCreated         sql.NullTime
+	CodeExpires         NullDuration
+	CodeChallenge       sql.NullString
+	CodeChallengeMethod sql.NullString
+	Access              sql.NullString
+	AccessCreated       sql.NullTime
+	AccessExpires       NullDuration
+	Refresh             sql.NullString
+	RefreshCreated      sql.NullTime
+	RefreshExpires      NullDuration
 }
 
 func (t *TokenInfo) New() oauth2.TokenInfo {
@@ -112,6 +114,30 @@ func (t *TokenInfo) GetCodeExpiresIn() time.Duration {
 func (t *TokenInfo) SetCodeExpiresIn(s time.Duration) {
 	t.CodeExpires.Duration = s
 	t.CodeExpires.Valid = true
+}
+
+func (t *TokenInfo) GetCodeChallenge() string {
+	if t.CodeChallenge.Valid {
+		return t.CodeChallenge.String
+	}
+	return ""
+}
+
+func (t *TokenInfo) SetCodeChallenge(s string) {
+	t.CodeChallenge.String = s
+	t.CodeChallenge.Valid = true
+}
+
+func (t *TokenInfo) GetCodeChallengeMethod() oauth2.CodeChallengeMethod {
+	if t.CodeChallengeMethod.Valid {
+		return oauth2.CodeChallengeMethod(t.CodeChallengeMethod.String)
+	}
+	return oauth2.CodeChallengeMethod("")
+}
+
+func (t *TokenInfo) SetCodeChallengeMethod(cm oauth2.CodeChallengeMethod) {
+	t.CodeChallengeMethod.String = cm.String()
+	t.CodeChallengeMethod.Valid = true
 }
 
 func (t *TokenInfo) GetAccess() string {

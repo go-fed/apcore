@@ -22,7 +22,7 @@ import (
 	"net/url"
 
 	"github.com/go-fed/activity/streams/vocab"
-	"github.com/go-oauth2/oauth2/v4"
+	"github.com/go-fed/oauth2"
 )
 
 // Framework provides request-time hooks for use in handlers.

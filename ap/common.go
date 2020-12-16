@@ -29,7 +29,7 @@ import (
 	"github.com/go-fed/apcore/framework/oauth2"
 	"github.com/go-fed/apcore/services"
 	"github.com/go-fed/apcore/util"
-	oa2 "github.com/go-oauth2/oauth2/v4"
+	oa2 "github.com/go-fed/oauth2"
 )
 
 var _ pub.CommonBehavior = &CommonBehavior{}

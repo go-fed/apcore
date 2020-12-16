@@ -20,7 +20,7 @@ import (
 	"database/sql"
 
 	"github.com/go-fed/apcore/util"
-	"github.com/go-oauth2/oauth2/v4"
+	"github.com/go-fed/oauth2"
 )
 
 var _ oauth2.ClientInfo = &ClientInfo{}
