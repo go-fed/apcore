@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 
 	"github.com/go-fed/apcore/framework/config"
 	"github.com/go-fed/apcore/util"
@@ -84,8 +83,7 @@ type Session struct {
 }
 
 const (
-	userIDSessionKey           = "userid"
-	oAuthRedirectFormValuesKey = "oauth_redir"
+	userIDSessionKey = "userid"
 )
 
 func (s *Session) SetUserID(uuid string) {
@@ -104,22 +102,37 @@ func (s *Session) UserID() (uuid string, err error) {
 	return
 }
 
-func (s *Session) SetOAuthRedirectFormValues(f url.Values) {
-	s.gs.Values[oAuthRedirectFormValuesKey] = f
+func (s *Session) DeleteUserID() {
+	delete(s.gs.Values, userIDSessionKey)
+}
+
+const (
+	firstPartyCredentialKey = "fpckey"
+)
+
+func (s *Session) SetFirstPartyCredentialID(id string) {
+	s.gs.Values[firstPartyCredentialKey] = id
 	return
 }
 
-func (s *Session) OAuthRedirectFormValues() (v url.Values, ok bool) {
-	var i interface{}
-	if i, ok = s.gs.Values[oAuthRedirectFormValuesKey]; !ok {
+func (s *Session) HasFirstPartyCredentialID() bool {
+	_, ok := s.gs.Values[firstPartyCredentialKey]
+	return ok
+}
+
+func (s *Session) FirstPartyCredentialID() (id string, err error) {
+	if v, ok := s.gs.Values[firstPartyCredentialKey]; !ok {
+		err = fmt.Errorf("no first party credential in session")
+		return
+	} else if id, ok = v.(string); !ok {
+		err = fmt.Errorf("first party credential in session is not a string")
 		return
 	}
-	v, ok = i.(url.Values)
 	return
 }
 
-func (s *Session) DeleteOAuthRedirectFormValues() {
-	delete(s.gs.Values, oAuthRedirectFormValuesKey)
+func (s *Session) DeleteFirstPartyCredentialID() {
+	delete(s.gs.Values, firstPartyCredentialKey)
 }
 
 func (s *Session) Save(r *http.Request, w http.ResponseWriter) error {

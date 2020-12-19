@@ -870,7 +870,7 @@ func (p *pgV0) CreateClientInfosTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `oauth_clients
 (
-  id text PRIMARY KEY DEFAULT gen_random_uuid(),
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   secret text NOT NULL,
   domain text NOT NULL,
   user_id uuid REFERENCES ` + p.schema + `users(id) ON DELETE CASCADE NOT NULL
@@ -889,6 +889,7 @@ func (p *pgV0) CreateTokenInfosTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `oauth_tokens
 (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   client_id text REFERENCES ` + p.schema + `oauth_clients(id) ON DELETE CASCADE NOT NULL,
   user_id uuid REFERENCES ` + p.schema + `users(id) ON DELETE CASCADE NOT NULL,
   redirect_uri text NOT NULL,
@@ -896,6 +897,8 @@ CREATE TABLE IF NOT EXISTS ` + p.schema + `oauth_tokens
   code text,
   code_create_at timestamp with time zone,
   code_expires_in bigint,
+  code_challenge text,
+  code_challenge_method text,
   access text,
   access_create_at timestamp with time zone,
   access_expires_in bigint,
@@ -915,6 +918,8 @@ func (p *pgV0) CreateTokenInfo() string {
   code,
   code_create_at,
   code_expires_in,
+  code_challenge,
+  code_challenge_method,
   access,
   access_create_at,
   access_expires_in,
@@ -935,7 +940,9 @@ func (p *pgV0) CreateTokenInfo() string {
   $10,
   $11,
   $12,
-  $13
+  $13,
+  $14,
+  $15
 )`
 }
 
@@ -960,6 +967,8 @@ func (p *pgV0) GetTokenInfoByCode() string {
   code,
   code_create_at,
   code_expires_in,
+  code_challenge,
+  code_challenge_method,
   access,
   access_create_at,
   access_expires_in,
@@ -978,6 +987,8 @@ func (p *pgV0) GetTokenInfoByAccess() string {
   code,
   code_create_at,
   code_expires_in,
+  code_challenge,
+  code_challenge_method,
   access,
   access_create_at,
   access_expires_in,
@@ -996,6 +1007,8 @@ func (p *pgV0) GetTokenInfoByRefresh() string {
   code,
   code_create_at,
   code_expires_in,
+  code_challenge,
+  code_challenge_method,
   access,
   access_create_at,
   access_expires_in,
@@ -1011,7 +1024,7 @@ func (p *pgV0) createCollectionTable(name string) string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + name + `
 (
-  id text PRIMARY KEY DEFAULT gen_random_uuid(),
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   actor_id text NOT NULL,
   ` + name + ` jsonb NOT NULL
 )`
@@ -1316,4 +1329,79 @@ func (p *pgV0) CreateResolutionsTable() string {
 
 func (p *pgV0) CreateResolution() string {
 	return `INSERT INTO ` + p.schema + `resolutions (policy_id, data_iri, resolution) VALUES ($1, $2, $3)`
+}
+
+func (p *pgV0) CreateFirstPartyCredentialsTable() string {
+	return `CREATE TABLE IF NOT EXISTS ` + p.schema + `first_party_creds
+(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES ` + p.schema + `users(id) ON DELETE CASCADE NOT NULL,
+  token_id uuid REFERENCES ` + p.schema + `oauth_tokens(id) ON DELETE CASCADE NOT NULL,
+  create_time timestamp with time zone NOT NULL DEFAULT current_timestamp,
+  expiration_time timestamp with time zone NOT NULL
+)`
+}
+
+func (p *pgV0) CreateFirstPartyCredential() string {
+	return `INSERT INTO ` + p.schema + `first_party_creds (user_id, token_id, expiration_time) VALUES ($1, $2, $3)`
+}
+
+func (p *pgV0) UpdateFirstPartyCredential() string {
+	return `WITH update_cred AS (
+  SELECT token_id
+  FROM ` + p.schema + `first_party_creds
+  WHERE id = $1
+)
+UPDATE ` + p.schema + `oauth_tokens AS ot
+SET
+  client_id = $2,
+  user_id = $3,
+  redirect_uri = $4,
+  scope = $5,
+  code = $6,
+  code_create_at = $7,
+  code_expires_in = $8,
+  code_challenge = $9,
+  code_challenge_method = $10,
+  access = $11,
+  access_create_at = $12,
+  access_expires_in = $13,
+  refresh = $14,
+  refresh_create_at = $15,
+  refresh_expires_in = $16
+WHERE ot.id = update_cred.token_id`
+}
+
+func (p *pgV0) UpdateFirstPartyCredentialExpires() string {
+	return `UPDATE ` + p.schema + `first_party_creds SET expiration_time = $2 WHERE id = $1`
+}
+
+func (p *pgV0) RemoveFirstPartyCredential() string {
+	return `WITH cred AS (SELECT token_id FROM first_party_creds WHERE id = $1)
+DELETE FROM oauth_tokens AS ti
+USING cred AS fpc
+WHERE ti.id = fpc.token_id`
+}
+
+func (p *pgV0) GetTokenInfoForCredentialID() string {
+	return `SELECT
+  ti.client_id,
+  ti.user_id,
+  ti.redirect_uri,
+  ti.scope,
+  ti.code,
+  ti.code_create_at,
+  ti.code_expires_in,
+  ti.code_challenge,
+  ti.code_challenge_method,
+  ti.access,
+  ti.access_create_at,
+  ti.access_expires_in,
+  ti.refresh,
+  ti.refresh_create_at,
+  ti.refresh_expires_in
+FROM ` + p.schema + `first_party_creds AS fpc
+INNER JOIN ` + p.schema + `oauth_tokens AS ti
+ON fpc.token_id = ti.id
+WHERE fpc.id = $1`
 }

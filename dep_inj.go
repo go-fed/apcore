@@ -77,7 +77,7 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 	}
 
 	// Prepare OAuth2 server
-	oauth, err := oauth2.NewServer(c, appl, oauthSrv, cryp, sess)
+	oauth, err := oauth2.NewServer(c, scheme, appl, oauthSrv, cryp, sess)
 	if err != nil {
 		return
 	}
@@ -269,6 +269,7 @@ func createModelsAndServices(c *config.Config, sqldb *sql.DB, appl app.Applicati
 	pk := &models.PrivateKeys{}
 	ci := &models.ClientInfos{}
 	ti := &models.TokenInfos{}
+	cd := &models.Credentials{}
 	fn := &models.Following{}
 	fr := &models.Followers{}
 	li := &models.Liked{}
@@ -284,6 +285,7 @@ func createModelsAndServices(c *config.Config, sqldb *sql.DB, appl app.Applicati
 		pk,
 		ci,
 		ti,
+		cd,
 		fn,
 		fr,
 		li,
@@ -330,6 +332,7 @@ func createModelsAndServices(c *config.Config, sqldb *sql.DB, appl app.Applicati
 		DB:     sqldb,
 		Client: ci,
 		Token:  ti,
+		Creds:  cd,
 	}
 	outboxes = &services.Outboxes{
 		DB:       sqldb,

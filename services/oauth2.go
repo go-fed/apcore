@@ -33,6 +33,7 @@ type OAuth2 struct {
 	DB     *sql.DB
 	Client *models.ClientInfos
 	Token  *models.TokenInfos
+	Creds  *models.Credentials
 }
 
 func (o *OAuth2) GetByID(ctx context.Context, id string) (ci oauth2.ClientInfo, err error) {
@@ -46,7 +47,8 @@ func (o *OAuth2) GetByID(ctx context.Context, id string) (ci oauth2.ClientInfo, 
 func (o *OAuth2) Create(ctx context.Context, info oauth2.TokenInfo) error {
 	c := util.Context{ctx}
 	return doInTx(c, o.DB, func(tx *sql.Tx) error {
-		return o.Token.Create(c, tx, info)
+		_, err := o.Token.Create(c, tx, info)
+		return err
 	})
 }
 
@@ -91,6 +93,44 @@ func (o *OAuth2) GetByRefresh(ctx context.Context, refresh string) (ti oauth2.To
 	c := util.Context{ctx}
 	return ti, doInTx(c, o.DB, func(tx *sql.Tx) error {
 		ti, err = o.Token.GetByRefresh(c, tx, refresh)
+		return err
+	})
+}
+
+func (o *OAuth2) ProxyCreateCredential(ctx context.Context, ti oauth2.TokenInfo) (id string, err error) {
+	c := util.Context{ctx}
+	return id, doInTx(c, o.DB, func(tx *sql.Tx) error {
+		tID, err := o.Token.Create(c, tx, ti)
+		if err != nil {
+			return err
+		}
+		id, err = o.Creds.Create(c, tx, ti.GetUserID(), tID, ti.GetAccessCreateAt().Add(ti.GetAccessExpiresIn()))
+		return err
+	})
+}
+
+func (o *OAuth2) ProxyUpdateCredential(ctx context.Context, id string, ti oauth2.TokenInfo) error {
+	c := util.Context{ctx}
+	return doInTx(c, o.DB, func(tx *sql.Tx) error {
+		err := o.Creds.Update(c, tx, id, ti)
+		if err != nil {
+			return err
+		}
+		return o.Creds.UpdateExpires(c, tx, id, ti.GetAccessCreateAt().Add(ti.GetAccessExpiresIn()))
+	})
+}
+
+func (o *OAuth2) ProxyRemoveCredential(ctx context.Context, id string) error {
+	c := util.Context{ctx}
+	return doInTx(c, o.DB, func(tx *sql.Tx) error {
+		return o.Creds.Delete(c, tx, id)
+	})
+}
+
+func (o *OAuth2) ProxyGetCredential(ctx context.Context, id string) (ti oauth2.TokenInfo, err error) {
+	c := util.Context{ctx}
+	return ti, doInTx(c, o.DB, func(tx *sql.Tx) error {
+		ti, err = o.Creds.GetTokenInfo(c, tx, id)
 		return err
 	})
 }

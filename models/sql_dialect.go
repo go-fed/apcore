@@ -50,6 +50,8 @@ type SqlDialect interface {
 	CreatePoliciesTable() string
 	// CreateResolutionsTable for the Resolutions model.
 	CreateResolutionsTable() string
+	// CreateFirstPartyCredentialsTable for first party credentials model.
+	CreateFirstPartyCredentialsTable() string
 
 	/* Indexes */
 
@@ -476,6 +478,8 @@ type SqlDialect interface {
 	//   Code        string
 	//   CodeCreated time.Time
 	//   CodeExpires time.Duration
+	//   CodeChal    string
+	//   CodeChalMtd string
 	//   Access      string
 	//   AccessCtd   time.Time
 	//   AccessExp   time.Duration
@@ -510,6 +514,8 @@ type SqlDialect interface {
 	//   Code        string
 	//   CodeCreated time.Time
 	//   CodeExpires time.Duration
+	//   CodeChal    string
+	//   CodeChalMtd string
 	//   Access      string
 	//   AccessCtd   time.Time
 	//   AccessExp   time.Duration
@@ -528,6 +534,8 @@ type SqlDialect interface {
 	//   Code        string
 	//   CodeCreated time.Time
 	//   CodeExpires time.Duration
+	//   CodeChal    string
+	//   CodeChalMtd string
 	//   Access      string
 	//   AccessCtd   time.Time
 	//   AccessExp   time.Duration
@@ -546,6 +554,8 @@ type SqlDialect interface {
 	//   Code        string
 	//   CodeCreated time.Time
 	//   CodeExpires time.Duration
+	//   CodeChal    string
+	//   CodeChalMtd string
 	//   Access      string
 	//   AccessCtd   time.Time
 	//   AccessExp   time.Duration
@@ -754,4 +764,64 @@ type SqlDialect interface {
 	//   Payload     []byte
 	//  Returns
 	CreateResolution() string
+
+	// CreateFirstPartyCredential:
+	//  Params
+	//   UserID      string
+	//   TokenID     string
+	//   Expires     time.Time
+	//  Returns
+	//   ID          string
+	CreateFirstPartyCredential() string
+	// UpdateFirstPartyCredential:
+	//  Params
+	//   ID          string
+	//   ClientID    string
+	//   UserID      string
+	//   RedirURI    string
+	//   Scope       string
+	//   Code        string
+	//   CodeCreated time.Time
+	//   CodeExpires time.Duration
+	//   CodeChal    string
+	//   CodeChalMtd string
+	//   Access      string
+	//   AccessCtd   time.Time
+	//   AccessExp   time.Duration
+	//   Refresh     string
+	//   RefrCreated time.Time
+	//   RefrExpires time.Duration
+	//  Returns
+	UpdateFirstPartyCredential() string
+	// UpdateFirstPartyCredentialExpires:
+	//  Params
+	//   ID          string
+	//   Expires     time.Time
+	//  Returns
+	UpdateFirstPartyCredentialExpires() string
+	// RemoveFirstPartyCredential:
+	//  Params
+	//   ID          string
+	//  Returns
+	RemoveFirstPartyCredential() string
+	// GetTokenInfoForCredentialID:
+	//  Params
+	//   ID          string
+	//  Returns
+	//   ClientID    string
+	//   UserID      string
+	//   RedirURI    string
+	//   Scope       string
+	//   Code        string
+	//   CodeCreated time.Time
+	//   CodeExpires time.Duration
+	//   CodeChal    string
+	//   CodeChalMtd string
+	//   Access      string
+	//   AccessCtd   time.Time
+	//   AccessExp   time.Duration
+	//   Refresh     string
+	//   RefrCreated time.Time
+	//   RefrExpires time.Duration
+	GetTokenInfoForCredentialID() string
 }

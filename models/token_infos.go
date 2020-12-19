@@ -220,6 +220,8 @@ func (t *TokenInfo) scanFromSingleRow(r singleRow) error {
 		&(t.Code),
 		&(t.CodeCreated),
 		&(t.CodeExpires),
+		&(t.CodeChallenge),
+		&(t.CodeChallengeMethod),
 		&(t.Access),
 		&(t.AccessCreated),
 		&(t.AccessExpires),
@@ -269,8 +271,9 @@ func (t *TokenInfos) Close() {
 }
 
 // Create saves the new token information.
-func (t *TokenInfos) Create(c util.Context, tx *sql.Tx, info oauth2.TokenInfo) error {
-	r, err := tx.Stmt(t.createTokenInfo).ExecContext(c,
+func (t *TokenInfos) Create(c util.Context, tx *sql.Tx, info oauth2.TokenInfo) (id string, err error) {
+	var rows *sql.Rows
+	rows, err = tx.Stmt(t.createTokenInfo).QueryContext(c,
 		info.GetClientID(),
 		info.GetUserID(),
 		info.GetRedirectURI(),
@@ -278,6 +281,8 @@ func (t *TokenInfos) Create(c util.Context, tx *sql.Tx, info oauth2.TokenInfo) e
 		info.GetCode(),
 		info.GetCodeCreateAt(),
 		info.GetCodeExpiresIn(),
+		info.GetCodeChallenge(),
+		info.GetCodeChallengeMethod(),
 		info.GetAccess(),
 		info.GetAccessCreateAt(),
 		info.GetAccessExpiresIn(),
@@ -285,7 +290,13 @@ func (t *TokenInfos) Create(c util.Context, tx *sql.Tx, info oauth2.TokenInfo) e
 		info.GetRefreshCreateAt(),
 		info.GetRefreshExpiresIn(),
 	)
-	return mustChangeOneRow(r, err, "TokenInfos.Create")
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	return id, enforceOneRow(rows, "TokenInfos.Create", func(r singleRow) error {
+		return r.Scan(&(id))
+	})
 }
 
 // RemoveByCode deletes the token information based on the authorization code.

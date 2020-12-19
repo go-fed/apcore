@@ -17,8 +17,10 @@
 package oauth2
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/go-fed/apcore/app"
@@ -28,8 +30,14 @@ import (
 	"github.com/go-fed/apcore/util"
 	"github.com/go-fed/oauth2"
 	oaerrors "github.com/go-fed/oauth2/errors"
+	"github.com/go-fed/oauth2/generates"
 	"github.com/go-fed/oauth2/manage"
+	oam "github.com/go-fed/oauth2/models"
 	oaserver "github.com/go-fed/oauth2/server"
+)
+
+const (
+	authCodeExp = time.Second * 5
 )
 
 type Server struct {
@@ -38,9 +46,18 @@ type Server struct {
 	k *web.Sessions
 	m *manage.Manager
 	s *oaserver.Server
+	// First-party support:
+	clientID                    string
+	host                        string
+	scheme                      string
+	accessGen                   *generates.AccessGenerate
+	accessExpiryDuration        time.Duration
+	refreshExpiryDuration       time.Duration
+	proxyRefreshAccessDuration  time.Duration
+	proxyRefreshRefreshDuration time.Duration
 }
 
-func NewServer(c *config.Config, a app.Application, d *services.OAuth2, y *services.Crypto, k *web.Sessions) (s *Server, err error) {
+func NewServer(c *config.Config, scheme string, a app.Application, d *services.OAuth2, y *services.Crypto, k *web.Sessions) (s *Server, err error) {
 	m := manage.NewDefaultManager()
 	// Configure Access token and Refresh token refresh.
 	if c.OAuthConfig.AccessTokenExpiry <= 0 {
@@ -50,12 +67,15 @@ func NewServer(c *config.Config, a app.Application, d *services.OAuth2, y *servi
 		err = fmt.Errorf("oauth2 refresh token expiration duration is <= 0")
 		return
 	}
+	m.SetAuthorizeCodeExp(authCodeExp)
 	m.SetAuthorizeCodeTokenCfg(&manage.Config{
 		AccessTokenExp:    time.Second * time.Duration(c.OAuthConfig.AccessTokenExpiry),
 		RefreshTokenExp:   time.Second * time.Duration(c.OAuthConfig.RefreshTokenExpiry),
 		IsGenerateRefresh: true,
 	})
 	m.SetRefreshTokenCfg(&manage.RefreshingConfig{
+		AccessTokenExp:  time.Second * time.Duration(c.OAuthConfig.AccessTokenExpiry),
+		RefreshTokenExp: time.Second * time.Duration(c.OAuthConfig.RefreshTokenExpiry),
 		// Generate new refresh token
 		IsGenerateRefresh: true,
 		// Remove previous access token
@@ -84,13 +104,10 @@ func NewServer(c *config.Config, a app.Application, d *services.OAuth2, y *servi
 			oauth2.Refreshing,
 		},
 	}, m)
-	// Parse tokens in POST body. TODO: Revisit this
-	srv.SetClientInfoHandler(oaserver.ClientFormHandler)
 	// Determines the user to use when granting an authorization token. If
 	// no user is present, then they have not yet logged in and need to do
 	// so. Note that an empty string userID plus no error will magically
 	// cause the library to stop processing.
-	badRequestHandler := a.BadRequestHandler()
 	internalErrorHandler := a.InternalServerErrorHandler()
 	srv.SetUserAuthorizationHandler(func(w http.ResponseWriter, r *http.Request) (userID string, err error) {
 		var s *web.Session
@@ -100,21 +117,9 @@ func NewServer(c *config.Config, a app.Application, d *services.OAuth2, y *servi
 			return
 		}
 		if userID, err = s.UserID(); err != nil {
-			if r.Form == nil {
-				err = r.ParseForm()
-				if err != nil {
-					badRequestHandler.ServeHTTP(w, r)
-					return
-				}
-			}
-			s.SetOAuthRedirectFormValues(r.Form)
-			err = s.Save(r, w)
-			if err != nil {
-				util.ErrorLogger.Errorf("error saving session in OAuth2 SetUserAuthorizationHandler: %s", err)
-				internalErrorHandler.ServeHTTP(w, r)
-				return
-			}
-			http.Redirect(w, r, "/login", http.StatusFound)
+			// User is not logged in; redirect to login page with current
+			// set of query parameters for OAuth2.
+			http.Redirect(w, r, r.URL.String(), http.StatusFound)
 			return
 		}
 		// User is already logged in
@@ -132,12 +137,27 @@ func NewServer(c *config.Config, a app.Application, d *services.OAuth2, y *servi
 	srv.SetResponseErrorHandler(func(re *oaerrors.Response) {
 		util.ErrorLogger.Errorf("oauth2 response error: %s", re.Error.Error())
 	})
+	b64ClientPart := base64.RawStdEncoding.
+		WithPadding(base64.NoPadding).
+		EncodeToString([]byte((&url.URL{
+			Scheme: scheme,
+			Host:   c.ServerConfig.Host,
+			Path:   "/",
+		}).String()))
 	s = &Server{
-		d: d,
-		y: y,
-		k: k,
-		m: m,
-		s: srv,
+		d:                           d,
+		y:                           y,
+		k:                           k,
+		m:                           m,
+		s:                           srv,
+		clientID:                    fmt.Sprintf("%s.%s", b64ClientPart, c.ServerConfig.Host),
+		host:                        c.ServerConfig.Host,
+		scheme:                      scheme,
+		accessGen:                   generates.NewAccessGenerate(),
+		accessExpiryDuration:        time.Second * time.Duration(c.OAuthConfig.AccessTokenExpiry),
+		refreshExpiryDuration:       time.Second * time.Duration(c.OAuthConfig.RefreshTokenExpiry),
+		proxyRefreshAccessDuration:  time.Second * time.Duration(c.OAuthConfig.AccessTokenExpiry) / 2,
+		proxyRefreshRefreshDuration: time.Second * time.Duration(c.OAuthConfig.RefreshTokenExpiry) / 2,
 	}
 	return
 }
@@ -170,4 +190,125 @@ func (o *Server) ValidateOAuth2AccessToken(w http.ResponseWriter, r *http.Reques
 
 func (o *Server) RemoveByAccess(ctx util.Context, t oauth2.TokenInfo) error {
 	return o.m.RemoveAccessToken(ctx.Context, t.GetAccess())
+}
+
+func (o *Server) CreateProxyCredentials(ctx util.Context, userID string) (id string, err error) {
+	now := time.Now()
+	ti := &oam.Token{
+		ClientID:            o.clientID,
+		UserID:              userID,
+		RedirectURI:         (&url.URL{Scheme: o.scheme, Host: o.host, Path: "/"}).String(),
+		Scope:               "all", // TODO: Hardcoded scope here
+		Code:                "",
+		CodeCreateAt:        now,
+		CodeExpiresIn:       0,
+		CodeChallenge:       "",
+		CodeChallengeMethod: "",
+		AccessCreateAt:      now,
+		AccessExpiresIn:     o.accessExpiryDuration,
+		RefreshCreateAt:     now,
+		RefreshExpiresIn:    o.refreshExpiryDuration,
+	}
+	data := &oauth2.GenerateBasic{
+		Client: &oam.Client{
+			ID:     ti.ClientID,
+			Domain: o.host,
+		},
+		UserID:   ti.UserID,
+		CreateAt: now,
+	}
+	ti.Access, ti.Refresh, err = o.accessGen.Token(ctx.Context, data, true)
+	return o.d.ProxyCreateCredential(ctx, ti)
+}
+
+func (o *Server) RefreshProxyCredentialsIfNeeded(ctx util.Context, id, userID string) error {
+	now := time.Now()
+
+	// Ensure the refresh request is valid
+	ti, err := o.d.ProxyGetCredential(ctx, id)
+	if err != nil {
+		return err
+	} else if ti.GetClientID() != o.clientID {
+		return oaerrors.ErrInvalidRefreshToken
+	} else if ti.GetUserID() != userID {
+		return oaerrors.ErrInvalidRefreshToken
+	}
+
+	// Do not refresh if there's plenty of time left, or if the access token
+	// never expires.
+	aei := ti.GetAccessExpiresIn()
+	aca := ti.GetAccessCreateAt()
+	rei := ti.GetRefreshExpiresIn()
+	rca := ti.GetRefreshCreateAt()
+	if aei == 0 || now.After(aca.Add(aei)) || aca.Add(o.proxyRefreshAccessDuration).After(now) {
+		return nil
+	} else if rei == 0 || now.After(rca.Add(rei)) || rca.Add(o.proxyRefreshRefreshDuration).After(now) {
+		return nil
+	}
+
+	ti.SetAccessCreateAt(now)
+	ti.SetAccessExpiresIn(o.accessExpiryDuration)
+	ti.SetRefreshCreateAt(now)
+	ti.SetRefreshExpiresIn(o.refreshExpiryDuration)
+	data := &oauth2.GenerateBasic{
+		Client: &oam.Client{
+			ID:     ti.GetClientID(),
+			Domain: o.host,
+		},
+		UserID:   ti.GetUserID(),
+		CreateAt: now,
+	}
+	acc, ref, err := o.accessGen.Token(ctx.Context, data, true)
+	if err != nil {
+		return err
+	}
+	ti.SetAccess(acc)
+	ti.SetRefresh(ref)
+	return o.d.ProxyUpdateCredential(ctx, id, ti)
+}
+
+func (o *Server) ValidateFirstPartyProxyAccessToken(ctx util.Context, sn *web.Session) (id string, authenticated bool, err error) {
+	if sn.HasFirstPartyCredentialID() {
+		id, err = sn.FirstPartyCredentialID()
+		if err != nil {
+			return
+		}
+		now := time.Now()
+		var ti oauth2.TokenInfo
+		ti, err = o.d.ProxyGetCredential(ctx, id)
+		if err != nil {
+			return
+		} else if ti == nil {
+			err = fmt.Errorf("invalid first party credential token")
+			return
+		} else if ti.GetRefresh() != "" && ti.GetRefreshExpiresIn() != 0 &&
+			ti.GetRefreshCreateAt().Add(ti.GetRefreshExpiresIn()).Before(now) {
+			err = fmt.Errorf("refresh token is expired")
+			return
+		} else if ti.GetAccessExpiresIn() != 0 &&
+			ti.GetAccessCreateAt().Add(ti.GetAccessExpiresIn()).Before(now) {
+			err = fmt.Errorf("access token is expired")
+			return
+		}
+		authenticated = true
+	}
+	return
+}
+
+func (o *Server) RemoveFirstPartyProxyAccessToken(w http.ResponseWriter, r *http.Request, ctx util.Context, sn *web.Session) error {
+	id, auth, err := o.ValidateFirstPartyProxyAccessToken(ctx, sn)
+	if err != nil {
+		return err
+	}
+	if auth {
+		if err = o.d.ProxyRemoveCredential(r.Context(), id); err != nil {
+			return err
+		}
+		sn.DeleteFirstPartyCredentialID()
+		sn.DeleteUserID()
+		if err = sn.Save(r, w); err != nil {
+			return err
+		}
+	}
+	return nil
 }
