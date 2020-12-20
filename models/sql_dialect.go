@@ -487,6 +487,7 @@ type SqlDialect interface {
 	//   RefrCreated time.Time
 	//   RefrExpires time.Duration
 	//  Returns
+	//   ID          string
 	CreateTokenInfo() string
 	// RemoveTokenInfoByCode:
 	//  Params
