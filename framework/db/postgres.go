@@ -1379,7 +1379,7 @@ func (p *pgV0) UpdateFirstPartyCredentialExpires() string {
 
 func (p *pgV0) RemoveFirstPartyCredential() string {
 	return `WITH cred AS (SELECT token_id FROM ` + p.schema + `first_party_creds WHERE id = $1)
-DELETE FROM oauth_tokens AS ti
+DELETE FROM ` + p.schema + `oauth_tokens AS ti
 USING cred AS fpc
 WHERE ti.id = fpc.token_id`
 }
