@@ -943,7 +943,7 @@ func (p *pgV0) CreateTokenInfo() string {
   $13,
   $14,
   $15
-)`
+) RETURNING id`
 }
 
 func (p *pgV0) RemoveTokenInfoByCode() string {
