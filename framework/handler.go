@@ -379,8 +379,7 @@ func postLoginFn(oauth *oauth2.Server, sl *web.Sessions, db pub.Database, badReq
 			internalErrorHandler.ServeHTTP(w, r)
 			return
 		} else if !valid {
-			// TODO: Better redirect
-			http.Redirect(w, r, "/login?login_error=true", http.StatusFound)
+			http.Redirect(w, r, oauth2.AddLoginError(r.URL).String(), http.StatusFound)
 			return
 		}
 		s.SetUserID(u)
@@ -464,8 +463,7 @@ func postAuthFn(oauth *oauth2.Server, sl *web.Sessions, db pub.Database, badRequ
 			internalErrorHandler.ServeHTTP(w, r)
 			return
 		} else if !valid {
-			// TODO: Better redirect
-			http.Redirect(w, r, "/oauth2/auth?login_error=true", http.StatusFound)
+			http.Redirect(w, r, oauth2.AddAuthError(r.URL).String(), http.StatusFound)
 			return
 		}
 		s.SetUserID(u)

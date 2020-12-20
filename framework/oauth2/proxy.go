@@ -23,6 +23,8 @@ import (
 const (
 	redirQueryKey      = "redir"
 	redirQueryQueryKey = "q"
+	loginErrorQueryKey = "login_error"
+	authErrorQueryKey  = "auth_error"
 )
 
 func loginWithFirstPartyRedirPath(u *url.URL) string {
@@ -55,4 +57,22 @@ func FirstPartyOAuth2LoginRedirPath(u *url.URL) (string, error) {
 		RawQuery: rq,
 	}
 	return n.String(), nil
+}
+
+func AddLoginError(u *url.URL) *url.URL {
+	return addKV(u, loginErrorQueryKey, "true")
+}
+
+func AddAuthError(u *url.URL) *url.URL {
+	return addKV(u, authErrorQueryKey, "true")
+}
+
+func addKV(u *url.URL, key, value string) *url.URL {
+	v := u.Query()
+	v.Add(key, value)
+	out := &url.URL{
+		Path:     u.Path,
+		RawQuery: v.Encode(),
+	}
+	return out
 }
