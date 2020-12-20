@@ -27,7 +27,7 @@ var _ oauth2.ClientInfo = &ClientInfo{}
 
 type ClientInfo struct {
 	ID     string
-	Secret string
+	Secret sql.NullString
 	Domain string
 	UserID string
 }
@@ -37,7 +37,10 @@ func (c *ClientInfo) GetID() string {
 }
 
 func (c *ClientInfo) GetSecret() string {
-	return c.Secret
+	if c.Secret.Valid {
+		return c.Secret.String
+	}
+	return ""
 }
 
 func (c *ClientInfo) GetDomain() string {
@@ -77,6 +80,7 @@ func (c *ClientInfos) Close() {
 func (c *ClientInfos) Create(ctx util.Context, tx *sql.Tx, info oauth2.ClientInfo) (id string, err error) {
 	var rows *sql.Rows
 	rows, err = tx.Stmt(c.create).QueryContext(ctx,
+		info.GetID(),
 		info.GetSecret(),
 		info.GetDomain(),
 		info.GetUserID())

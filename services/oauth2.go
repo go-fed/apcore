@@ -100,6 +100,15 @@ func (o *OAuth2) GetByRefresh(ctx context.Context, refresh string) (ti oauth2.To
 func (o *OAuth2) ProxyCreateCredential(ctx context.Context, ti oauth2.TokenInfo) (id string, err error) {
 	c := util.Context{ctx}
 	return id, doInTx(c, o.DB, func(tx *sql.Tx) error {
+		ci := &models.ClientInfo{
+			ID:     ti.GetClientID(),
+			Domain: ti.GetRedirectURI(),
+			UserID: ti.GetUserID(),
+		}
+		_, err := o.Client.Create(c, tx, ci)
+		if err != nil {
+			return err
+		}
 		tID, err := o.Token.Create(c, tx, ti)
 		if err != nil {
 			return err

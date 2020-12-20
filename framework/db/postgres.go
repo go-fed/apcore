@@ -870,15 +870,15 @@ func (p *pgV0) CreateClientInfosTable() string {
 	return `
 CREATE TABLE IF NOT EXISTS ` + p.schema + `oauth_clients
 (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  secret text NOT NULL,
+  id text PRIMARY KEY,
+  secret text,
   domain text NOT NULL,
   user_id uuid REFERENCES ` + p.schema + `users(id) ON DELETE CASCADE NOT NULL
 );`
 }
 
 func (p *pgV0) CreateClientInfo() string {
-	return `INSERT INTO ` + p.schema + `oauth_clients (secret, domain, user_id) VALUES ($1, $2, $3) RETURNING id`
+	return `INSERT INTO ` + p.schema + `oauth_clients (id, secret, domain, user_id) VALUES ($1, $2, $3, $4) RETURNING id`
 }
 
 func (p *pgV0) GetClientInfoByID() string {
@@ -890,7 +890,7 @@ func (p *pgV0) CreateTokenInfosTable() string {
 CREATE TABLE IF NOT EXISTS ` + p.schema + `oauth_tokens
 (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  client_id uuid REFERENCES ` + p.schema + `oauth_clients(id) ON DELETE CASCADE NOT NULL,
+  client_id text REFERENCES ` + p.schema + `oauth_clients(id) ON DELETE CASCADE NOT NULL,
   user_id uuid REFERENCES ` + p.schema + `users(id) ON DELETE CASCADE NOT NULL,
   redirect_uri text NOT NULL,
   scope text NOT NULL,

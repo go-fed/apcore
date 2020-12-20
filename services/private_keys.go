@@ -93,7 +93,7 @@ func (p *PrivateKeys) GetUserHTTPSignatureKeyForInstanceActor(c util.Context) (k
 
 // CreateKeyFile writes a symmetric key of random bytes to a file.
 func CreateKeyFile(file string) (err error) {
-	c := 64
+	c := 32
 	k := make([]byte, c)
 	var n int
 	n, err = rand.Read(k)
