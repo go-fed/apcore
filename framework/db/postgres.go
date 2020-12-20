@@ -1369,6 +1369,7 @@ SET
   refresh = $14,
   refresh_create_at = $15,
   refresh_expires_in = $16
+FROM update_cred
 WHERE ot.id = update_cred.token_id`
 }
 
