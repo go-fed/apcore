@@ -47,6 +47,7 @@ var deliveryAttempts = &models.DeliveryAttempts{}
 var privateKeys = &models.PrivateKeys{}
 var clientInfos = &models.ClientInfos{}
 var tokenInfos = &models.TokenInfos{}
+var credentials = &models.Credentials{}
 var following = &models.Following{}
 var followers = &models.Followers{}
 var liked = &models.Liked{}
@@ -65,6 +66,7 @@ func init() {
 		privateKeys,
 		clientInfos,
 		tokenInfos,
+		credentials,
 		following,
 		followers,
 		liked,
@@ -131,6 +133,10 @@ func main() {
 	}
 	fmt.Println("Running TokenInfos calls...")
 	if err = runTokenInfosCalls(ctx, db, clientInfoID); err != nil {
+		panic(err)
+	}
+	fmt.Println("Running Credentials calls...")
+	if err = runCredentialsCalls(ctx, db, clientInfoID); err != nil {
 		panic(err)
 	}
 	fmt.Println("Running Followers calls...")
@@ -682,11 +688,130 @@ func runFollowersGetAllForActor(ctx util.Context, db *sql.DB) (p models.Activity
 	return
 }
 
+/* Credentials */
+
+func runCredentialsCalls(ctx util.Context, db *sql.DB, clientID string) error {
+	id, err := runCredentialsCreate(ctx, db, clientID)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("> Create: %v\n", id)
+	if err := runCredentialsUpdate(ctx, db, id, clientID); err != nil {
+		return err
+	}
+	if err := runCredentialsUpdateExpires(ctx, db, id); err != nil {
+		return err
+	}
+	if err := runCredentialsDelete(ctx, db, clientID); err != nil {
+		return err
+	}
+	ti, err := runCredentialsGetTokenInfo(ctx, db, id)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("> GetTokenInfo: %v\n", ti)
+	return nil
+}
+
+func runCredentialsCreate(ctx util.Context, db *sql.DB, clientID string) (id string, err error) {
+	uid, err := getUserID(ctx, db)
+	if err != nil {
+		return "", err
+	}
+	ti := &models.TokenInfo{
+		ClientID:    clientID,
+		UserID:      uid,
+		RedirectURI: "cred_redirect1",
+		Scope:       "cred_scope1",
+		Code:        sql.NullString{"cred_code1", true},
+		Access:      sql.NullString{"cred_access1", true},
+		Refresh:     sql.NullString{"cred_refresh1", true},
+	}
+	var tid string
+	if err := doWithTx(ctx, db, func(tx *sql.Tx) error {
+		tid, err = tokenInfos.Create(ctx, tx, ti)
+		return err
+	}); err != nil {
+		return "", err
+	}
+	return id, doWithTx(ctx, db, func(tx *sql.Tx) error {
+		id, err = credentials.Create(ctx, tx, uid, tid, time.Now().Add(time.Second*600))
+		return err
+	})
+}
+
+func runCredentialsUpdate(ctx util.Context, db *sql.DB, id, clientID string) error {
+	uid, err := getUserID(ctx, db)
+	if err != nil {
+		return err
+	}
+	ti := &models.TokenInfo{
+		ClientID:    clientID,
+		UserID:      uid,
+		RedirectURI: "cred_redirect1_updated",
+		Scope:       "cred_scope1_updated",
+		Code:        sql.NullString{"cred_code1_updated", true},
+		Access:      sql.NullString{"cred_access1_updated", true},
+		Refresh:     sql.NullString{"cred_refresh1_updated", true},
+	}
+	return doWithTx(ctx, db, func(tx *sql.Tx) error {
+		return credentials.Update(ctx, tx, id, ti)
+	})
+}
+
+func runCredentialsUpdateExpires(ctx util.Context, db *sql.DB, id string) error {
+	return doWithTx(ctx, db, func(tx *sql.Tx) error {
+		return credentials.UpdateExpires(ctx, tx, id, time.Now().Add(-time.Second*600))
+	})
+}
+
+func runCredentialsDelete(ctx util.Context, db *sql.DB, clientID string) error {
+	uid, err := getUserID(ctx, db)
+	if err != nil {
+		return err
+	}
+	ti := &models.TokenInfo{
+		ClientID:    clientID,
+		UserID:      uid,
+		RedirectURI: "cred_redir_should_delete",
+		Scope:       "cred_scope_should_delete",
+		Code:        sql.NullString{"cred_code_should_delete", true},
+		Access:      sql.NullString{"cred_access_should_delete", true},
+		Refresh:     sql.NullString{"cred_refresh_should_delete", true},
+	}
+	var tid string
+	if err := doWithTx(ctx, db, func(tx *sql.Tx) error {
+		tid, err = tokenInfos.Create(ctx, tx, ti)
+		return err
+	}); err != nil {
+		return err
+	}
+	var id string
+	if err := doWithTx(ctx, db, func(tx *sql.Tx) error {
+		id, err = credentials.Create(ctx, tx, uid, tid, time.Now())
+		return err
+	}); err != nil {
+		return err
+	}
+	return doWithTx(ctx, db, func(tx *sql.Tx) error {
+		return credentials.Delete(ctx, tx, id)
+	})
+}
+
+func runCredentialsGetTokenInfo(ctx util.Context, db *sql.DB, id string) (ti oauth2.TokenInfo, err error) {
+	return ti, doWithTx(ctx, db, func(tx *sql.Tx) error {
+		ti, err = credentials.GetTokenInfo(ctx, tx, id)
+		return err
+	})
+}
+
 /* TokenInfos */
 
 func runTokenInfosCalls(ctx util.Context, db *sql.DB, clientID string) error {
-	if err := runTokenInfosCreate(ctx, db, clientID); err != nil {
+	if id, err := runTokenInfosCreate(ctx, db, clientID); err != nil {
 		return err
+	} else {
+		fmt.Printf("> Create: %v\n", id)
 	}
 	if err := runTokenInfosRemoveByCode(ctx, db, clientID); err != nil {
 		return err
@@ -715,10 +840,10 @@ func runTokenInfosCalls(ctx util.Context, db *sql.DB, clientID string) error {
 	return nil
 }
 
-func runTokenInfosCreate(ctx util.Context, db *sql.DB, clientID string) error {
+func runTokenInfosCreate(ctx util.Context, db *sql.DB, clientID string) (id string, err error) {
 	uid, err := getUserID(ctx, db)
 	if err != nil {
-		return err
+		return "", err
 	}
 	ti := &models.TokenInfo{
 		ClientID:    clientID,
@@ -729,8 +854,9 @@ func runTokenInfosCreate(ctx util.Context, db *sql.DB, clientID string) error {
 		Access:      sql.NullString{"access1", true},
 		Refresh:     sql.NullString{"refresh1", true},
 	}
-	return doWithTx(ctx, db, func(tx *sql.Tx) error {
-		return tokenInfos.Create(ctx, tx, ti)
+	return id, doWithTx(ctx, db, func(tx *sql.Tx) error {
+		id, err = tokenInfos.Create(ctx, tx, ti)
+		return err
 	})
 }
 
@@ -750,7 +876,8 @@ func runTokenInfosRemoveByCode(ctx util.Context, db *sql.DB, clientID string) er
 		CodeExpires: models.NullDuration{5 * time.Second, true},
 	}
 	if err := doWithTx(ctx, db, func(tx *sql.Tx) error {
-		return tokenInfos.Create(ctx, tx, ti)
+		_, err = tokenInfos.Create(ctx, tx, ti)
+		return err
 	}); err != nil {
 		return err
 	}
@@ -775,7 +902,8 @@ func runTokenInfosRemoveByAccess(ctx util.Context, db *sql.DB, clientID string) 
 		AccessExpires: models.NullDuration{6 * time.Second, true},
 	}
 	if err := doWithTx(ctx, db, func(tx *sql.Tx) error {
-		return tokenInfos.Create(ctx, tx, ti)
+		_, err = tokenInfos.Create(ctx, tx, ti)
+		return err
 	}); err != nil {
 		return err
 	}
@@ -800,7 +928,8 @@ func runTokenInfosRemoveByRefresh(ctx util.Context, db *sql.DB, clientID string)
 		RefreshExpires: models.NullDuration{7 * time.Second, true},
 	}
 	if err := doWithTx(ctx, db, func(tx *sql.Tx) error {
-		return tokenInfos.Create(ctx, tx, ti)
+		_, err = tokenInfos.Create(ctx, tx, ti)
+		return err
 	}); err != nil {
 		return err
 	}
@@ -826,7 +955,8 @@ func runTokenInfosGetByCode(ctx util.Context, db *sql.DB, clientID string) (ti o
 		CodeExpires: models.NullDuration{8 * time.Second, true},
 	}
 	if err = doWithTx(ctx, db, func(tx *sql.Tx) error {
-		return tokenInfos.Create(ctx, tx, pti)
+		_, err = tokenInfos.Create(ctx, tx, pti)
+		return err
 	}); err != nil {
 		return
 	}
@@ -853,7 +983,8 @@ func runTokenInfosGetByAccess(ctx util.Context, db *sql.DB, clientID string) (ti
 		AccessExpires: models.NullDuration{9 * time.Second, true},
 	}
 	if err = doWithTx(ctx, db, func(tx *sql.Tx) error {
-		return tokenInfos.Create(ctx, tx, pti)
+		_, err = tokenInfos.Create(ctx, tx, pti)
+		return err
 	}); err != nil {
 		return
 	}
@@ -880,7 +1011,8 @@ func runTokenInfosGetByRefresh(ctx util.Context, db *sql.DB, clientID string) (t
 		RefreshExpires: models.NullDuration{10 * time.Second, true},
 	}
 	if err = doWithTx(ctx, db, func(tx *sql.Tx) error {
-		return tokenInfos.Create(ctx, tx, pti)
+		_, err = tokenInfos.Create(ctx, tx, pti)
+		return err
 	}); err != nil {
 		return
 	}
