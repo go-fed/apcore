@@ -26,11 +26,15 @@ import (
 
 	"github.com/go-fed/apcore/app"
 	"github.com/go-fed/apcore/framework/config"
-	"github.com/go-fed/apcore/framework/conn"
 	"github.com/go-fed/apcore/framework/db"
 	"github.com/go-fed/apcore/models"
 	"github.com/go-fed/apcore/util"
 )
+
+type StartStopper interface {
+	Start()
+	Stop()
+}
 
 type Server struct {
 	certFile    string
@@ -39,13 +43,13 @@ type Server struct {
 	sqldb       *sql.DB
 	d           models.SqlDialect
 	models      []models.Model
-	tc          *conn.Controller
 	httpServer  *http.Server
 	httpsServer *http.Server
+	ss          []StartStopper
 	debug       bool // TODO: http only, no https
 }
 
-func NewInsecureServer(c *config.Config, h http.Handler, a app.Application, sqldb *sql.DB, d models.SqlDialect, models []models.Model, tc *conn.Controller) (s *Server, err error) {
+func NewInsecureServer(c *config.Config, h http.Handler, a app.Application, sqldb *sql.DB, d models.SqlDialect, models []models.Model, ss []StartStopper) (s *Server, err error) {
 	httpServer := &http.Server{
 		Addr:         ":http",
 		Handler:      h,
@@ -58,8 +62,8 @@ func NewInsecureServer(c *config.Config, h http.Handler, a app.Application, sqld
 		a:          a,
 		sqldb:      sqldb,
 		d:          d,
-		tc:         tc,
 		httpServer: httpServer,
+		ss:         ss,
 	}
 
 	// Post-creation hooks
@@ -67,7 +71,7 @@ func NewInsecureServer(c *config.Config, h http.Handler, a app.Application, sqld
 	return
 }
 
-func NewHTTPSServer(c *config.Config, h http.Handler, a app.Application, sqldb *sql.DB, d models.SqlDialect, models []models.Model, tc *conn.Controller) (s *Server, err error) {
+func NewHTTPSServer(c *config.Config, h http.Handler, a app.Application, sqldb *sql.DB, d models.SqlDialect, models []models.Model, ss []StartStopper) (s *Server, err error) {
 	// Prepare HTTPS server. No option to run the server as HTTP in prod,
 	// because we're living in the future.
 	httpsServer := &http.Server{
@@ -88,9 +92,9 @@ func NewHTTPSServer(c *config.Config, h http.Handler, a app.Application, sqldb *
 		a:           a,
 		sqldb:       sqldb,
 		d:           d,
-		tc:          tc,
 		httpServer:  httpServer,
 		httpsServer: httpsServer,
+		ss:          ss,
 	}
 
 	// Post-creation hooks
@@ -139,8 +143,10 @@ func (s *Server) Start() error {
 			return err
 		}
 	}
-	util.InfoLogger.Infof("Starting conn.Controller")
-	s.tc.Start()
+	util.InfoLogger.Infof("Starting internal systems")
+	for _, st := range s.ss {
+		st.Start()
+	}
 	util.InfoLogger.Infof("Starting application")
 	err = s.a.Start()
 	if err != nil {
@@ -219,8 +225,10 @@ func (s *Server) onStop() {
 	if err := s.a.Stop(); err != nil {
 		util.ErrorLogger.Errorf("Error shutting down application: %s", err)
 	}
-	util.InfoLogger.Infof("Stopping conn.Controller")
-	s.tc.Stop()
+	util.InfoLogger.Infof("Stopping internal systems")
+	for _, st := range s.ss {
+		st.Stop()
+	}
 	util.InfoLogger.Infof("Closing models")
 	for _, m := range s.models {
 		m.Close()

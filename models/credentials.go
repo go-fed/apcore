@@ -31,6 +31,7 @@ type Credentials struct {
 	updateCred           *sql.Stmt
 	updateCredExpires    *sql.Stmt
 	removeCred           *sql.Stmt
+	removeExpiredCreds   *sql.Stmt
 	getTokenInfoByCredID *sql.Stmt
 }
 
@@ -41,6 +42,7 @@ func (c *Credentials) Prepare(db *sql.DB, s SqlDialect) error {
 			{&(c.updateCred), s.UpdateFirstPartyCredential()},
 			{&(c.updateCredExpires), s.UpdateFirstPartyCredentialExpires()},
 			{&(c.removeCred), s.RemoveFirstPartyCredential()},
+			{&(c.removeExpiredCreds), s.RemoveExpiredFirstPartyCredentials()},
 			{&(c.getTokenInfoByCredID), s.GetTokenInfoForCredentialID()},
 		})
 }
@@ -55,6 +57,7 @@ func (c *Credentials) Close() {
 	c.updateCred.Close()
 	c.updateCredExpires.Close()
 	c.removeCred.Close()
+	c.removeExpiredCreds.Close()
 	c.getTokenInfoByCredID.Close()
 }
 
@@ -113,4 +116,9 @@ func (c *Credentials) GetTokenInfo(ctx util.Context, tx *sql.Tx, id string) (oau
 	return ti, enforceOneRow(rows, "Credentials.GetTokenInfo", func(r singleRow) error {
 		return ti.scanFromSingleRow(r)
 	})
+}
+
+func (c *Credentials) DeleteExpired(ctx util.Context, tx *sql.Tx) error {
+	_, err := tx.Stmt(c.removeExpiredCreds).ExecContext(ctx)
+	return err
 }

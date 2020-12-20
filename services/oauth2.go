@@ -134,3 +134,10 @@ func (o *OAuth2) ProxyGetCredential(ctx context.Context, id string) (ti oauth2.T
 		return err
 	})
 }
+
+func (o *OAuth2) DeleteExpiredFirstPartyCredentials(ctx context.Context) error {
+	c := util.Context{ctx}
+	return doInTx(c, o.DB, func(tx *sql.Tx) error {
+		return o.Creds.DeleteExpired(c, tx)
+	})
+}

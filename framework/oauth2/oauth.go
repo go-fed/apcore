@@ -17,6 +17,7 @@
 package oauth2
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -55,6 +56,7 @@ type Server struct {
 	refreshExpiryDuration       time.Duration
 	proxyRefreshAccessDuration  time.Duration
 	proxyRefreshRefreshDuration time.Duration
+	cleanupFn                   *util.SafeStartStop
 }
 
 func NewServer(c *config.Config, scheme string, a app.Application, d *services.OAuth2, y *services.Crypto, k *web.Sessions) (s *Server, err error) {
@@ -159,6 +161,7 @@ func NewServer(c *config.Config, scheme string, a app.Application, d *services.O
 		proxyRefreshAccessDuration:  time.Second * time.Duration(c.OAuthConfig.AccessTokenExpiry) / 2,
 		proxyRefreshRefreshDuration: time.Second * time.Duration(c.OAuthConfig.RefreshTokenExpiry) / 2,
 	}
+	s.cleanupFn = util.NewSafeStartStop(s.cleanup, time.Hour*1)
 	return
 }
 
@@ -311,4 +314,20 @@ func (o *Server) RemoveFirstPartyProxyAccessToken(w http.ResponseWriter, r *http
 		}
 	}
 	return nil
+}
+
+func (o *Server) Start() {
+	o.cleanupFn.Start()
+}
+
+func (o *Server) Stop() {
+	o.cleanupFn.Stop()
+}
+
+func (o *Server) cleanup(ctx context.Context) {
+	err := o.d.DeleteExpiredFirstPartyCredentials(ctx)
+	if err != nil {
+		util.ErrorLogger.Errorf("first party expired creds cleanup failed: %s", err)
+		return
+	}
 }

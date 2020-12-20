@@ -710,6 +710,9 @@ func runCredentialsCalls(ctx util.Context, db *sql.DB, clientID string) error {
 		return err
 	}
 	fmt.Printf("> GetTokenInfo: %v\n", ti)
+	if err := runCredentialsDeleteExpired(ctx, db, clientID); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -718,26 +721,47 @@ func runCredentialsCreate(ctx util.Context, db *sql.DB, clientID string) (id str
 	if err != nil {
 		return "", err
 	}
-	ti := &models.TokenInfo{
-		ClientID:    clientID,
-		UserID:      uid,
-		RedirectURI: "cred_redirect1",
-		Scope:       "cred_scope1",
-		Code:        sql.NullString{"cred_code1", true},
-		Access:      sql.NullString{"cred_access1", true},
-		Refresh:     sql.NullString{"cred_refresh1", true},
+	tis := []*models.TokenInfo{
+		{
+			ClientID:    clientID,
+			UserID:      uid,
+			RedirectURI: "cred_redirect1",
+			Scope:       "cred_scope1",
+			Code:        sql.NullString{"cred_code1", true},
+			Access:      sql.NullString{"cred_access1", true},
+			Refresh:     sql.NullString{"cred_refresh1", true},
+		},
+		{
+			ClientID:    clientID,
+			UserID:      uid,
+			RedirectURI: "cred_redirect2",
+			Scope:       "cred_scope2",
+			Code:        sql.NullString{"cred_code2", true},
+			Access:      sql.NullString{"cred_access2", true},
+			Refresh:     sql.NullString{"cred_refresh2", true},
+		},
 	}
-	var tid string
-	if err := doWithTx(ctx, db, func(tx *sql.Tx) error {
-		tid, err = tokenInfos.Create(ctx, tx, ti)
-		return err
-	}); err != nil {
-		return "", err
+	for i, ti := range tis {
+		var tid string
+		if err := doWithTx(ctx, db, func(tx *sql.Tx) error {
+			tid, err = tokenInfos.Create(ctx, tx, ti)
+			return err
+		}); err != nil {
+			return "", err
+		}
+		var cid string
+		err := doWithTx(ctx, db, func(tx *sql.Tx) error {
+			cid, err = credentials.Create(ctx, tx, uid, tid, time.Now().Add(time.Minute*10))
+			return err
+		})
+		if err != nil {
+			return "", err
+		}
+		if i == 0 {
+			id = cid
+		}
 	}
-	return id, doWithTx(ctx, db, func(tx *sql.Tx) error {
-		id, err = credentials.Create(ctx, tx, uid, tid, time.Now().Add(time.Second*600))
-		return err
-	})
+	return
 }
 
 func runCredentialsUpdate(ctx util.Context, db *sql.DB, id, clientID string) error {
@@ -761,7 +785,7 @@ func runCredentialsUpdate(ctx util.Context, db *sql.DB, id, clientID string) err
 
 func runCredentialsUpdateExpires(ctx util.Context, db *sql.DB, id string) error {
 	return doWithTx(ctx, db, func(tx *sql.Tx) error {
-		return credentials.UpdateExpires(ctx, tx, id, time.Now().Add(-time.Second*600))
+		return credentials.UpdateExpires(ctx, tx, id, time.Now().Add(time.Hour))
 	})
 }
 
@@ -802,6 +826,65 @@ func runCredentialsGetTokenInfo(ctx util.Context, db *sql.DB, id string) (ti oau
 	return ti, doWithTx(ctx, db, func(tx *sql.Tx) error {
 		ti, err = credentials.GetTokenInfo(ctx, tx, id)
 		return err
+	})
+}
+
+func runCredentialsDeleteExpired(ctx util.Context, db *sql.DB, clientID string) error {
+	uid, err := getUserID(ctx, db)
+	if err != nil {
+		return err
+	}
+	tis := []*models.TokenInfo{
+		{
+			ClientID:    clientID,
+			UserID:      uid,
+			RedirectURI: "cred_redir_should_delete1",
+			Scope:       "cred_scope_should_delete1",
+			Code:        sql.NullString{"cred_code_should_delete1", true},
+			Access:      sql.NullString{"cred_access_should_delete1", true},
+			Refresh:     sql.NullString{"cred_refresh_should_delete1", true},
+		},
+		{
+			ClientID:    clientID,
+			UserID:      uid,
+			RedirectURI: "cred_redir_should_not_delete1",
+			Scope:       "cred_scope_should_not_delete1",
+			Code:        sql.NullString{"cred_code_should_not_delete1", true},
+			Access:      sql.NullString{"cred_access_should_not_delete1", true},
+			Refresh:     sql.NullString{"cred_refresh_should_not_delete1", true},
+		},
+		{
+			ClientID:    clientID,
+			UserID:      uid,
+			RedirectURI: "cred_redir_should_delete2",
+			Scope:       "cred_scope_should_delete2",
+			Code:        sql.NullString{"cred_code_should_delete2", true},
+			Access:      sql.NullString{"cred_access_should_delete2", true},
+			Refresh:     sql.NullString{"cred_refresh_should_delete2", true},
+		},
+	}
+	times := []time.Time{
+		time.Now().Add(-time.Second),
+		time.Now().Add(5 * time.Second),
+		time.Now().Add(-5 * time.Minute),
+	}
+	for i, ti := range tis {
+		var tid string
+		if err := doWithTx(ctx, db, func(tx *sql.Tx) error {
+			tid, err = tokenInfos.Create(ctx, tx, ti)
+			return err
+		}); err != nil {
+			return err
+		}
+		if err := doWithTx(ctx, db, func(tx *sql.Tx) error {
+			_, err = credentials.Create(ctx, tx, uid, tid, times[i])
+			return err
+		}); err != nil {
+			return err
+		}
+	}
+	return doWithTx(ctx, db, func(tx *sql.Tx) error {
+		return credentials.DeleteExpired(ctx, tx)
 	})
 }
 

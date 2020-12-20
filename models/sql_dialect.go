@@ -805,6 +805,10 @@ type SqlDialect interface {
 	//   ID          string
 	//  Returns
 	RemoveFirstPartyCredential() string
+	// RemoveExpiredFirstPartyCredentials:
+	//  Params
+	//  Returns
+	RemoveExpiredFirstPartyCredentials() string
 	// GetTokenInfoForCredentialID:
 	//  Params
 	//   ID          string

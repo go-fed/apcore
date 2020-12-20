@@ -1384,6 +1384,13 @@ USING cred AS fpc
 WHERE ti.id = fpc.token_id`
 }
 
+func (p *pgV0) RemoveExpiredFirstPartyCredentials() string {
+	return `WITH cred AS (SELECT token_id FROM ` + p.schema + `first_party_creds WHERE expiration_time < current_timestamp)
+DELETE FROM ` + p.schema + `oauth_tokens AS ti
+USING cred AS fpc
+WHERE ti.id = fpc.token_id`
+}
+
 func (p *pgV0) GetTokenInfoForCredentialID() string {
 	return `SELECT
   ti.client_id,

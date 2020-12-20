@@ -18,7 +18,6 @@ package conn
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/go-fed/apcore/framework/config"
@@ -34,17 +33,11 @@ type retrier struct {
 	pageSize         int
 	abandonLimit     int
 	reattemptBackoff func(n int) time.Duration
-	retrySleepPeriod time.Duration
-	wg               sync.WaitGroup
-	// Mutable
-	retryTimer  *time.Timer
-	retryCtx    context.Context
-	retryCancel context.CancelFunc
-	rMu         sync.Mutex
+	retrierFn        *util.SafeStartStop
 }
 
 func newRetrier(da *services.DeliveryAttempts, pk *services.PrivateKeys, tc *Controller, c *config.Config) *retrier {
-	return &retrier{
+	r := &retrier{
 		da:           da,
 		pk:           pk,
 		tc:           tc,
@@ -62,74 +55,23 @@ func newRetrier(da *services.DeliveryAttempts, pk *services.PrivateKeys, tc *Con
 			}
 			return z
 		},
-		retrySleepPeriod: time.Duration(c.ActivityPubConfig.RetrySleepPeriod) * time.Second,
 	}
+	r.retrierFn = util.NewSafeStartStop(r.retry, time.Duration(c.ActivityPubConfig.RetrySleepPeriod)*time.Second)
+	return r
 }
 
 func (r *retrier) Start() {
-	r.goRetry()
+	r.retrierFn.Start()
 }
 
 func (r *retrier) Stop() {
-	r.stopRetry()
+	r.retrierFn.Stop()
 }
 
-func (r *retrier) stopRetry() {
-	r.rMu.Lock() // WARNING: NO DEFER UNLOCK
-	if r.retryCancel == nil {
-		r.rMu.Unlock()
-		return
-	}
-	r.retryCancel()
-	r.rMu.Unlock()
-	r.wg.Wait()
-}
-
-func (r *retrier) goRetry() {
-	r.rMu.Lock()
-	defer r.rMu.Unlock()
-	if r.retryCtx != nil {
-		return
-	}
-	r.retryCtx, r.retryCancel = context.WithCancel(context.Background())
-	r.wg.Add(1)
-	go func() {
-		defer func() {
-			r.rMu.Lock()
-			defer r.rMu.Unlock()
-			if !r.retryTimer.Stop() {
-				<-r.retryTimer.C
-			}
-			r.retryTimer = nil
-			r.retryCtx = nil
-			r.retryCancel = nil
-			r.wg.Done()
-		}()
-		r.retryTimer = time.NewTimer(r.retrySleepPeriod)
-		for {
-			select {
-			case <-r.retryTimer.C:
-				r.retry()
-				// Timers are tricky to get correct, especially
-				// when calling Reset. From the documentation:
-				//
-				// Reset should be invoked only on stopped or
-				// expired timers with drained channels. If a
-				// program has already received a value from
-				// t.C, the timer is known to have expired and
-				// the channel drained, so t.Reset can be used
-				// directly.
-				r.retryTimer.Reset(r.retrySleepPeriod)
-			case <-r.retryCtx.Done():
-				return
-			}
-		}
-	}()
-}
-
-func (r *retrier) retry() {
+func (r *retrier) retry(ctx context.Context) {
+	c := util.Context{ctx}
 	now := time.Now()
-	failures, err := r.da.FirstPageRetryableFailures(util.Context{r.retryCtx}, r.pageSize)
+	failures, err := r.da.FirstPageRetryableFailures(c, r.pageSize)
 	if err != nil {
 		util.ErrorLogger.Errorf("retrier failed to obtain first page: %s", err)
 		return
@@ -141,7 +83,7 @@ func (r *retrier) retry() {
 			if failure.LastAttempt.Sub(now) < r.reattemptBackoff(failure.NAttempts) {
 				continue
 			}
-			privKey, pubKeyID, err := r.pk.GetUserHTTPSignatureKey(util.Context{r.retryCtx}, failure.UserID)
+			privKey, pubKeyID, err := r.pk.GetUserHTTPSignatureKey(c, failure.UserID)
 			if err != nil {
 				util.ErrorLogger.Errorf("retrier failed to obtain user's HTTP Signature key: %s", err)
 				continue
@@ -152,29 +94,29 @@ func (r *retrier) retry() {
 				continue
 			}
 			// Attempt delivery and update its associated record.
-			err = tp.Deliver(r.retryCtx, failure.Payload, failure.DeliverTo)
+			err = tp.Deliver(ctx, failure.Payload, failure.DeliverTo)
 			if err != nil {
 				util.ErrorLogger.Errorf("retrier failed in an attempt to retry delivery: %s", err)
 				if failure.NAttempts >= r.abandonLimit {
-					err = r.da.MarkAbandonedAttempt(util.Context{r.retryCtx}, failure.ID)
+					err = r.da.MarkAbandonedAttempt(c, failure.ID)
 					if err != nil {
 						util.ErrorLogger.Errorf("retrier failed to mark attempt as abandoned: %s", err)
 					}
 				} else {
-					err = r.da.MarkRetryFailureAttempt(util.Context{r.retryCtx}, failure.ID)
+					err = r.da.MarkRetryFailureAttempt(c, failure.ID)
 					if err != nil {
 						util.ErrorLogger.Errorf("retrier failed to mark attempt as failed: %s", err)
 					}
 				}
 			} else {
-				err = r.da.MarkSuccessfulAttempt(util.Context{r.retryCtx}, failure.ID)
+				err = r.da.MarkSuccessfulAttempt(c, failure.ID)
 				if err != nil {
 					util.ErrorLogger.Errorf("retrier failed to mark attempt as successful: %s", err)
 				}
 			}
 		}
 		last := failures[len(failures)-1]
-		failures, err = r.da.NextPageRetryableFailures(util.Context{r.retryCtx}, last.ID, last.FetchTime, r.pageSize)
+		failures, err = r.da.NextPageRetryableFailures(c, last.ID, last.FetchTime, r.pageSize)
 		if err != nil {
 			util.ErrorLogger.Errorf("retrier failed to obtain the next page of retriable failures: %s", err)
 			return
