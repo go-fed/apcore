@@ -70,14 +70,21 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 
 	// ** Create Misc Helpers **
 
+	// Create placeholder framework.
+	//
+	// Creating a placeholder early allows us to inject it into the needed
+	// dependencies, even if *Framework is not yet ready for use.
+	fw := &framework.Framework{}
+	internalErrorHandler := appl.InternalServerErrorHandler(fw)
+
 	// Prepare web sessions behavior
-	sess, err := web.NewSessions(c)
+	sess, err := web.NewSessions(c, scheme)
 	if err != nil {
 		return
 	}
 
 	// Prepare OAuth2 server
-	oauth, err := oauth2.NewServer(c, scheme, appl, oauthSrv, cryp, sess)
+	oauth, err := oauth2.NewServer(c, scheme, internalErrorHandler, oauthSrv, cryp, sess)
 	if err != nil {
 		return
 	}
@@ -133,14 +140,16 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 
 	// ** Initialize the Web Server **
 
+	// Build framework for auxiliary behaviors
+	fw = framework.BuildFramework(fw, oauth, sess, actor, appl)
+
 	// Obtain a normal router and fallback web handlers.
 	mr := mux.NewRouter()
-	mr.NotFoundHandler = appl.NotFoundHandler()
-	mr.MethodNotAllowedHandler = appl.MethodNotAllowedHandler()
-	internalErrorHandler := appl.InternalServerErrorHandler()
-	badRequestHandler := appl.BadRequestHandler()
-	getAuthWebHandler := appl.GetAuthWebHandlerFunc()
-	getLoginWebHandler := appl.GetLoginWebHandlerFunc()
+	mr.NotFoundHandler = appl.NotFoundHandler(fw)
+	mr.MethodNotAllowedHandler = appl.MethodNotAllowedHandler(fw)
+	badRequestHandler := appl.BadRequestHandler(fw)
+	getAuthWebHandler := appl.GetAuthWebHandlerFunc(fw)
+	getLoginWebHandler := appl.GetLoginWebHandlerFunc(fw)
 
 	// Build a specialized AP-aware router for managing and routing HTTP requests.
 	r := framework.NewRouter(
@@ -155,9 +164,6 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 		internalErrorHandler,
 		badRequestHandler)
 
-	// Build framework for auxiliary behaviors
-	fw := framework.NewFramework(oauth, actor, appl)
-
 	// Build application routes for default web support
 	h, err := framework.BuildHandler(r,
 		internalErrorHandler,
@@ -167,6 +173,7 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 		scheme,
 		c,
 		appl,
+		fw,
 		actor,
 		apdb,
 		users,

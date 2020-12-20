@@ -85,14 +85,14 @@ type Application interface {
 	SetConfiguration(interface{}) error
 
 	// The handler for the application's "404 Not Found" webpage.
-	NotFoundHandler() http.Handler
+	NotFoundHandler(Framework) http.Handler
 	// The handler when a request makes an unsupported HTTP method against
 	// a URI.
-	MethodNotAllowedHandler() http.Handler
+	MethodNotAllowedHandler(Framework) http.Handler
 	// The handler for an internal server error.
-	InternalServerErrorHandler() http.Handler
+	InternalServerErrorHandler(Framework) http.Handler
 	// The handler for a bad request.
-	BadRequestHandler() http.Handler
+	BadRequestHandler(Framework) http.Handler
 
 	// Web handlers for the application server
 
@@ -103,14 +103,14 @@ type Application interface {
 	// If the URL contains a query parameter "login_error" with a value of
 	// "true", then it should convey to the user that the email or password
 	// previously entered was incorrect.
-	GetLoginWebHandlerFunc() http.HandlerFunc
+	GetLoginWebHandlerFunc(Framework) http.HandlerFunc
 	// Web handler for a GET call to the OAuth2 authorization page.
 	//
 	// It should render UX that informs the user that the other application
 	// is requesting to be authorized as that user to obtain certain scopes.
 	//
 	// See the OAuth2 RFC 6749 for more information.
-	GetAuthWebHandlerFunc() http.HandlerFunc
+	GetAuthWebHandlerFunc(Framework) http.HandlerFunc
 
 	// Web handlers for ActivityPub related data
 
@@ -122,7 +122,7 @@ type Application interface {
 	//
 	// Returning a nil handler is allowed, and doing so results in only
 	// ActivityStreams content being served.
-	GetOutboxWebHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage)
+	GetOutboxWebHandlerFunc(Framework) func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage)
 	// Web handler for a call to GET an actor's followers collection. The
 	// framework has no authorization requirements to view a user's
 	// followers collection.
@@ -133,7 +133,7 @@ type Application interface {
 	// Returning a nil handler is allowed, and doing so results in only
 	// ActivityStreams content being served. Returning a nil AuthorizeFunc
 	// results in public access.
-	GetFollowersWebHandlerFunc() (http.HandlerFunc, AuthorizeFunc)
+	GetFollowersWebHandlerFunc(Framework) (http.HandlerFunc, AuthorizeFunc)
 	// Web handler for a call to GET an actor's following collection. The
 	// framework has no authorization requirements to view a user's
 	// following collection.
@@ -144,7 +144,7 @@ type Application interface {
 	// Returning a nil handler is allowed, and doing so results in only
 	// ActivityStreams content being served. Returning a nil AuthorizeFunc
 	// results in public access.
-	GetFollowingWebHandlerFunc() (http.HandlerFunc, AuthorizeFunc)
+	GetFollowingWebHandlerFunc(Framework) (http.HandlerFunc, AuthorizeFunc)
 	// Web handler for a call to GET an actor's liked collection. The
 	// framework has no authorization requirements to view a user's
 	// liked collection.
@@ -155,7 +155,7 @@ type Application interface {
 	// Returning a nil handler is allowed, and doing so results in only
 	// ActivityStreams content being served. Returning a nil AuthorizeFunc
 	// results in public access.
-	GetLikedWebHandlerFunc() (http.HandlerFunc, AuthorizeFunc)
+	GetLikedWebHandlerFunc(Framework) (http.HandlerFunc, AuthorizeFunc)
 	// Web handler for a call to GET an actor. The framework has no
 	// authorization requirements to view a user, like a profile.
 	//
@@ -165,7 +165,7 @@ type Application interface {
 	// Returning a nil handler is allowed, and doing so results in only
 	// ActivityStreams content being served. Returning a nil AuthorizeFunc
 	// results in public access.
-	GetUserWebHandlerFunc() (http.HandlerFunc, AuthorizeFunc)
+	GetUserWebHandlerFunc(Framework) (http.HandlerFunc, AuthorizeFunc)
 
 	// Builds the HTTP and ActivityPub routes specific for this application.
 	//
@@ -289,7 +289,7 @@ type S2SApplication interface {
 	//
 	// Returning a nil handler is allowed, and doing so results in only
 	// ActivityStreams content being served.
-	GetInboxWebHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage)
+	GetInboxWebHandlerFunc(Framework) func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage)
 
 	// ApplyFederatingCallbacks injects ActivityPub specific behaviors for
 	// federated data.

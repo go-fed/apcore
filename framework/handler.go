@@ -39,7 +39,7 @@ import (
 )
 
 const (
-	LoginFormEmailKey    = "username"
+	LoginFormEmailKey    = "email"
 	LoginFormPasswordKey = "password"
 )
 
@@ -51,6 +51,7 @@ func BuildHandler(r *Router,
 	scheme string,
 	c *config.Config,
 	a app.Application,
+	fr app.Framework,
 	actor pub.Actor,
 	db RoutingDatabase,
 	users *services.Users,
@@ -98,14 +99,14 @@ func BuildHandler(r *Router,
 	// - Liked
 	if sa, isS2S := a.(app.S2SApplication); isS2S {
 		r.userActorPostInbox()
-		r.userActorGetInbox(sa.GetInboxWebHandlerFunc())
+		r.userActorGetInbox(sa.GetInboxWebHandlerFunc(fr))
 	}
-	r.userActorGetOutbox(a.GetOutboxWebHandlerFunc())
+	r.userActorGetOutbox(a.GetOutboxWebHandlerFunc(fr))
 	if _, isC2S := a.(app.C2SApplication); isC2S {
 		r.userActorPostOutbox()
 	}
-	maybeAddWebFn := func(path string, f func() (http.HandlerFunc, app.AuthorizeFunc)) {
-		web, authFn := f()
+	maybeAddWebFn := func(path string, f func(app.Framework) (http.HandlerFunc, app.AuthorizeFunc)) {
+		web, authFn := f(fr)
 		if web == nil {
 			r.ActivityPubOnlyHandleFunc(path, authFn)
 		} else {
@@ -363,12 +364,14 @@ func postLoginFn(oauth *oauth2.Server, sl *web.Sessions, db pub.Database, badReq
 		}
 		emailV, ok := r.Form[LoginFormEmailKey]
 		if !ok || len(emailV) != 1 {
+			util.ErrorLogger.Errorf("error validating email or password from form")
 			badRequestHandler.ServeHTTP(w, r)
 			return
 		}
 		email := emailV[0]
 		passV, ok := r.Form[LoginFormPasswordKey]
 		if !ok || len(passV) != 1 {
+			util.ErrorLogger.Errorf("error validating email or password from form")
 			badRequestHandler.ServeHTTP(w, r)
 			return
 		}

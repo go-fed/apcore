@@ -47,4 +47,10 @@ type Framework interface {
 	// Note that a new ID is not needed on the activity and/or objects that
 	// are being sent; they will be generated as needed.
 	Send(c context.Context, outbox *url.URL, toSend vocab.Type) error
+
+	Session(r *http.Request) (Session, error)
+}
+
+type Session interface {
+	UserID() (string, error)
 }

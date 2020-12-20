@@ -1,16 +1,19 @@
 {{template "header.tmpl" .}}
 <h1>Login</h1>
-<p>Note: no error messages will show if login fails.</p>
+{{if .Error}}
+<p>Error logging in</p>
+{{end}}
 <form method="post" action="login">
 	<table>
 		<tr>
-			<td>username</td>
-			<td><input type="text" name="un" autocorrect="off" spellcheck="false" autocapitalize="off" autofocus="true"></td>
+			<td>email</td>
+			<td><input type="text" name="email" autocorrect="off" spellcheck="false" autocapitalize="off" autofocus="true"></td>
 		</tr>
 		<tr>
 			<td>password</td>
-			<td><input type="password" name="pw"></td>
+			<td><input type="password" name="password"></td>
 		</tr>
 	</table>
+	<button>Login</button>
 </form>
 {{template "footer.tmpl" .}}

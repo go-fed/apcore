@@ -118,10 +118,16 @@ func (a *App) S2SEnabled() bool {
 }
 
 // NotFoundHandler returns our spiffy 404 page.
-func (a *App) NotFoundHandler() http.Handler {
+func (a *App) NotFoundHandler(f app.Framework) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s, err := f.Session(r)
+		if err != nil {
+			util.ErrorLogger.Errorf("Error getting session: %v", err)
+			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
+			return
+		}
 		w.WriteHeader(http.StatusNotFound)
-		err := a.templates.ExecuteTemplate(w, notFoundTemplate, a.getTemplateData(nil))
+		err = a.templates.ExecuteTemplate(w, notFoundTemplate, a.getTemplateData(s, nil))
 		if err != nil {
 			util.ErrorLogger.Errorf("Error serving NotFoundHandler: %v", err)
 		}
@@ -131,10 +137,16 @@ func (a *App) NotFoundHandler() http.Handler {
 // MethodNotAllowedHandler would scold the user for choosing unorthodox methods
 // that resulted in this error, but in this instance of the universe only sends
 // a boring reply.
-func (a *App) MethodNotAllowedHandler() http.Handler {
+func (a *App) MethodNotAllowedHandler(f app.Framework) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s, err := f.Session(r)
+		if err != nil {
+			util.ErrorLogger.Errorf("Error getting session: %v", err)
+			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
+			return
+		}
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		err := a.templates.ExecuteTemplate(w, notAllowedTemplate, a.getTemplateData(nil))
+		err = a.templates.ExecuteTemplate(w, notAllowedTemplate, a.getTemplateData(s, nil))
 		if err != nil {
 			util.ErrorLogger.Errorf("Error serving MethodNotAllowedHandler: %v", err)
 		}
@@ -143,10 +155,14 @@ func (a *App) MethodNotAllowedHandler() http.Handler {
 
 // InternalServerErrorHandler puts the underlying operating system into the time
 // out corner. Haha, just kidding, that was a joke. Laugh.
-func (a *App) InternalServerErrorHandler() http.Handler {
+func (a *App) InternalServerErrorHandler(f app.Framework) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s, err := f.Session(r)
+		if err != nil {
+			util.ErrorLogger.Errorf("Error getting session: %v", err)
+		}
 		w.WriteHeader(http.StatusInternalServerError)
-		err := a.templates.ExecuteTemplate(w, internalErrorTemplate, a.getTemplateData(nil))
+		err = a.templates.ExecuteTemplate(w, internalErrorTemplate, a.getTemplateData(s, nil))
 		if err != nil {
 			util.ErrorLogger.Errorf("Error serving InternalServerErrorHandler: %v", err)
 		}
@@ -157,10 +173,16 @@ func (a *App) InternalServerErrorHandler() http.Handler {
 // understand the pattern by now" level of error handling. Don't let this
 // limited example and snarky commentary demotivate you. If you wanted cold,
 // soulless enterprisey software, you came to the wrong place.
-func (a *App) BadRequestHandler() http.Handler {
+func (a *App) BadRequestHandler(f app.Framework) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s, err := f.Session(r)
+		if err != nil {
+			util.ErrorLogger.Errorf("Error getting session: %v", err)
+			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
+			return
+		}
 		w.WriteHeader(http.StatusBadRequest)
-		err := a.templates.ExecuteTemplate(w, badRequestTemplate, a.getTemplateData(nil))
+		err = a.templates.ExecuteTemplate(w, badRequestTemplate, a.getTemplateData(s, nil))
 		if err != nil {
 			util.ErrorLogger.Errorf("Error serving BadRequestHandler: %v", err)
 		}
@@ -173,10 +195,15 @@ func (a *App) BadRequestHandler() http.Handler {
 // The form should POST to "/login", and if the query parameter "login_error"
 // is "true" then it should also render the "email or password incorrect" error
 // message.
-func (a *App) GetLoginWebHandlerFunc() http.HandlerFunc {
+func (a *App) GetLoginWebHandlerFunc(f app.Framework) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: If logged in, redirect to home page
-		err := a.templates.ExecuteTemplate(w, loginTemplate, a.getTemplateData(nil))
+		s, err := f.Session(r)
+		if err != nil {
+			util.ErrorLogger.Errorf("Error getting session: %v", err)
+			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
+			return
+		}
+		err = a.templates.ExecuteTemplate(w, loginTemplate, a.getTemplateData(s, nil))
 		if err != nil {
 			util.ErrorLogger.Errorf("Error serving GetLoginWebHandlerFunc: %v", err)
 		}
@@ -185,9 +212,15 @@ func (a *App) GetLoginWebHandlerFunc() http.HandlerFunc {
 
 // GetAuthWebHandlerFunc returns a handler that renders the authorization page
 // for the user to approve in the OAuth2 flow.
-func (a *App) GetAuthWebHandlerFunc() http.HandlerFunc {
+func (a *App) GetAuthWebHandlerFunc(f app.Framework) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		err := a.templates.ExecuteTemplate(w, authTemplate, a.getTemplateData(nil))
+		s, err := f.Session(r)
+		if err != nil {
+			util.ErrorLogger.Errorf("Error getting session: %v", err)
+			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
+			return
+		}
+		err = a.templates.ExecuteTemplate(w, authTemplate, a.getTemplateData(s, nil))
 		if err != nil {
 			util.ErrorLogger.Errorf("Error serving GetAuthWebHandlerFunc: %v", err)
 		}
@@ -197,9 +230,15 @@ func (a *App) GetAuthWebHandlerFunc() http.HandlerFunc {
 // GetInboxWebHandlerFunc returns a function rendering the outbox. The framework
 // passes in a public-only or private view of the outbox, depending on the
 // authorization of the incoming request.
-func (a *App) GetInboxWebHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
+func (a *App) GetInboxWebHandlerFunc(f app.Framework) func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
 	return func(w http.ResponseWriter, r *http.Request, inbox vocab.ActivityStreamsOrderedCollectionPage) {
-		err := a.templates.ExecuteTemplate(w, inboxTemplate, a.getTemplateData(inbox))
+		s, err := f.Session(r)
+		if err != nil {
+			util.ErrorLogger.Errorf("Error getting session: %v", err)
+			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
+			return
+		}
+		err = a.templates.ExecuteTemplate(w, inboxTemplate, a.getTemplateData(s, inbox))
 		if err != nil {
 			util.ErrorLogger.Errorf("Error serving GetInboxWebHandlerFunc: %v", err)
 		}
@@ -209,19 +248,31 @@ func (a *App) GetInboxWebHandlerFunc() func(w http.ResponseWriter, r *http.Reque
 // GetOutboxWebHandlerFunc returns a function rendering the outbox. The
 // framework passes in a public-only or private view of the outbox, depending on
 // the authorization of the incoming request.
-func (a *App) GetOutboxWebHandlerFunc() func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
+func (a *App) GetOutboxWebHandlerFunc(f app.Framework) func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
 	return func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
-		err := a.templates.ExecuteTemplate(w, outboxTemplate, a.getTemplateData(outbox))
+		s, err := f.Session(r)
+		if err != nil {
+			util.ErrorLogger.Errorf("Error getting session: %v", err)
+			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
+			return
+		}
+		err = a.templates.ExecuteTemplate(w, outboxTemplate, a.getTemplateData(s, outbox))
 		if err != nil {
 			util.ErrorLogger.Errorf("Error serving GetOutboxWebHandlerFunc: %v", err)
 		}
 	}
 }
 
-func (a *App) GetFollowersWebHandlerFunc() (http.HandlerFunc, app.AuthorizeFunc) {
+func (a *App) GetFollowersWebHandlerFunc(f app.Framework) (http.HandlerFunc, app.AuthorizeFunc) {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			s, err := f.Session(r)
+			if err != nil {
+				util.ErrorLogger.Errorf("Error getting session: %v", err)
+				a.InternalServerErrorHandler(f).ServeHTTP(w, r)
+				return
+			}
 			// TODO: Pass in followers
-			err := a.templates.ExecuteTemplate(w, followersTemplate, a.getTemplateData(nil))
+			err = a.templates.ExecuteTemplate(w, followersTemplate, a.getTemplateData(s, nil))
 			if err != nil {
 				util.ErrorLogger.Errorf("Error serving GetFollowersWebHandlerFunc: %v", err)
 			}
@@ -230,10 +281,16 @@ func (a *App) GetFollowersWebHandlerFunc() (http.HandlerFunc, app.AuthorizeFunc)
 		}
 }
 
-func (a *App) GetFollowingWebHandlerFunc() (http.HandlerFunc, app.AuthorizeFunc) {
+func (a *App) GetFollowingWebHandlerFunc(f app.Framework) (http.HandlerFunc, app.AuthorizeFunc) {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			s, err := f.Session(r)
+			if err != nil {
+				util.ErrorLogger.Errorf("Error getting session: %v", err)
+				a.InternalServerErrorHandler(f).ServeHTTP(w, r)
+				return
+			}
 			// TODO: Pass in following
-			err := a.templates.ExecuteTemplate(w, followingTemplate, a.getTemplateData(nil))
+			err = a.templates.ExecuteTemplate(w, followingTemplate, a.getTemplateData(s, nil))
 			if err != nil {
 				util.ErrorLogger.Errorf("Error serving GetFollowingWebHandlerFunc: %v", err)
 			}
@@ -246,14 +303,20 @@ func (a *App) GetFollowingWebHandlerFunc() (http.HandlerFunc, app.AuthorizeFunc)
 // then display it in a webpage. Instead, we return null so there's no way to
 // view the content as a webpage, but instead it is only obtainable as public
 // ActivityStreams data.
-func (a *App) GetLikedWebHandlerFunc() (http.HandlerFunc, app.AuthorizeFunc) {
+func (a *App) GetLikedWebHandlerFunc(f app.Framework) (http.HandlerFunc, app.AuthorizeFunc) {
 	return nil, nil
 }
 
-func (a *App) GetUserWebHandlerFunc() (http.HandlerFunc, app.AuthorizeFunc) {
+func (a *App) GetUserWebHandlerFunc(f app.Framework) (http.HandlerFunc, app.AuthorizeFunc) {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			s, err := f.Session(r)
+			if err != nil {
+				util.ErrorLogger.Errorf("Error getting session: %v", err)
+				a.InternalServerErrorHandler(f).ServeHTTP(w, r)
+				return
+			}
 			// TODO: Pass in users
-			err := a.templates.ExecuteTemplate(w, usersTemplate, a.getTemplateData(nil))
+			err = a.templates.ExecuteTemplate(w, usersTemplate, a.getTemplateData(s, nil))
 			if err != nil {
 				util.ErrorLogger.Errorf("Error serving GetUserWebHandlerFunc: %v", err)
 			}
@@ -293,7 +356,7 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 	// And supports using Webfinger to find actors on this server.
 	//
 	// Here we save copeies of our error handlers.
-	internalErrorHandler := a.InternalServerErrorHandler()
+	internalErrorHandler := a.InternalServerErrorHandler(f)
 
 	// WebOnlyHandleFunc is a convenience function for endpoints with only
 	// web content available; no ActivityStreams content exists at this
@@ -301,14 +364,26 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 	//
 	// It is sugar for Path(...).HandlerFunc(...)
 	r.WebOnlyHandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		err := a.templates.ExecuteTemplate(w, homeTemplate, a.getTemplateData(nil))
+		s, err := f.Session(r)
+		if err != nil {
+			util.ErrorLogger.Errorf("Error getting session: %v", err)
+			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
+			return
+		}
+		err = a.templates.ExecuteTemplate(w, homeTemplate, a.getTemplateData(s, nil))
 		if err != nil {
 			util.ErrorLogger.Errorf("Error serving home template: %v", err)
 		}
 	})
 	r.WebOnlyHandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
+		s, err := f.Session(r)
+		if err != nil {
+			util.ErrorLogger.Errorf("Error getting session: %v", err)
+			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
+			return
+		}
 		// TODO: Fetch users
-		err := a.templates.ExecuteTemplate(w, listUsersTemplate, a.getTemplateData(nil))
+		err = a.templates.ExecuteTemplate(w, listUsersTemplate, a.getTemplateData(s, nil))
 		if err != nil {
 			util.ErrorLogger.Errorf("Error serving list users template: %v", err)
 		}
@@ -342,6 +417,12 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 	// Next, a webpage to handle creating, updating, and deleting notes.
 	// This is NOT via C2S, but is done natively in our application.
 	r.NewRoute().Path("/notes/create").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s, err := f.Session(r)
+		if err != nil {
+			util.ErrorLogger.Errorf("Error getting session: %v", err)
+			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
+			return
+		}
 		// Ensure the user is logged in.
 		_, authd, err := f.ValidateOAuth2AccessToken(w, r)
 		if err != nil {
@@ -354,7 +435,7 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			return
 		}
 		// Render the webpage.
-		err = a.templates.ExecuteTemplate(w, createNoteTemplate, a.getTemplateData(nil))
+		err = a.templates.ExecuteTemplate(w, createNoteTemplate, a.getTemplateData(s, nil))
 		if err != nil {
 			util.ErrorLogger.Errorf("Error serving create note template: %v", err)
 		}
@@ -477,8 +558,8 @@ func (a *App) DefaultAdminPrivileges() interface{} {
 
 // This is a helper function to generate common data needed in the web
 // templates.
-func (a *App) getTemplateData(other interface{}) map[string]interface{} {
-	return map[string]interface{}{
+func (a *App) getTemplateData(s app.Session, other interface{}) map[string]interface{} {
+	m := map[string]interface{}{
 		"Other": other,
 		"Nav": []struct {
 			Href string
@@ -489,17 +570,16 @@ func (a *App) getTemplateData(other interface{}) map[string]interface{} {
 				Name: "home",
 			},
 			{
-				Href: "/login",
-				Name: "login",
-			},
-			{
-				Href: "/logout",
-				Name: "logout",
-			},
-			{
 				Href: "/users",
 				Name: "users",
 			},
 		},
 	}
+	if s != nil {
+		user, err := s.UserID()
+		if err == nil && len(user) > 0 {
+			m["User"] = user
+		}
+	}
+	return m
 }

@@ -4,5 +4,11 @@
 		{{range .Nav}}
 		<li><a href="{{.Href}}">{{.Name}}</a></li>
 		{{end}}
+		{{if .User}}
+		<p>Hi, {{.User}}!</p>
+		<li><a href="/logout">Logout</a></li>
+		{{else}}
+		<li><a href="/login">Login</a></li>
+		{{end}}
 	</ul>
 </nav>

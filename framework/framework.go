@@ -26,6 +26,7 @@ import (
 	"github.com/go-fed/activity/streams/vocab"
 	"github.com/go-fed/apcore/app"
 	"github.com/go-fed/apcore/framework/oauth2"
+	"github.com/go-fed/apcore/framework/web"
 	oa2 "github.com/go-fed/oauth2"
 )
 
@@ -33,17 +34,18 @@ var _ app.Framework = &Framework{}
 
 type Framework struct {
 	o                 *oauth2.Server
+	s                 *web.Sessions
 	actor             pub.Actor
 	federationEnabled bool
 }
 
-func NewFramework(o *oauth2.Server, actor pub.Actor, a app.Application) *Framework {
+func BuildFramework(fw *Framework, o *oauth2.Server, s *web.Sessions, actor pub.Actor, a app.Application) *Framework {
 	_, isS2S := a.(app.S2SApplication)
-	return &Framework{
-		o:                 o,
-		actor:             actor,
-		federationEnabled: isS2S,
-	}
+	fw.o = o
+	fw.s = s
+	fw.actor = actor
+	fw.federationEnabled = isS2S
+	return fw
 }
 
 func (f *Framework) ValidateOAuth2AccessToken(w http.ResponseWriter, r *http.Request) (token oa2.TokenInfo, authenticated bool, err error) {
@@ -59,4 +61,8 @@ func (f *Framework) Send(c context.Context, outbox *url.URL, t vocab.Type) error
 		_, err := fa.Send(c, outbox, t)
 		return err
 	}
+}
+
+func (f *Framework) Session(r *http.Request) (app.Session, error) {
+	return f.s.Get(r)
 }

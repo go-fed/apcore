@@ -18,13 +18,14 @@ package oauth2
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
-	"github.com/go-fed/apcore/app"
 	"github.com/go-fed/apcore/framework/config"
 	"github.com/go-fed/apcore/framework/web"
 	"github.com/go-fed/apcore/services"
@@ -48,7 +49,7 @@ type Server struct {
 	m *manage.Manager
 	s *oaserver.Server
 	// First-party support:
-	clientID                    string
+	clientIDBase                string
 	host                        string
 	scheme                      string
 	accessGen                   *generates.AccessGenerate
@@ -59,7 +60,7 @@ type Server struct {
 	cleanupFn                   *util.SafeStartStop
 }
 
-func NewServer(c *config.Config, scheme string, a app.Application, d *services.OAuth2, y *services.Crypto, k *web.Sessions) (s *Server, err error) {
+func NewServer(c *config.Config, scheme string, internalErrorHandler http.Handler, d *services.OAuth2, y *services.Crypto, k *web.Sessions) (s *Server, err error) {
 	m := manage.NewDefaultManager()
 	// Configure Access token and Refresh token refresh.
 	if c.OAuthConfig.AccessTokenExpiry <= 0 {
@@ -110,7 +111,6 @@ func NewServer(c *config.Config, scheme string, a app.Application, d *services.O
 	// no user is present, then they have not yet logged in and need to do
 	// so. Note that an empty string userID plus no error will magically
 	// cause the library to stop processing.
-	internalErrorHandler := a.InternalServerErrorHandler()
 	srv.SetUserAuthorizationHandler(func(w http.ResponseWriter, r *http.Request) (userID string, err error) {
 		var s *web.Session
 		if s, err = k.Get(r); err != nil {
@@ -152,7 +152,7 @@ func NewServer(c *config.Config, scheme string, a app.Application, d *services.O
 		k:                           k,
 		m:                           m,
 		s:                           srv,
-		clientID:                    fmt.Sprintf("%s.%s", b64ClientPart, c.ServerConfig.Host),
+		clientIDBase:                fmt.Sprintf("%s.%s", b64ClientPart, c.ServerConfig.Host),
 		host:                        c.ServerConfig.Host,
 		scheme:                      scheme,
 		accessGen:                   generates.NewAccessGenerate(),
@@ -197,8 +197,13 @@ func (o *Server) RemoveByAccess(ctx util.Context, t oauth2.TokenInfo) error {
 
 func (o *Server) CreateProxyCredentials(ctx util.Context, userID string) (id string, err error) {
 	now := time.Now()
+	var clientID string
+	clientID, err = o.generateProxyClientID()
+	if err != nil {
+		return
+	}
 	ti := &oam.Token{
-		ClientID:            o.clientID,
+		ClientID:            clientID,
 		UserID:              userID,
 		RedirectURI:         (&url.URL{Scheme: o.scheme, Host: o.host, Path: "/"}).String(),
 		Scope:               "all", // TODO: Hardcoded scope here
@@ -231,7 +236,7 @@ func (o *Server) RefreshProxyCredentialsIfNeeded(ctx util.Context, id, userID st
 	ti, err := o.d.ProxyGetCredential(ctx, id)
 	if err != nil {
 		return err
-	} else if ti.GetClientID() != o.clientID {
+	} else if !strings.Contains(ti.GetClientID(), o.clientIDBase) {
 		return oaerrors.ErrInvalidRefreshToken
 	} else if ti.GetUserID() != userID {
 		return oaerrors.ErrInvalidRefreshToken
@@ -330,4 +335,16 @@ func (o *Server) cleanup(ctx context.Context) {
 		util.ErrorLogger.Errorf("first party expired creds cleanup failed: %s", err)
 		return
 	}
+}
+
+func (o *Server) generateProxyClientID() (string, error) {
+	b := make([]byte, 256)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	b64SecretPart := base64.RawStdEncoding.
+		WithPadding(base64.NoPadding).
+		EncodeToString(b)
+	return fmt.Sprintf("%s.%s", b64SecretPart, o.clientIDBase), nil
 }
