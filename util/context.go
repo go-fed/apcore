@@ -41,12 +41,14 @@ type Context struct {
 	context.Context
 }
 
-// WithUserAPHTTPContext sets the UserPathUUID, ActorIRI, and CompleteRequestURL.
-func WithUserAPHTTPContext(scheme, host string, r *http.Request, uuid paths.UUID) Context {
+// WithUserAPHTTPContext sets the UserPathUUID, ActorIRI, CompleteRequestURL,
+// and PrivateScope.
+func WithUserAPHTTPContext(scheme, host string, r *http.Request, uuid paths.UUID, authdUserID string) Context {
 	c := &Context{r.Context()}
 	c.WithUserID(scheme, host, uuid)
 	c.WithActorIRI(paths.UUIDIRIFor(scheme, host, paths.UserPathKey, uuid))
 	c.WithCompleteRequestURL(r, scheme, host)
+	c.WithPrivateScope(len(authdUserID) > 0 && authdUserID == string(uuid))
 	return *c
 }
 

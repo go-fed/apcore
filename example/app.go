@@ -120,17 +120,7 @@ func (a *App) S2SEnabled() bool {
 // NotFoundHandler returns our spiffy 404 page.
 func (a *App) NotFoundHandler(f app.Framework) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		s, err := f.Session(r)
-		if err != nil {
-			util.ErrorLogger.Errorf("Error getting session: %v", err)
-			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
-			return
-		}
-		w.WriteHeader(http.StatusNotFound)
-		err = a.templates.ExecuteTemplate(w, notFoundTemplate, a.getTemplateData(s, nil))
-		if err != nil {
-			util.ErrorLogger.Errorf("Error serving NotFoundHandler: %v", err)
-		}
+		a.getSessionWriteTemplateHelper(w, r, f, http.StatusNotFound, notFoundTemplate, nil, "NotFoundHandler")
 	})
 }
 
@@ -139,17 +129,7 @@ func (a *App) NotFoundHandler(f app.Framework) http.Handler {
 // a boring reply.
 func (a *App) MethodNotAllowedHandler(f app.Framework) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		s, err := f.Session(r)
-		if err != nil {
-			util.ErrorLogger.Errorf("Error getting session: %v", err)
-			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
-			return
-		}
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		err = a.templates.ExecuteTemplate(w, notAllowedTemplate, a.getTemplateData(s, nil))
-		if err != nil {
-			util.ErrorLogger.Errorf("Error serving MethodNotAllowedHandler: %v", err)
-		}
+		a.getSessionWriteTemplateHelper(w, r, f, http.StatusMethodNotAllowed, notAllowedTemplate, nil, "MethodNotAllowedHandler")
 	})
 }
 
@@ -175,17 +155,7 @@ func (a *App) InternalServerErrorHandler(f app.Framework) http.Handler {
 // soulless enterprisey software, you came to the wrong place.
 func (a *App) BadRequestHandler(f app.Framework) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		s, err := f.Session(r)
-		if err != nil {
-			util.ErrorLogger.Errorf("Error getting session: %v", err)
-			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
-			return
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		err = a.templates.ExecuteTemplate(w, badRequestTemplate, a.getTemplateData(s, nil))
-		if err != nil {
-			util.ErrorLogger.Errorf("Error serving BadRequestHandler: %v", err)
-		}
+		a.getSessionWriteTemplateHelper(w, r, f, http.StatusBadRequest, badRequestTemplate, nil, "BadRequestHandler")
 	})
 }
 
@@ -197,16 +167,7 @@ func (a *App) BadRequestHandler(f app.Framework) http.Handler {
 // message.
 func (a *App) GetLoginWebHandlerFunc(f app.Framework) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		s, err := f.Session(r)
-		if err != nil {
-			util.ErrorLogger.Errorf("Error getting session: %v", err)
-			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
-			return
-		}
-		err = a.templates.ExecuteTemplate(w, loginTemplate, a.getTemplateData(s, nil))
-		if err != nil {
-			util.ErrorLogger.Errorf("Error serving GetLoginWebHandlerFunc: %v", err)
-		}
+		a.getSessionWriteTemplateHelper(w, r, f, http.StatusOK, loginTemplate, nil, "GetLoginWebHandlerFunc")
 	}
 }
 
@@ -214,16 +175,7 @@ func (a *App) GetLoginWebHandlerFunc(f app.Framework) http.HandlerFunc {
 // for the user to approve in the OAuth2 flow.
 func (a *App) GetAuthWebHandlerFunc(f app.Framework) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		s, err := f.Session(r)
-		if err != nil {
-			util.ErrorLogger.Errorf("Error getting session: %v", err)
-			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
-			return
-		}
-		err = a.templates.ExecuteTemplate(w, authTemplate, a.getTemplateData(s, nil))
-		if err != nil {
-			util.ErrorLogger.Errorf("Error serving GetAuthWebHandlerFunc: %v", err)
-		}
+		a.getSessionWriteTemplateHelper(w, r, f, http.StatusOK, authTemplate, nil, "GetAuthWebHandlerFunc")
 	}
 }
 
@@ -232,16 +184,7 @@ func (a *App) GetAuthWebHandlerFunc(f app.Framework) http.HandlerFunc {
 // authorization of the incoming request.
 func (a *App) GetInboxWebHandlerFunc(f app.Framework) func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
 	return func(w http.ResponseWriter, r *http.Request, inbox vocab.ActivityStreamsOrderedCollectionPage) {
-		s, err := f.Session(r)
-		if err != nil {
-			util.ErrorLogger.Errorf("Error getting session: %v", err)
-			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
-			return
-		}
-		err = a.templates.ExecuteTemplate(w, inboxTemplate, a.getTemplateData(s, inbox))
-		if err != nil {
-			util.ErrorLogger.Errorf("Error serving GetInboxWebHandlerFunc: %v", err)
-		}
+		a.getSessionWriteTemplateHelper(w, r, f, http.StatusOK, inboxTemplate, inbox, "GetInboxWebHandlerFunc")
 	}
 }
 
@@ -250,16 +193,7 @@ func (a *App) GetInboxWebHandlerFunc(f app.Framework) func(w http.ResponseWriter
 // the authorization of the incoming request.
 func (a *App) GetOutboxWebHandlerFunc(f app.Framework) func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
 	return func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage) {
-		s, err := f.Session(r)
-		if err != nil {
-			util.ErrorLogger.Errorf("Error getting session: %v", err)
-			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
-			return
-		}
-		err = a.templates.ExecuteTemplate(w, outboxTemplate, a.getTemplateData(s, outbox))
-		if err != nil {
-			util.ErrorLogger.Errorf("Error serving GetOutboxWebHandlerFunc: %v", err)
-		}
+		a.getSessionWriteTemplateHelper(w, r, f, http.StatusOK, outboxTemplate, outbox, "GetOutboxWebHandlerFunc")
 	}
 }
 
@@ -364,6 +298,7 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 	//
 	// It is sugar for Path(...).HandlerFunc(...)
 	r.WebOnlyHandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// TODO: Latest public posts
 		s, err := f.Session(r)
 		if err != nil {
 			util.ErrorLogger.Errorf("Error getting session: %v", err)
@@ -513,21 +448,21 @@ func (a *App) ApplySocialCallbacks(swc *pub.SocialWrappedCallbacks) (others []in
 // is the only permission. Other applications can have more granular
 // authorization systems.
 func (a *App) ScopePermitsPostOutbox(scope string) (permitted bool, err error) {
-	return scope == "loggedin", nil
+	return scope == "postOutbox" || scope == "all", nil
 }
 
 // ScopePermitsPrivateGetInbox ensures the OAuth2 token scope is "loggedin",
 // which is the only permission. Other applications can have more granular
 // authorization systems.
 func (a *App) ScopePermitsPrivateGetInbox(scope string) (permitted bool, err error) {
-	return scope == "loggedin", nil
+	return scope == "getInbox" || scope == "all", nil
 }
 
 // ScopePermitsPrivateGetOutbox ensures the OAuth2 token scope is "loggedin",
 // which is the only permission. Other applications can have more granular
 // authorization systems.
 func (a *App) ScopePermitsPrivateGetOutbox(scope string) (permitted bool, err error) {
-	return scope == "loggedin", nil
+	return scope == "getOutbox" || scope == "all", nil
 }
 
 // Software describes the current running software, based on the code. This
@@ -582,4 +517,18 @@ func (a *App) getTemplateData(s app.Session, other interface{}) map[string]inter
 		}
 	}
 	return m
+}
+
+func (a *App) getSessionWriteTemplateHelper(w http.ResponseWriter, r *http.Request, f app.Framework, code int, tmpl string, data interface{}, debug string) {
+	s, err := f.Session(r)
+	if err != nil {
+		util.ErrorLogger.Errorf("Error getting session: %v", err)
+		a.InternalServerErrorHandler(f).ServeHTTP(w, r)
+		return
+	}
+	w.WriteHeader(code)
+	err = a.templates.ExecuteTemplate(w, tmpl, a.getTemplateData(s, data))
+	if err != nil {
+		util.ErrorLogger.Errorf("Error serving %s: %v", debug, err)
+	}
 }

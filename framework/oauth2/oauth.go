@@ -195,6 +195,28 @@ func (o *Server) RemoveByAccess(ctx util.Context, t oauth2.TokenInfo) error {
 	return o.m.RemoveAccessToken(ctx.Context, t.GetAccess())
 }
 
+func (o *Server) Validate(w http.ResponseWriter, r *http.Request) (userID string, auth bool, err error) {
+	var sn *web.Session
+	sn, err = o.k.Get(r)
+	if err != nil {
+		return
+	}
+	var uid string
+	_, uid, auth, err = o.ValidateFirstPartyProxyAccessToken(util.Context{r.Context()}, sn)
+	if err != nil {
+		return
+	} else if auth {
+		userID = uid
+		return
+	}
+	var ti oauth2.TokenInfo
+	ti, auth, err = o.ValidateOAuth2AccessToken(w, r)
+	if err == nil && auth {
+		userID = ti.GetUserID()
+	}
+	return
+}
+
 func (o *Server) CreateProxyCredentials(ctx util.Context, userID string) (id string, err error) {
 	now := time.Now()
 	var clientID string
@@ -275,7 +297,7 @@ func (o *Server) RefreshProxyCredentialsIfNeeded(ctx util.Context, id, userID st
 	return o.d.ProxyUpdateCredential(ctx, id, ti)
 }
 
-func (o *Server) ValidateFirstPartyProxyAccessToken(ctx util.Context, sn *web.Session) (id string, authenticated bool, err error) {
+func (o *Server) ValidateFirstPartyProxyAccessToken(ctx util.Context, sn *web.Session) (id, userID string, authenticated bool, err error) {
 	if sn.HasFirstPartyCredentialID() {
 		id, err = sn.FirstPartyCredentialID()
 		if err != nil {
@@ -299,12 +321,13 @@ func (o *Server) ValidateFirstPartyProxyAccessToken(ctx util.Context, sn *web.Se
 			return
 		}
 		authenticated = true
+		userID = ti.GetUserID()
 	}
 	return
 }
 
 func (o *Server) RemoveFirstPartyProxyAccessToken(w http.ResponseWriter, r *http.Request, ctx util.Context, sn *web.Session) error {
-	id, auth, err := o.ValidateFirstPartyProxyAccessToken(ctx, sn)
+	id, _, auth, err := o.ValidateFirstPartyProxyAccessToken(ctx, sn)
 	if err != nil {
 		return err
 	}

@@ -238,13 +238,18 @@ func (r *Route) knownActorPostInbox(c paths.Actor) *Route {
 func (r *Route) actorPostInbox(actor pub.Actor, path string) *Route {
 	r.route = r.route.Path(path).Schemes(r.scheme).Methods("POST").HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
+			userID, _, err := r.oauth.Validate(w, req)
+			if err != nil {
+				userID = ""
+				util.ErrorLogger.Errorf("Error validating for ActorPostInbox: %s", err)
+			}
 			uuid, err := paths.UUIDFromUserPath(path)
 			if err != nil {
 				util.ErrorLogger.Errorf("Error building context for ActorPostInbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
 				return
 			}
-			c := util.WithUserAPHTTPContext(r.scheme, r.host, req, uuid)
+			c := util.WithUserAPHTTPContext(r.scheme, r.host, req, uuid, userID)
 			isApRequest, err := actor.PostInboxScheme(c.Context, w, req, r.scheme)
 			if err != nil {
 				util.ErrorLogger.Errorf("Error in ActorPostInbox: %s", err)
@@ -270,13 +275,18 @@ func (r *Route) knownActorPostOutbox(c paths.Actor) *Route {
 func (r *Route) actorPostOutbox(actor pub.Actor, path string) *Route {
 	r.route = r.route.Path(path).Schemes(r.scheme).Methods("POST").HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
+			userID, _, err := r.oauth.Validate(w, req)
+			if err != nil {
+				userID = ""
+				util.ErrorLogger.Errorf("Error validating for ActorPostInbox: %s", err)
+			}
 			uuid, err := paths.UUIDFromUserPath(path)
 			if err != nil {
 				util.ErrorLogger.Errorf("Error building context for ActorPostOutbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
 				return
 			}
-			c := util.WithUserAPHTTPContext(r.scheme, r.host, req, uuid)
+			c := util.WithUserAPHTTPContext(r.scheme, r.host, req, uuid, userID)
 			isApRequest, err := actor.PostOutboxScheme(c.Context, w, req, r.scheme)
 			if err != nil {
 				util.ErrorLogger.Errorf("Error in ActorPostOutbox: %s", err)
@@ -302,13 +312,18 @@ func (r *Route) knownActorGetInbox(c paths.Actor, web func(w http.ResponseWriter
 func (r *Route) actorGetInbox(actor pub.Actor, path string, web func(w http.ResponseWriter, r *http.Request, inbox vocab.ActivityStreamsOrderedCollectionPage)) *Route {
 	r.route = r.route.Path(path).Schemes(r.scheme).Methods("GET").HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
+			userID, _, err := r.oauth.Validate(w, req)
+			if err != nil {
+				userID = ""
+				util.ErrorLogger.Errorf("Error validating for ActorPostInbox: %s", err)
+			}
 			uuid, err := paths.UUIDFromUserPath(path)
 			if err != nil {
 				util.ErrorLogger.Errorf("Error building context for ActorGetInbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
 				return
 			}
-			c := util.WithUserAPHTTPContext(r.scheme, r.host, req, uuid)
+			c := util.WithUserAPHTTPContext(r.scheme, r.host, req, uuid, userID)
 			isApRequest, err := actor.GetInbox(c.Context, w, req)
 			if err != nil {
 				util.ErrorLogger.Errorf("Error in ActorGetInbox: %s", err)
@@ -348,13 +363,18 @@ func (r *Route) knownActorGetOutbox(c paths.Actor, web func(w http.ResponseWrite
 func (r *Route) actorGetOutbox(actor pub.Actor, path string, web func(w http.ResponseWriter, r *http.Request, outbox vocab.ActivityStreamsOrderedCollectionPage)) *Route {
 	r.route = r.route.Path(path).Schemes(r.scheme).Methods("GET").HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
+			userID, _, err := r.oauth.Validate(w, req)
+			if err != nil {
+				userID = ""
+				util.ErrorLogger.Errorf("Error validating for ActorPostInbox: %s", err)
+			}
 			uuid, err := paths.UUIDFromUserPath(path)
 			if err != nil {
 				util.ErrorLogger.Errorf("Error building context for ActorGetOutbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
 				return
 			}
-			c := util.WithUserAPHTTPContext(r.scheme, r.host, req, uuid)
+			c := util.WithUserAPHTTPContext(r.scheme, r.host, req, uuid, userID)
 			isApRequest, err := actor.GetOutbox(c.Context, w, req)
 			if err != nil {
 				util.ErrorLogger.Errorf("Error in ActorGetOutbox: %s", err)

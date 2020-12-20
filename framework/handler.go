@@ -323,7 +323,7 @@ func getLoginFn(oauth *oauth2.Server, sl *web.Sessions, getLoginWebHandler http.
 		if err != nil {
 			util.ErrorLogger.Errorf("error getting session for POST login: %s", err)
 		} else {
-			_, auth, err := oauth.ValidateFirstPartyProxyAccessToken(util.Context{r.Context()}, s)
+			_, _, auth, err := oauth.ValidateFirstPartyProxyAccessToken(util.Context{r.Context()}, s)
 			if err == nil && auth {
 				http.Redirect(w, r, "/", http.StatusFound)
 			} else if err != nil {
@@ -343,7 +343,7 @@ func postLoginFn(oauth *oauth2.Server, sl *web.Sessions, db pub.Database, badReq
 			internalErrorHandler.ServeHTTP(w, r)
 			return
 		}
-		_, auth, err := oauth.ValidateFirstPartyProxyAccessToken(util.Context{r.Context()}, s)
+		_, _, auth, err := oauth.ValidateFirstPartyProxyAccessToken(util.Context{r.Context()}, s)
 		if auth && err == nil {
 			// Redirect, already logged-in
 			p, err := oauth2.FirstPartyOAuth2LoginRedirPath(r.URL)
