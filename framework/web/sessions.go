@@ -31,7 +31,7 @@ type Sessions struct {
 	cookies *gs.CookieStore
 }
 
-func NewSessions(c *config.Config) (s *Sessions, err error) {
+func NewSessions(c *config.Config, scheme string) (s *Sessions, err error) {
 	var authKey, encKey []byte
 	var keys [][]byte
 	authKey, err = ioutil.ReadFile(c.ServerConfig.CookieAuthKeyFile)
@@ -61,7 +61,7 @@ func NewSessions(c *config.Config) (s *Sessions, err error) {
 		Path:     "/",
 		Domain:   c.ServerConfig.Host,
 		MaxAge:   c.ServerConfig.CookieMaxAge,
-		Secure:   true,
+		Secure:   scheme != "http",
 		HttpOnly: true,
 	}
 	s.cookies.Options = opt
