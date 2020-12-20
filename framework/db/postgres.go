@@ -1343,7 +1343,7 @@ func (p *pgV0) CreateFirstPartyCredentialsTable() string {
 }
 
 func (p *pgV0) CreateFirstPartyCredential() string {
-	return `INSERT INTO ` + p.schema + `first_party_creds (user_id, token_id, expiration_time) VALUES ($1, $2, $3)`
+	return `INSERT INTO ` + p.schema + `first_party_creds (user_id, token_id, expiration_time) VALUES ($1, $2, $3) RETURNING id`
 }
 
 func (p *pgV0) UpdateFirstPartyCredential() string {
