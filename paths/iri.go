@@ -84,7 +84,7 @@ var knownPaths map[PathKey]string = map[PathKey]string{
 	LikedPathKey:          "{user}/liked",
 	LikedFirstPathKey:     "{user}/liked",
 	LikedLastPathKey:      "{user}/liked",
-	HttpSigPubKeyKey:      "{user}/publicKeys/httpsig",
+	HttpSigPubKeyKey:      "{user}",
 }
 
 func knownPath(prefix string, k PathKey) string {
@@ -114,6 +114,7 @@ func ActorIRIFor(scheme, host string, k PathKey, c Actor) *url.URL {
 		Host:     host,
 		Path:     ActorPathFor(k, c),
 		RawQuery: uuidPathQueryFor(k),
+		Fragment: uuidPathFragmentFor(k),
 	}
 	return u
 }
@@ -129,6 +130,10 @@ var knownUserPathQuery map[PathKey]string = map[PathKey]string{
 	FollowingLastPathKey:  fmt.Sprintf("%s=%s&%s=%s", queryCollectionPage, queryTrue, queryCollectionEnd, queryTrue),
 	LikedFirstPathKey:     fmt.Sprintf("%s=%s", queryCollectionPage, queryTrue),
 	LikedLastPathKey:      fmt.Sprintf("%s=%s&%s=%s", queryCollectionPage, queryTrue, queryCollectionEnd, queryTrue),
+}
+
+var knownUserPathFragment map[PathKey]string = map[PathKey]string{
+	HttpSigPubKeyKey:      "public-httpsig",
 }
 
 type UUID string
@@ -153,12 +158,21 @@ func uuidPathQueryFor(k PathKey) string {
 	return pq
 }
 
+func uuidPathFragmentFor(k PathKey) string {
+	pq, ok := knownUserPathFragment[k]
+	if !ok {
+		return ""
+	}
+	return pq
+}
+
 func UUIDIRIFor(scheme string, host string, k PathKey, uuid UUID) *url.URL {
 	u := &url.URL{
 		Scheme:   scheme,
 		Host:     host,
 		Path:     UUIDPathFor(k, uuid),
 		RawQuery: uuidPathQueryFor(k),
+		Fragment: uuidPathFragmentFor(k),
 	}
 	return u
 }
@@ -182,6 +196,7 @@ func IRIForActorID(k PathKey, actorID *url.URL) (*url.URL, error) {
 		Host:     actorID.Host,
 		Path:     strings.ReplaceAll(pFn(k), "{user}", string(uuid)),
 		RawQuery: uuidPathQueryFor(k),
+		Fragment: uuidPathFragmentFor(k),
 	}, nil
 }
 
