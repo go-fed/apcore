@@ -47,10 +47,12 @@ func (f *Liked) Contains(c util.Context, liked, id *url.URL) (has bool, err erro
 func (f *Liked) GetPage(c util.Context, liked *url.URL, min, n int) (page vocab.ActivityStreamsCollectionPage, err error) {
 	err = doInTx(c, f.DB, func(tx *sql.Tx) error {
 		var isEnd bool
-		page, isEnd, err = f.Liked.GetPage(c, tx, liked, min, min+n)
+		var mp models.ActivityStreamsCollectionPage
+		mp, isEnd, err = f.Liked.GetPage(c, tx, liked, min, min+n)
 		if err != nil {
 			return err
 		}
+		page = mp.ActivityStreamsCollectionPage
 		return addNextPrevCol(page, min, n, isEnd)
 	})
 	return
@@ -59,10 +61,12 @@ func (f *Liked) GetPage(c util.Context, liked *url.URL, min, n int) (page vocab.
 func (f *Liked) GetLastPage(c util.Context, liked *url.URL, n int) (page vocab.ActivityStreamsCollectionPage, err error) {
 	err = doInTx(c, f.DB, func(tx *sql.Tx) error {
 		var startIdx int
-		page, startIdx, err = f.Liked.GetLastPage(c, tx, liked, n)
+		var mp models.ActivityStreamsCollectionPage
+		mp, startIdx, err = f.Liked.GetLastPage(c, tx, liked, n)
 		if err != nil {
 			return err
 		}
+		page = mp.ActivityStreamsCollectionPage
 		return addNextPrevCol(page, startIdx, n, true)
 	})
 	return
@@ -82,10 +86,12 @@ func (f *Liked) DeleteItem(c util.Context, liked, item *url.URL) error {
 
 func (f *Liked) GetAllForActor(c util.Context, actor *url.URL) (col vocab.ActivityStreamsCollection, err error) {
 	err = doInTx(c, f.DB, func(tx *sql.Tx) error {
-		col, err = f.Liked.GetAllForActor(c, tx, actor)
+		var mc models.ActivityStreamsCollection
+		mc, err = f.Liked.GetAllForActor(c, tx, actor)
 		if err != nil {
 			return err
 		}
+		col = mc.ActivityStreamsCollection
 		return err
 	})
 	return

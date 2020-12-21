@@ -33,10 +33,12 @@ type Outboxes struct {
 func (i *Outboxes) GetPage(c util.Context, outbox *url.URL, min, n int) (page vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	return page, doInTx(c, i.DB, func(tx *sql.Tx) error {
 		var isEnd bool
-		page, isEnd, err = i.Outboxes.GetPage(c, tx, outbox, min, min+n)
+		var mp models.ActivityStreamsOrderedCollectionPage
+		mp, isEnd, err = i.Outboxes.GetPage(c, tx, outbox, min, min+n)
 		if err != nil {
 			return err
 		}
+		page = mp.ActivityStreamsOrderedCollectionPage
 		return addNextPrev(page, min, n, isEnd)
 	})
 }
@@ -44,10 +46,12 @@ func (i *Outboxes) GetPage(c util.Context, outbox *url.URL, min, n int) (page vo
 func (i *Outboxes) GetPublicPage(c util.Context, outbox *url.URL, min, n int) (page vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	return page, doInTx(c, i.DB, func(tx *sql.Tx) error {
 		var isEnd bool
-		page, isEnd, err = i.Outboxes.GetPublicPage(c, tx, outbox, min, min+n)
+		var mp models.ActivityStreamsOrderedCollectionPage
+		mp, isEnd, err = i.Outboxes.GetPublicPage(c, tx, outbox, min, min+n)
 		if err != nil {
 			return err
 		}
+		page = mp.ActivityStreamsOrderedCollectionPage
 		return addNextPrev(page, min, n, isEnd)
 	})
 }
@@ -55,10 +59,12 @@ func (i *Outboxes) GetPublicPage(c util.Context, outbox *url.URL, min, n int) (p
 func (i *Outboxes) GetLastPage(c util.Context, outbox *url.URL, n int) (page vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	return page, doInTx(c, i.DB, func(tx *sql.Tx) error {
 		var startIdx int
-		page, startIdx, err = i.Outboxes.GetLastPage(c, tx, outbox, n)
+		var mp models.ActivityStreamsOrderedCollectionPage
+		mp, startIdx, err = i.Outboxes.GetLastPage(c, tx, outbox, n)
 		if err != nil {
 			return err
 		}
+		page = mp.ActivityStreamsOrderedCollectionPage
 		return addNextPrev(page, startIdx, n, true)
 	})
 }
@@ -66,10 +72,12 @@ func (i *Outboxes) GetLastPage(c util.Context, outbox *url.URL, n int) (page voc
 func (i *Outboxes) GetPublicLastPage(c util.Context, outbox *url.URL, n int) (page vocab.ActivityStreamsOrderedCollectionPage, err error) {
 	return page, doInTx(c, i.DB, func(tx *sql.Tx) error {
 		var startIdx int
-		page, startIdx, err = i.Outboxes.GetPublicLastPage(c, tx, outbox, n)
+		var mp models.ActivityStreamsOrderedCollectionPage
+		mp, startIdx, err = i.Outboxes.GetPublicLastPage(c, tx, outbox, n)
 		if err != nil {
 			return err
 		}
+		page = mp.ActivityStreamsOrderedCollectionPage
 		return addNextPrev(page, startIdx, n, true)
 	})
 }

@@ -47,10 +47,12 @@ func (f *Followers) Contains(c util.Context, followers, id *url.URL) (has bool, 
 func (f *Followers) GetPage(c util.Context, followers *url.URL, min, n int) (page vocab.ActivityStreamsCollectionPage, err error) {
 	err = doInTx(c, f.DB, func(tx *sql.Tx) error {
 		var isEnd bool
-		page, isEnd, err = f.Followers.GetPage(c, tx, followers, min, min+n)
+		var mp models.ActivityStreamsCollectionPage
+		mp, isEnd, err = f.Followers.GetPage(c, tx, followers, min, min+n)
 		if err != nil {
 			return err
 		}
+		page = mp.ActivityStreamsCollectionPage
 		return addNextPrevCol(page, min, n, isEnd)
 	})
 	return
@@ -59,10 +61,12 @@ func (f *Followers) GetPage(c util.Context, followers *url.URL, min, n int) (pag
 func (f *Followers) GetLastPage(c util.Context, followers *url.URL, n int) (page vocab.ActivityStreamsCollectionPage, err error) {
 	err = doInTx(c, f.DB, func(tx *sql.Tx) error {
 		var startIdx int
-		page, startIdx, err = f.Followers.GetLastPage(c, tx, followers, n)
+		var mp models.ActivityStreamsCollectionPage
+		mp, startIdx, err = f.Followers.GetLastPage(c, tx, followers, n)
 		if err != nil {
 			return err
 		}
+		page = mp.ActivityStreamsCollectionPage
 		return addNextPrevCol(page, startIdx, n, true)
 	})
 	return
@@ -82,10 +86,12 @@ func (f *Followers) DeleteItem(c util.Context, followers, item *url.URL) error {
 
 func (f *Followers) GetAllForActor(c util.Context, actor *url.URL) (col vocab.ActivityStreamsCollection, err error) {
 	err = doInTx(c, f.DB, func(tx *sql.Tx) error {
-		col, err = f.Followers.GetAllForActor(c, tx, actor)
+		var mc models.ActivityStreamsCollection
+		mc, err = f.Followers.GetAllForActor(c, tx, actor)
 		if err != nil {
 			return err
 		}
+		col = mc.ActivityStreamsCollection
 		return err
 	})
 	return
