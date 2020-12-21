@@ -332,12 +332,12 @@ func (o *Server) RemoveFirstPartyProxyAccessToken(w http.ResponseWriter, r *http
 		return err
 	}
 	if auth {
-		if err = o.d.ProxyRemoveCredential(r.Context(), id); err != nil {
-			return err
-		}
 		sn.DeleteFirstPartyCredentialID()
 		sn.DeleteUserID()
 		if err = sn.Save(r, w); err != nil {
+			return err
+		}
+		if err = o.d.ProxyRemoveCredential(r.Context(), id); err != nil {
 			return err
 		}
 	}

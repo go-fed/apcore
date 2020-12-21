@@ -466,8 +466,6 @@ func getLogoutFn(oauth *oauth2.Server, sl *web.Sessions, internalErrorHandler ht
 		}
 		if err := oauth.RemoveFirstPartyProxyAccessToken(w, r, ctx, sn); err != nil {
 			util.ErrorLogger.Errorf("error removing proxy credential in GET logout: %s", err)
-			internalErrorHandler.ServeHTTP(w, r)
-			return
 		}
 		http.Redirect(w, r, "/login", http.StatusFound)
 	}
