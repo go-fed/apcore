@@ -96,10 +96,6 @@ func NewController(
 	}
 	algos := make([]httpsig.Algorithm, len(c.ActivityPubConfig.HttpSignaturesConfig.Algorithms))
 	for i, algo := range c.ActivityPubConfig.HttpSignaturesConfig.Algorithms {
-		if !httpsig.IsSupportedHttpSigAlgorithm(algo) {
-			err = fmt.Errorf("unsupported httpsig algorithm: %s", algo)
-			return
-		}
 		algos[i] = httpsig.Algorithm(algo)
 	}
 
@@ -132,11 +128,12 @@ func (tc *Controller) Get(
 	privKey crypto.PrivateKey,
 	pubKeyId string) (t pub.Transport, err error) {
 	var getSigner, postSigner httpsig.Signer
-	getSigner, _, err = httpsig.NewSigner(tc.algs, tc.digestAlg, tc.getHeaders, httpsig.Signature)
+	// TODO: Use config for expiration in seconds
+	getSigner, _, err = httpsig.NewSigner(tc.algs, tc.digestAlg, tc.getHeaders, httpsig.Signature, 60)
 	if err != nil {
 		return
 	}
-	postSigner, _, err = httpsig.NewSigner(tc.algs, tc.digestAlg, tc.postHeaders, httpsig.Signature)
+	postSigner, _, err = httpsig.NewSigner(tc.algs, tc.digestAlg, tc.postHeaders, httpsig.Signature, 60)
 	if err != nil {
 		return
 	}
