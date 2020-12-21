@@ -1128,7 +1128,7 @@ func runClientInfosCreate(ctx util.Context, db *sql.DB) (id string, err error) {
 	}
 	ci := &models.ClientInfo{
 		ID:     "ci_id",
-		Secret: "ci_secret",
+		Secret: sql.NullString{"ci_secret", true},
 		Domain: "ci_domain",
 		UserID: uid,
 	}
