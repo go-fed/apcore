@@ -5,10 +5,17 @@
 	<p>Here are the latest public notes:</p>
 	<div>
 		<table>
+		<tr>
+			<th>ID</th>
+			<th>Summary</th>
+			<th>Content</th>
+		</tr>
 	{{range $i, $n := .Other}}
-		<tr><td>{{$i}} {{$n.GetActivityStreamsAttributedTo.GetActivityStreamsPerson.GetActivityStreamsPreferredUsername.GetXMLSchemaString}}</td></tr>
-		<tr><td>{{$n.GetActivityStreamsContent.GetXMLSchemaString}}</td></tr>
-		<tr><td></td></tr>
+		<tr>
+			<td>{{$i}} {{($n.GetActivityStreamsAttributedTo.At 0).GetIRI}}</td>
+			<td>{{($n.GetActivityStreamsSummary.At 0).GetXMLSchemaString}}</td>
+			<td>{{($n.GetActivityStreamsContent.At 0).GetXMLSchemaString}}</td>
+		</tr>
 	{{end}}
 		</table>
 	</div>

@@ -5,10 +5,11 @@
 		<li><a href="{{.Href}}">{{.Name}}</a></li>
 		{{end}}
 		{{if .User}}
+		<li><a href="/logout">logout</a></li>
+		<li><a href="/notes/create">create</a></li>
 		<p>Hi, {{.User}}!</p>
-		<li><a href="/logout">Logout</a></li>
 		{{else}}
-		<li><a href="/login">Login</a></li>
+		<li><a href="/login">login</a></li>
 		{{end}}
 	</ul>
 </nav>

@@ -2,16 +2,13 @@
 <h1>Inbox</h1>
 <table>
 	<tr>
-		<th>From</th>
 		<th>Activity</th>
-		<th>Content</th>
 	</tr>
-{{range $i := (seq .Other.ActivityStreamsOrderedItems.Len)}}
-	{{with (.Other.ActivityStreamsOrderedItems.At $i)}}
+{{$root := .}}
+{{range $i, $_ := (seq .Other.ActivityStreamsOrderedItems.Len)}}
+	{{with ($root.Other.ActivityStreamsOrderedItems.At $i)}}
 	<tr>
-		<td></td>
-		<td></td>
-		<td></td>
+		<td><a href="{{.GetIRI}}">{{.GetIRI}}</a></td>
 	</tr>
 	{{end}}
 {{end}}

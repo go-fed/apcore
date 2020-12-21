@@ -22,13 +22,14 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/go-fed/activity/pub"
 	"github.com/go-fed/activity/streams"
 	"github.com/go-fed/activity/streams/vocab"
 	"github.com/go-fed/apcore/app"
-	"github.com/go-fed/apcore/framework"
+	"github.com/go-fed/apcore/paths"
 	"github.com/go-fed/apcore/util"
 	"github.com/google/uuid"
 )
@@ -271,6 +272,7 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 	//
 	// Here we save copeies of our error handlers.
 	internalErrorHandler := a.InternalServerErrorHandler(f)
+	badRequestHandler := a.BadRequestHandler(f)
 
 	// WebOnlyHandleFunc is a convenience function for endpoints with only
 	// web content available; no ActivityStreams content exists at this
@@ -316,8 +318,7 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 	// ActivityPubHandleFunc is a convenience function for endpoints with
 	// only ActivityPub content; no web content exists at this endpoint.
 	r.ActivityPubOnlyHandleFunc("/activities/{activity}", func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
-		// TODO: Based on activity and any auth, permit or deny
-		return false, nil
+		return true, nil
 	})
 	// You can use familiar mux methods to route requests appropriately.
 	//
@@ -326,18 +327,6 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 	r.NewRoute().Path("/notes").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// TODO: View list of existing public (and maybe private) notes
 		// with pagination.
-	})
-	// First, we need an authentication function to make sure whoever views
-	// the ActivityStreams data has proper credentials to view the web or
-	// ActivityStreams data.
-	authFn := func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
-		vars := framework.Vars(r)
-		_ = vars["note"]
-		// TODO: Based on the note and any auth, permit or deny
-		return false, nil
-	}
-	r.ActivityPubAndWebHandleFunc("/notes/{note}", authFn, func(w http.ResponseWriter, r *http.Request) {
-		// TODO: View note in web page, if authorized.
 	})
 	// Next, a webpage to handle creating, updating, and deleting notes.
 	// This is NOT via C2S, but is done natively in our application.
@@ -349,7 +338,7 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			return
 		}
 		// Ensure the user is logged in.
-		_, authd, err := f.ValidateOAuth2AccessToken(w, r)
+		_, authd, err := f.Validate(w, r)
 		if err != nil {
 			util.ErrorLogger.Errorf("error validating oauth2 token in GET /notes/create: %s", err)
 			internalErrorHandler.ServeHTTP(w, r)
@@ -367,7 +356,7 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 	})
 	r.NewRoute().Path("/notes/create").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Ensure the user is logged in.
-		_, authd, err := f.ValidateOAuth2AccessToken(w, r)
+		userID, authd, err := f.Validate(w, r)
 		if err != nil {
 			util.ErrorLogger.Errorf("error validating oauth2 token in POST /notes/create: %s", err)
 			internalErrorHandler.ServeHTTP(w, r)
@@ -377,17 +366,89 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			http.Redirect(w, r, "/login", http.StatusFound)
 			return
 		}
-		// TODO: Determine the user here
-		var outboxURI *url.URL
-		// TODO: Determine the user's outbox URI
-		var create vocab.ActivityStreamsCreate
-		// TODO: Build a new Create activity here
-		if err := f.Send(r.Context(), outboxURI, create); err != nil {
-			util.ErrorLogger.Errorf("error sending when creating note")
-			internalErrorHandler.ServeHTTP(w, r)
+		// TODO: fix this to not need scheme nor host
+		outboxURI := paths.UUIDIRIFor("http", "localhost", paths.OutboxPathKey, paths.UUID(userID))
+		if r.Form == nil {
+			err = r.ParseForm()
+			if err != nil {
+				badRequestHandler.ServeHTTP(w, r)
+				return
+			}
 		}
-		// TODO: Redirect to newly created URI
-		http.Redirect(w, r, "/notes", http.StatusFound)
+		// Parse the form
+		toV, ok := r.Form["note_to"]
+		if !ok || len(toV) != 1 {
+			util.ErrorLogger.Errorf("error validating to from form")
+			badRequestHandler.ServeHTTP(w, r)
+			return
+		}
+		to := toV[0]
+		summaryV, ok := r.Form["note_summary"]
+		if !ok || len(summaryV) != 1 {
+			util.ErrorLogger.Errorf("error validating summary from form")
+			badRequestHandler.ServeHTTP(w, r)
+			return
+		}
+		summary := summaryV[0]
+		contentV, ok := r.Form["note_content"]
+		if !ok || len(contentV) != 1 {
+			util.ErrorLogger.Errorf("error validating content from form")
+			badRequestHandler.ServeHTTP(w, r)
+			return
+		}
+		content := contentV[0]
+		_, public := r.Form["note_public"]
+
+		// Build a new Note
+		note := streams.NewActivityStreamsNote()
+		toProp := streams.NewActivityStreamsToProperty()
+		tos := strings.Split(to, ",")
+		for _, t := range tos {
+			toIRI, err := url.Parse(t)
+			if err != nil {
+				util.ErrorLogger.Errorf("error validating an address in to")
+				badRequestHandler.ServeHTTP(w, r)
+				return
+			}
+			toProp.AppendIRI(toIRI)
+		}
+		if public {
+			publicIRI, err := url.Parse(pub.PublicActivityPubIRI)
+			if err != nil {
+				util.ErrorLogger.Errorf("error validating public ActivityStreams address")
+				badRequestHandler.ServeHTTP(w, r)
+				return
+			}
+			toProp.AppendIRI(publicIRI)
+		}
+		note.SetActivityStreamsTo(toProp)
+		summaryProp := streams.NewActivityStreamsSummaryProperty()
+		summaryProp.AppendXMLSchemaString(summary)
+		note.SetActivityStreamsSummary(summaryProp)
+		contentProp := streams.NewActivityStreamsContentProperty()
+		contentProp.AppendXMLSchemaString(content)
+		note.SetActivityStreamsContent(contentProp)
+		// TODO: Document that we MUST set the UserPath in the context.
+		ctx := util.Context{r.Context()}
+		ctx.WithUserPathUUID(paths.UUID(userID))
+		// Send the note -- a Create will automatically be created
+		if err := f.Send(ctx, outboxURI, note); err != nil {
+			util.ErrorLogger.Errorf("error sending when creating note: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		iri := note.GetJSONLDId().GetIRI()
+		http.Redirect(w, r, iri.String(), http.StatusFound)
+	})
+	// First, we need an authentication function to make sure whoever views
+	// the ActivityStreams data has proper credentials to view the web or
+	// ActivityStreams data.
+	authFn := func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
+		return true, nil
+	}
+	// Next, we use the auth function to protect the note.
+	r.ActivityPubAndWebHandleFunc("/notes/{note}", authFn, func(w http.ResponseWriter, r *http.Request) {
+		// TODO: View note in web page, if authorized.
 	})
 	return nil
 }
@@ -396,6 +457,8 @@ func (a *App) NewIDPath(c context.Context, t vocab.Type) (path string, err error
 	switch t.GetTypeName() {
 	case "Note":
 		path = fmt.Sprintf("/notes/%s", uuid.New().String())
+	case "Create":
+		path = fmt.Sprintf("/activities/%s", uuid.New().String())
 	default:
 		err = fmt.Errorf("NewID unhandled type name: %s", t.GetTypeName())
 	}
@@ -484,6 +547,7 @@ func (a *App) DefaultAdminPrivileges() interface{} {
 // This is a helper function to generate common data needed in the web
 // templates.
 func (a *App) getTemplateData(s app.Session, other interface{}) map[string]interface{} {
+	// TODO: serialize other if it is vocab.Type into JSON
 	m := map[string]interface{}{
 		"Other": other,
 		"Nav": []struct {

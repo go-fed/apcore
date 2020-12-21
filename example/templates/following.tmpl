@@ -1,3 +1,10 @@
 {{template "header.tmpl" .}}
 <h1>Following</h1>
+<ul>
+{{range $i := (seq .Other.ActivityStreamsItems.Len)}}
+	{{with (.Other.ActivityStreamsItems.At $i)}}
+	<li>{{.GetIRI}}</li>
+	{{end}}
+{{end}}
+</ul>
 {{template "footer.tmpl" .}}
