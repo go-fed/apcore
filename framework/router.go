@@ -135,6 +135,20 @@ func (r *Router) ActivityPubAndWebHandleFunc(path string, authFn app.AuthorizeFu
 	return r.wrap(r.router.NewRoute()).ActivityPubAndWebHandleFunc(path, authFn, f)
 }
 
+func (r *Router) apWebCollectionPageFetchingHandleFunc(path string,
+	authFn app.AuthorizeFunc,
+	f app.CollectionPageHandlerFunc,
+	fetch func(util.Context) (vocab.ActivityStreamsCollectionPage, error)) app.Route {
+	return r.wrap(r.router.NewRoute()).apWebCollectionPageFetchingHandleFunc(path, authFn, f, fetch)
+}
+
+func (r *Router) apWebVocabFetchingHandleFunc(path string,
+	authFn app.AuthorizeFunc,
+	f app.VocabHandlerFunc,
+	fetch func(util.Context) (vocab.Type, error)) app.Route {
+	return r.wrap(r.router.NewRoute()).apWebVocabFetchingHandleFunc(path, authFn, f, fetch)
+}
+
 func (r *Router) HandleAuthorizationRequest(path string) app.Route {
 	return r.wrap(r.router.NewRoute()).HandleAuthorizationRequest(path)
 }
@@ -465,6 +479,98 @@ func (r *Route) ActivityPubAndWebHandleFunc(path string, authFn app.AuthorizeFun
 			if !isASRequest {
 				f(w, req)
 				return
+			}
+			return
+		})
+	return r
+}
+
+func (r *Route) apWebCollectionPageFetchingHandleFunc(path string,
+	authFn app.AuthorizeFunc,
+	f app.CollectionPageHandlerFunc,
+	fetch func(util.Context) (vocab.ActivityStreamsCollectionPage, error)) app.Route {
+	apHandler := pub.NewActivityStreamsHandlerScheme(r.db, r.clock, r.scheme)
+	r.route = r.route.Path(path).Schemes(r.scheme).HandlerFunc(
+		func(w http.ResponseWriter, req *http.Request) {
+			c := util.WithAPHTTPContext(r.scheme, r.host, req)
+			permit := true
+			if authFn != nil {
+				var err error
+				permit, err = authFn(c, w, req, r.db)
+				if err != nil {
+					util.ErrorLogger.Errorf("Error in apWebCollectionPageFetchingHandleFunc authFn: %s", err)
+					r.errorHandler.ServeHTTP(w, req)
+					return
+				}
+			}
+			if !permit {
+				r.notFoundHandler.ServeHTTP(w, req)
+				return
+			}
+			isASRequest, err := apHandler(c, w, req)
+			if err != nil {
+				util.ErrorLogger.Errorf("Error in apWebCollectionPageFetchingHandleFunc apHandler: %s", err)
+				r.errorHandler.ServeHTTP(w, req)
+				return
+			}
+			if !isASRequest {
+				if f == nil && r.notFoundHandler != nil {
+					r.notFoundHandler.ServeHTTP(w, req)
+				} else if f != nil {
+					ascp, err := fetch(util.Context{req.Context()})
+					if err != nil {
+						util.ErrorLogger.Errorf("Error in apWebCollectionPageFetchingHandleFunc fetcher: %s", err)
+						r.errorHandler.ServeHTTP(w, req)
+						return
+					}
+					f(w, req, ascp)
+				}
+			}
+			return
+		})
+	return r
+}
+
+func (r *Route) apWebVocabFetchingHandleFunc(path string,
+	authFn app.AuthorizeFunc,
+	f app.VocabHandlerFunc,
+	fetch func(util.Context) (vocab.Type, error)) app.Route {
+	apHandler := pub.NewActivityStreamsHandlerScheme(r.db, r.clock, r.scheme)
+	r.route = r.route.Path(path).Schemes(r.scheme).HandlerFunc(
+		func(w http.ResponseWriter, req *http.Request) {
+			c := util.WithAPHTTPContext(r.scheme, r.host, req)
+			permit := true
+			if authFn != nil {
+				var err error
+				permit, err = authFn(c, w, req, r.db)
+				if err != nil {
+					util.ErrorLogger.Errorf("Error in apWebCollectionPageFetchingHandleFunc authFn: %s", err)
+					r.errorHandler.ServeHTTP(w, req)
+					return
+				}
+			}
+			if !permit {
+				r.notFoundHandler.ServeHTTP(w, req)
+				return
+			}
+			isASRequest, err := apHandler(c, w, req)
+			if err != nil {
+				util.ErrorLogger.Errorf("Error in apWebCollectionPageFetchingHandleFunc apHandler: %s", err)
+				r.errorHandler.ServeHTTP(w, req)
+				return
+			}
+			if !isASRequest {
+				if f == nil && r.notFoundHandler != nil {
+					r.notFoundHandler.ServeHTTP(w, req)
+				} else if f != nil {
+					vt, err := fetch(util.Context{req.Context()})
+					if err != nil {
+						util.ErrorLogger.Errorf("Error in apWebCollectionPageFetchingHandleFunc fetcher: %s", err)
+						r.errorHandler.ServeHTTP(w, req)
+						return
+					}
+					f(w, req, vt)
+				}
 			}
 			return
 		})

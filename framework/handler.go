@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/go-fed/activity/pub"
+	"github.com/go-fed/activity/streams/vocab"
 	"github.com/go-fed/apcore/app"
 	"github.com/go-fed/apcore/framework/config"
 	"github.com/go-fed/apcore/framework/nodeinfo"
@@ -57,6 +58,9 @@ func BuildHandler(r *Router,
 	users *services.Users,
 	cy *services.Crypto,
 	ni *services.NodeInfo,
+	following *services.Following,
+	followers *services.Followers,
+	liked *services.Liked,
 	sqldb *sql.DB,
 	oauth *oauth2.Server,
 	sl *web.Sessions,
@@ -105,18 +109,60 @@ func BuildHandler(r *Router,
 	if _, isC2S := a.(app.C2SApplication); isC2S {
 		r.userActorPostOutbox()
 	}
-	maybeAddWebFn := func(path string, f func(app.Framework) (http.HandlerFunc, app.AuthorizeFunc)) {
+
+	defaultCollectionSize := c.DatabaseConfig.DefaultCollectionPageSize
+	maxCollectionPageSize := c.DatabaseConfig.MaxCollectionPageSize
+	addCollectionPageWebFn := func(path string,
+		f func(app.Framework) (app.CollectionPageHandlerFunc, app.AuthorizeFunc),
+		any services.AnyCPageFn,
+		last services.LastCPageFn) {
 		web, authFn := f(fr)
-		if web == nil {
-			r.ActivityPubOnlyHandleFunc(path, authFn)
-		} else {
-			r.ActivityPubAndWebHandleFunc(path, authFn, web)
+		fetch := func(ctx util.Context) (vocab.ActivityStreamsCollectionPage, error) {
+			iri, err := ctx.CompleteRequestURL()
+			if err != nil {
+				return nil, err
+			}
+			return services.DoCollectionPagination(ctx,
+				iri,
+				defaultCollectionSize,
+				maxCollectionPageSize,
+				any,
+				last)
 		}
+		r.apWebCollectionPageFetchingHandleFunc(path, authFn, web, fetch)
 	}
-	maybeAddWebFn(paths.Route(paths.FollowersPathKey), a.GetFollowersWebHandlerFunc)
-	maybeAddWebFn(paths.Route(paths.FollowingPathKey), a.GetFollowingWebHandlerFunc)
-	maybeAddWebFn(paths.Route(paths.LikedPathKey), a.GetLikedWebHandlerFunc)
-	maybeAddWebFn(paths.Route(paths.UserPathKey), a.GetUserWebHandlerFunc)
+	addCollectionPageWebFn(paths.Route(paths.FollowersPathKey),
+		a.GetFollowersWebHandlerFunc,
+		followers.GetPage,
+		followers.GetLastPage)
+	addCollectionPageWebFn(paths.Route(paths.FollowingPathKey),
+		a.GetFollowingWebHandlerFunc,
+		following.GetPage,
+		following.GetLastPage)
+	addCollectionPageWebFn(paths.Route(paths.LikedPathKey),
+		a.GetLikedWebHandlerFunc,
+		liked.GetPage,
+		liked.GetLastPage)
+	addVocabTypeWebFn := func(path string,
+		f func(app.Framework) (app.VocabHandlerFunc, app.AuthorizeFunc),
+		get func(util.Context, string) (vocab.Type, error)) {
+		web, authFn := f(fr)
+		fetch := func(ctx util.Context) (vocab.Type, error) {
+			id, err := ctx.UserPathUUID()
+			if err != nil {
+				return nil, err
+			}
+			return get(ctx, id)
+		}
+		r.apWebVocabFetchingHandleFunc(path, authFn, web, fetch)
+	}
+	addVocabTypeWebFn(paths.Route(paths.UserPathKey), a.GetUserWebHandlerFunc, func(ctx util.Context, id string) (vocab.Type, error) {
+		u, err := users.UserByID(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		return u.Actor, nil
+	})
 
 	// Built-in routes for non-user actors
 	for _, k := range paths.AllActors {

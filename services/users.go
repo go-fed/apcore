@@ -349,6 +349,22 @@ func (u *Users) UserByUsername(c util.Context, name string) (s *User, err error)
 	})
 }
 
+func (u *Users) UserByID(c util.Context, id string) (s *User, err error) {
+	return s, doInTx(c, u.DB, func(tx *sql.Tx) error {
+		var a *models.User
+		a, err = u.Users.UserByID(c, tx, id)
+		if err != nil {
+			return err
+		}
+		s = &User{
+			ID:    a.ID,
+			Email: a.Email,
+			Actor: vocab.Type(a.Actor),
+		}
+		return nil
+	})
+}
+
 type Preferences struct {
 	OnFollow       pub.OnFollowBehavior
 	AppPreferences interface{}

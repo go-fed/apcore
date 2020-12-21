@@ -197,8 +197,8 @@ func (a *App) GetOutboxWebHandlerFunc(f app.Framework) func(w http.ResponseWrite
 	}
 }
 
-func (a *App) GetFollowersWebHandlerFunc(f app.Framework) (http.HandlerFunc, app.AuthorizeFunc) {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func (a *App) GetFollowersWebHandlerFunc(f app.Framework) (app.CollectionPageHandlerFunc, app.AuthorizeFunc) {
+	return func(w http.ResponseWriter, r *http.Request, followers vocab.ActivityStreamsCollectionPage) {
 			s, err := f.Session(r)
 			if err != nil {
 				util.ErrorLogger.Errorf("Error getting session: %v", err)
@@ -210,13 +210,13 @@ func (a *App) GetFollowersWebHandlerFunc(f app.Framework) (http.HandlerFunc, app
 			if err != nil {
 				util.ErrorLogger.Errorf("Error serving GetFollowersWebHandlerFunc: %v", err)
 			}
-		}), func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
+		}, func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
 			return true, nil
 		}
 }
 
-func (a *App) GetFollowingWebHandlerFunc(f app.Framework) (http.HandlerFunc, app.AuthorizeFunc) {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func (a *App) GetFollowingWebHandlerFunc(f app.Framework) (app.CollectionPageHandlerFunc, app.AuthorizeFunc) {
+	return func(w http.ResponseWriter, r *http.Request, following vocab.ActivityStreamsCollectionPage) {
 			s, err := f.Session(r)
 			if err != nil {
 				util.ErrorLogger.Errorf("Error getting session: %v", err)
@@ -228,7 +228,7 @@ func (a *App) GetFollowingWebHandlerFunc(f app.Framework) (http.HandlerFunc, app
 			if err != nil {
 				util.ErrorLogger.Errorf("Error serving GetFollowingWebHandlerFunc: %v", err)
 			}
-		}), func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
+		}, func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
 			return true, nil
 		}
 }
@@ -237,12 +237,12 @@ func (a *App) GetFollowingWebHandlerFunc(f app.Framework) (http.HandlerFunc, app
 // then display it in a webpage. Instead, we return null so there's no way to
 // view the content as a webpage, but instead it is only obtainable as public
 // ActivityStreams data.
-func (a *App) GetLikedWebHandlerFunc(f app.Framework) (http.HandlerFunc, app.AuthorizeFunc) {
+func (a *App) GetLikedWebHandlerFunc(f app.Framework) (app.CollectionPageHandlerFunc, app.AuthorizeFunc) {
 	return nil, nil
 }
 
-func (a *App) GetUserWebHandlerFunc(f app.Framework) (http.HandlerFunc, app.AuthorizeFunc) {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func (a *App) GetUserWebHandlerFunc(f app.Framework) (app.VocabHandlerFunc, app.AuthorizeFunc) {
+	return func(w http.ResponseWriter, r *http.Request, user vocab.Type) {
 			s, err := f.Session(r)
 			if err != nil {
 				util.ErrorLogger.Errorf("Error getting session: %v", err)
@@ -254,7 +254,7 @@ func (a *App) GetUserWebHandlerFunc(f app.Framework) (http.HandlerFunc, app.Auth
 			if err != nil {
 				util.ErrorLogger.Errorf("Error serving GetUserWebHandlerFunc: %v", err)
 			}
-		}), func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
+		}, func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
 			return true, nil
 		}
 }

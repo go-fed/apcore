@@ -133,7 +133,7 @@ type Application interface {
 	// Returning a nil handler is allowed, and doing so results in only
 	// ActivityStreams content being served. Returning a nil AuthorizeFunc
 	// results in public access.
-	GetFollowersWebHandlerFunc(Framework) (http.HandlerFunc, AuthorizeFunc)
+	GetFollowersWebHandlerFunc(Framework) (CollectionPageHandlerFunc, AuthorizeFunc)
 	// Web handler for a call to GET an actor's following collection. The
 	// framework has no authorization requirements to view a user's
 	// following collection.
@@ -144,7 +144,7 @@ type Application interface {
 	// Returning a nil handler is allowed, and doing so results in only
 	// ActivityStreams content being served. Returning a nil AuthorizeFunc
 	// results in public access.
-	GetFollowingWebHandlerFunc(Framework) (http.HandlerFunc, AuthorizeFunc)
+	GetFollowingWebHandlerFunc(Framework) (CollectionPageHandlerFunc, AuthorizeFunc)
 	// Web handler for a call to GET an actor's liked collection. The
 	// framework has no authorization requirements to view a user's
 	// liked collection.
@@ -155,7 +155,7 @@ type Application interface {
 	// Returning a nil handler is allowed, and doing so results in only
 	// ActivityStreams content being served. Returning a nil AuthorizeFunc
 	// results in public access.
-	GetLikedWebHandlerFunc(Framework) (http.HandlerFunc, AuthorizeFunc)
+	GetLikedWebHandlerFunc(Framework) (CollectionPageHandlerFunc, AuthorizeFunc)
 	// Web handler for a call to GET an actor. The framework has no
 	// authorization requirements to view a user, like a profile.
 	//
@@ -165,7 +165,7 @@ type Application interface {
 	// Returning a nil handler is allowed, and doing so results in only
 	// ActivityStreams content being served. Returning a nil AuthorizeFunc
 	// results in public access.
-	GetUserWebHandlerFunc(Framework) (http.HandlerFunc, AuthorizeFunc)
+	GetUserWebHandlerFunc(Framework) (VocabHandlerFunc, AuthorizeFunc)
 
 	// Builds the HTTP and ActivityPub routes specific for this application.
 	//
