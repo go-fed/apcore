@@ -258,7 +258,7 @@ func (r *Route) actorPostInbox(actor pub.Actor, path string) *Route {
 				userID = ""
 				util.ErrorLogger.Errorf("Error validating for ActorPostInbox: %s", err)
 			}
-			uuid, err := paths.UUIDFromUserPath(path)
+			uuid, err := paths.UUIDFromUserPath(req.URL.Path)
 			if err != nil {
 				util.ErrorLogger.Errorf("Error building context for ActorPostInbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
@@ -295,7 +295,7 @@ func (r *Route) actorPostOutbox(actor pub.Actor, path string) *Route {
 				userID = ""
 				util.ErrorLogger.Errorf("Error validating for ActorPostInbox: %s", err)
 			}
-			uuid, err := paths.UUIDFromUserPath(path)
+			uuid, err := paths.UUIDFromUserPath(req.URL.Path)
 			if err != nil {
 				util.ErrorLogger.Errorf("Error building context for ActorPostOutbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
@@ -332,7 +332,7 @@ func (r *Route) actorGetInbox(actor pub.Actor, path string, web func(w http.Resp
 				userID = ""
 				util.ErrorLogger.Errorf("Error validating for ActorPostInbox: %s", err)
 			}
-			uuid, err := paths.UUIDFromUserPath(path)
+			uuid, err := paths.UUIDFromUserPath(req.URL.Path)
 			if err != nil {
 				util.ErrorLogger.Errorf("Error building context for ActorGetInbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
@@ -383,7 +383,7 @@ func (r *Route) actorGetOutbox(actor pub.Actor, path string, web func(w http.Res
 				userID = ""
 				util.ErrorLogger.Errorf("Error validating for ActorPostInbox: %s", err)
 			}
-			uuid, err := paths.UUIDFromUserPath(path)
+			uuid, err := paths.UUIDFromUserPath(req.URL.Path)
 			if err != nil {
 				util.ErrorLogger.Errorf("Error building context for ActorGetOutbox: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
@@ -493,7 +493,18 @@ func (r *Route) apWebCollectionPageFetchingHandleFunc(path string,
 	apHandler := pub.NewActivityStreamsHandlerScheme(r.db, r.clock, r.scheme)
 	r.route = r.route.Path(path).Schemes(r.scheme).HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
-			c := util.WithAPHTTPContext(r.scheme, r.host, req)
+			userID, _, err := r.oauth.Validate(w, req)
+			if err != nil {
+				userID = ""
+				util.ErrorLogger.Errorf("Error validating for apWebCollectionPageFetchingHandleFunc: %s", err)
+			}
+			var c util.Context
+			uuid, err := paths.UUIDFromUserPath(req.URL.Path)
+			if err == nil {
+				c = util.WithUserAPHTTPContext(r.scheme, r.host, req, uuid, userID)
+			} else {
+				c = util.WithAPHTTPContext(r.scheme, r.host, req)
+			}
 			permit := true
 			if authFn != nil {
 				var err error
@@ -518,7 +529,7 @@ func (r *Route) apWebCollectionPageFetchingHandleFunc(path string,
 				if f == nil && r.notFoundHandler != nil {
 					r.notFoundHandler.ServeHTTP(w, req)
 				} else if f != nil {
-					ascp, err := fetch(util.Context{req.Context()})
+					ascp, err := fetch(c)
 					if err != nil {
 						util.ErrorLogger.Errorf("Error in apWebCollectionPageFetchingHandleFunc fetcher: %s", err)
 						r.errorHandler.ServeHTTP(w, req)
@@ -539,13 +550,24 @@ func (r *Route) apWebVocabFetchingHandleFunc(path string,
 	apHandler := pub.NewActivityStreamsHandlerScheme(r.db, r.clock, r.scheme)
 	r.route = r.route.Path(path).Schemes(r.scheme).HandlerFunc(
 		func(w http.ResponseWriter, req *http.Request) {
-			c := util.WithAPHTTPContext(r.scheme, r.host, req)
+			userID, _, err := r.oauth.Validate(w, req)
+			if err != nil {
+				userID = ""
+				util.ErrorLogger.Errorf("Error validating for apWebVocabFetchingHandleFunc: %s", err)
+			}
+			var c util.Context
+			uuid, err := paths.UUIDFromUserPath(req.URL.Path)
+			if err == nil {
+				c = util.WithUserAPHTTPContext(r.scheme, r.host, req, uuid, userID)
+			} else {
+				c = util.WithAPHTTPContext(r.scheme, r.host, req)
+			}
 			permit := true
 			if authFn != nil {
 				var err error
 				permit, err = authFn(c, w, req, r.db)
 				if err != nil {
-					util.ErrorLogger.Errorf("Error in apWebCollectionPageFetchingHandleFunc authFn: %s", err)
+					util.ErrorLogger.Errorf("Error in apWebVocabFetchingHandleFunc authFn: %s", err)
 					r.errorHandler.ServeHTTP(w, req)
 					return
 				}
@@ -556,7 +578,7 @@ func (r *Route) apWebVocabFetchingHandleFunc(path string,
 			}
 			isASRequest, err := apHandler(c, w, req)
 			if err != nil {
-				util.ErrorLogger.Errorf("Error in apWebCollectionPageFetchingHandleFunc apHandler: %s", err)
+				util.ErrorLogger.Errorf("Error in apWebVocabFetchingHandleFunc apHandler: %s", err)
 				r.errorHandler.ServeHTTP(w, req)
 				return
 			}
@@ -564,9 +586,9 @@ func (r *Route) apWebVocabFetchingHandleFunc(path string,
 				if f == nil && r.notFoundHandler != nil {
 					r.notFoundHandler.ServeHTTP(w, req)
 				} else if f != nil {
-					vt, err := fetch(util.Context{req.Context()})
+					vt, err := fetch(c)
 					if err != nil {
-						util.ErrorLogger.Errorf("Error in apWebCollectionPageFetchingHandleFunc fetcher: %s", err)
+						util.ErrorLogger.Errorf("Error in apWebVocabFetchingHandleFunc fetcher: %s", err)
 						r.errorHandler.ServeHTTP(w, req)
 						return
 					}

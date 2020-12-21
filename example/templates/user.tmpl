@@ -1,3 +1,10 @@
 {{template "header.tmpl" .}}
-<h1>Users</h1>
+<h1>{{.Other.GetActivityStreamsName.Begin.GetXMLSchemaString}}</h1>
+<p>Links:</p>
+<ul>
+	<li><a href="{{.Other.GetActivityStreamsInbox.GetIRI}}">Inbox</a></li>
+	<li><a href="{{.Other.GetActivityStreamsOutbox.GetIRI}}">Outbox</a></li>
+	<li><a href="{{.Other.GetActivityStreamsFollowers.GetIRI}}">Followers</a></li>
+	<li><a href="{{.Other.GetActivityStreamsFollowing.GetIRI}}">Following</a></li>
+</ul>
 {{template "footer.tmpl" .}}

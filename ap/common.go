@@ -27,6 +27,7 @@ import (
 	"github.com/go-fed/apcore/app"
 	"github.com/go-fed/apcore/framework/conn"
 	"github.com/go-fed/apcore/framework/oauth2"
+	"github.com/go-fed/apcore/paths"
 	"github.com/go-fed/apcore/services"
 	"github.com/go-fed/apcore/util"
 	oa2 "github.com/go-fed/oauth2"
@@ -83,7 +84,7 @@ func (a *CommonBehavior) GetOutbox(c context.Context, r *http.Request) (ocp voca
 
 func (a *CommonBehavior) NewTransport(c context.Context, actorBoxIRI *url.URL, gofedAgent string) (t pub.Transport, err error) {
 	ctx := util.Context{c}
-	var userUUID string
+	var userUUID paths.UUID
 	userUUID, err = ctx.UserPathUUID()
 	if err != nil {
 		return

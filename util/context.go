@@ -45,7 +45,7 @@ type Context struct {
 // and PrivateScope.
 func WithUserAPHTTPContext(scheme, host string, r *http.Request, uuid paths.UUID, authdUserID string) Context {
 	c := &Context{r.Context()}
-	c.WithUserID(scheme, host, uuid)
+	c.WithUserPathUUID(uuid)
 	c.WithActorIRI(paths.UUIDIRIFor(scheme, host, paths.UserPathKey, uuid))
 	c.WithCompleteRequestURL(r, scheme, host)
 	c.WithPrivateScope(len(authdUserID) > 0 && authdUserID == string(uuid))
@@ -70,7 +70,7 @@ func (c *Context) WithActivityStream(t vocab.Type) {
 }
 
 // WithUserID is used for ActivityPub Inbox/Outbox contexts.
-func (c *Context) WithUserID(scheme, host string, uuid paths.UUID) {
+func (c *Context) WithUserPathUUID(uuid paths.UUID) {
 	c.Context = context.WithValue(c.Context, userPathUUIDContextKey, uuid)
 }
 
@@ -117,8 +117,8 @@ func (c Context) ActivityStream() (t vocab.Type, err error) {
 }
 
 // UserPathUUID is used for ActivityPub HTTP contexts.
-func (c Context) UserPathUUID() (s string, err error) {
-	return c.toStringValue("user path UUID", userPathUUIDContextKey)
+func (c Context) UserPathUUID() (s paths.UUID, err error) {
+	return c.toUUIDValue("user path UUID", userPathUUIDContextKey)
 }
 
 // ActorIRI is used for ActivityPub HTTP contexts.
@@ -144,13 +144,13 @@ func (c *Context) HasPrivateScope() bool {
 	}
 }
 
-func (c Context) toStringValue(name, key string) (s string, err error) {
+func (c Context) toUUIDValue(name, key string) (s paths.UUID, err error) {
 	v := c.Value(key)
 	var ok bool
 	if v == nil {
 		err = fmt.Errorf("no %s in context", name)
-	} else if s, ok = v.(string); !ok {
-		err = fmt.Errorf("%s in context is not a string", name)
+	} else if s, ok = v.(paths.UUID); !ok {
+		err = fmt.Errorf("%s in context is not a paths.UUID", name)
 	}
 	return
 }

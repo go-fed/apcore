@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/go-fed/apcore/models"
+	"github.com/go-fed/apcore/paths"
 	"github.com/go-fed/apcore/util"
 )
 
@@ -30,9 +31,9 @@ type DeliveryAttempts struct {
 	DeliveryAttempts *models.DeliveryAttempts
 }
 
-func (d *DeliveryAttempts) InsertAttempt(c util.Context, from string, toActor *url.URL, payload []byte) (id string, err error) {
+func (d *DeliveryAttempts) InsertAttempt(c util.Context, from paths.UUID, toActor *url.URL, payload []byte) (id string, err error) {
 	return id, doInTx(c, d.DB, func(tx *sql.Tx) error {
-		id, err = d.DeliveryAttempts.Create(c, tx, from, toActor, payload)
+		id, err = d.DeliveryAttempts.Create(c, tx, string(from), toActor, payload)
 		return err
 	})
 }

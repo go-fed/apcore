@@ -26,6 +26,7 @@ import (
 	"github.com/go-fed/apcore/app"
 	"github.com/go-fed/apcore/framework/config"
 	"github.com/go-fed/apcore/framework/conn"
+	"github.com/go-fed/apcore/paths"
 	"github.com/go-fed/apcore/services"
 	"github.com/go-fed/apcore/util"
 )
@@ -94,7 +95,7 @@ func (f *FederatingBehavior) Blocked(c context.Context, actorIRIs []*url.URL) (b
 
 func (f *FederatingBehavior) FederatingCallbacks(c context.Context) (wrapped pub.FederatingWrappedCallbacks, other []interface{}, err error) {
 	ctx := util.Context{c}
-	var uuid string
+	var uuid paths.UUID
 	uuid, err = ctx.UserPathUUID()
 	if err != nil {
 		return

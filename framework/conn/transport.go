@@ -30,6 +30,7 @@ import (
 	"github.com/go-fed/apcore/app"
 	"github.com/go-fed/apcore/framework/config"
 	"github.com/go-fed/apcore/framework/web"
+	"github.com/go-fed/apcore/paths"
 	"github.com/go-fed/apcore/services"
 	"github.com/go-fed/apcore/util"
 	"github.com/go-fed/httpsig"
@@ -158,7 +159,7 @@ func (tc *Controller) wait(c context.Context, host string) error {
 	return tc.hl.Get(host).Wait(c)
 }
 
-func (tc *Controller) insertAttempt(c util.Context, payload []byte, to *url.URL, fromUUID string) (id string, err error) {
+func (tc *Controller) insertAttempt(c util.Context, payload []byte, to *url.URL, fromUUID paths.UUID) (id string, err error) {
 	id, err = tc.da.InsertAttempt(c, fromUUID, to, payload)
 	return
 }
@@ -243,7 +244,7 @@ func (t *transport) Dereference(c context.Context, iri *url.URL) (b []byte, err 
 
 func (t *transport) Deliver(c context.Context, b []byte, to *url.URL) (err error) {
 	uc := util.Context{c}
-	var fromUUID string
+	var fromUUID paths.UUID
 	fromUUID, err = uc.UserPathUUID()
 	if err != nil {
 		err = fmt.Errorf("failed to determine user to deliver on behalf of: %s", err)

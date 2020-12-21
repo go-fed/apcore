@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/go-fed/apcore/framework/config"
+	"github.com/go-fed/apcore/paths"
 	"github.com/go-fed/apcore/services"
 	"github.com/go-fed/apcore/util"
 )
@@ -83,7 +84,7 @@ func (r *retrier) retry(ctx context.Context) {
 			if failure.LastAttempt.Sub(now) < r.reattemptBackoff(failure.NAttempts) {
 				continue
 			}
-			privKey, pubKeyID, err := r.pk.GetUserHTTPSignatureKey(c, failure.UserID)
+			privKey, pubKeyID, err := r.pk.GetUserHTTPSignatureKey(c, paths.UUID(failure.UserID))
 			if err != nil {
 				util.ErrorLogger.Errorf("retrier failed to obtain user's HTTP Signature key: %s", err)
 				continue

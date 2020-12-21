@@ -145,18 +145,18 @@ func BuildHandler(r *Router,
 		liked.GetLastPage)
 	addVocabTypeWebFn := func(path string,
 		f func(app.Framework) (app.VocabHandlerFunc, app.AuthorizeFunc),
-		get func(util.Context, string) (vocab.Type, error)) {
+		get func(util.Context) (vocab.Type, error)) {
 		web, authFn := f(fr)
 		fetch := func(ctx util.Context) (vocab.Type, error) {
-			id, err := ctx.UserPathUUID()
-			if err != nil {
-				return nil, err
-			}
-			return get(ctx, id)
+			return get(ctx)
 		}
 		r.apWebVocabFetchingHandleFunc(path, authFn, web, fetch)
 	}
-	addVocabTypeWebFn(paths.Route(paths.UserPathKey), a.GetUserWebHandlerFunc, func(ctx util.Context, id string) (vocab.Type, error) {
+	addVocabTypeWebFn(paths.Route(paths.UserPathKey), a.GetUserWebHandlerFunc, func(ctx util.Context) (vocab.Type, error) {
+		id, err := ctx.UserPathUUID()
+		if err != nil {
+			return nil, err
+		}
 		u, err := users.UserByID(ctx, id)
 		if err != nil {
 			return nil, err

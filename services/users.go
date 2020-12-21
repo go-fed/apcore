@@ -349,17 +349,17 @@ func (u *Users) UserByUsername(c util.Context, name string) (s *User, err error)
 	})
 }
 
-func (u *Users) UserByID(c util.Context, id string) (s *User, err error) {
+func (u *Users) UserByID(c util.Context, id paths.UUID) (s *User, err error) {
 	return s, doInTx(c, u.DB, func(tx *sql.Tx) error {
 		var a *models.User
-		a, err = u.Users.UserByID(c, tx, id)
+		a, err = u.Users.UserByID(c, tx, string(id))
 		if err != nil {
 			return err
 		}
 		s = &User{
 			ID:    a.ID,
 			Email: a.Email,
-			Actor: vocab.Type(a.Actor),
+			Actor: a.Actor.Type,
 		}
 		return nil
 	})
@@ -385,10 +385,10 @@ func (p Preferences) toModel() (pref models.Preferences, err error) {
 //
 // Fetches the application-specific preferences if appPref is non-nil and JSON
 // compatible struct.
-func (u *Users) Preferences(c util.Context, uuid string, appPref interface{}) (p *Preferences, err error) {
+func (u *Users) Preferences(c util.Context, uuid paths.UUID, appPref interface{}) (p *Preferences, err error) {
 	var a *models.User
 	err = doInTx(c, u.DB, func(tx *sql.Tx) error {
-		a, err = u.Users.UserByID(c, tx, uuid)
+		a, err = u.Users.UserByID(c, tx, string(uuid))
 		if err != nil {
 			return err
 		}

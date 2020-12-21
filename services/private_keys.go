@@ -49,10 +49,10 @@ type PrivateKeys struct {
 	PrivateKeys *models.PrivateKeys
 }
 
-func (p *PrivateKeys) GetUserHTTPSignatureKey(c util.Context, userID string) (k *rsa.PrivateKey, iri *url.URL, err error) {
+func (p *PrivateKeys) GetUserHTTPSignatureKey(c util.Context, userID paths.UUID) (k *rsa.PrivateKey, iri *url.URL, err error) {
 	var kb []byte
 	err = doInTx(c, p.DB, func(tx *sql.Tx) error {
-		kb, err = p.PrivateKeys.GetByUserID(c, tx, userID, pKeyHttpSigPurpose)
+		kb, err = p.PrivateKeys.GetByUserID(c, tx, string(userID), pKeyHttpSigPurpose)
 		return err
 	})
 	if err != nil {
@@ -66,7 +66,7 @@ func (p *PrivateKeys) GetUserHTTPSignatureKey(c util.Context, userID string) (k 
 		err = errors.New("private key is not of type *rsa.PrivateKey")
 		return
 	}
-	iri = paths.UUIDIRIFor(p.Scheme, p.Host, paths.HttpSigPubKeyKey, paths.UUID(userID))
+	iri = paths.UUIDIRIFor(p.Scheme, p.Host, paths.HttpSigPubKeyKey, userID)
 	return
 }
 

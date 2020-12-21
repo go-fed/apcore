@@ -31,6 +31,7 @@ import (
 	"github.com/go-fed/activity/streams"
 	"github.com/go-fed/activity/streams/vocab"
 	"github.com/go-fed/apcore/framework/conn"
+	"github.com/go-fed/apcore/paths"
 	"github.com/go-fed/apcore/services"
 	"github.com/go-fed/apcore/util"
 	"github.com/go-fed/httpsig"
@@ -117,7 +118,7 @@ func verifyHttpSignatures(c context.Context,
 		return
 	}
 	// 2. Get our user's credentials
-	var userUUID string
+	var userUUID paths.UUID
 	userUUID, err = ctx.UserPathUUID()
 	if err != nil {
 		return
