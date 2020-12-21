@@ -45,7 +45,7 @@ func containsRequiredHttpHeaders(method string, headers []string) error {
 	for _, header := range headers {
 		hasRequestTarget = hasRequestTarget || header == httpsig.RequestTarget
 		hasDate = hasDate || header == "Date"
-		hasDigest = hasDigest || header == "Digest"
+		hasDigest = method == "GET" || hasDigest || header == "Digest"
 	}
 	if !hasRequestTarget {
 		return fmt.Errorf("missing http header for %s: %s", method, httpsig.RequestTarget)
@@ -235,7 +235,7 @@ func (t *transport) Dereference(c context.Context, iri *url.URL) (b []byte, err 
 	}
 	defer resp.Body.Close()
 
-	if err = t.handleDereferenceResponse(resp); err != nil {
+	if err = t.handleDereferenceResponse(resp, iri); err != nil {
 		return
 	}
 	b, err = ioutil.ReadAll(resp.Body)
@@ -285,7 +285,7 @@ func (t *transport) Deliver(c context.Context, b []byte, to *url.URL) (err error
 	}
 	defer resp.Body.Close()
 
-	if err = t.handleDeliverResponse(resp); err != nil {
+	if err = t.handleDeliverResponse(resp, to); err != nil {
 		err2 := t.tc.markFailure(uc, attemptId)
 		if err2 != nil {
 			err = fmt.Errorf("failed delivery and failed to mark as failure (%d): [%s, %s]", attemptId, err, err2)
@@ -300,10 +300,11 @@ func (t *transport) Deliver(c context.Context, b []byte, to *url.URL) (err error
 }
 
 func (t *transport) BatchDeliver(c context.Context, b []byte, recipients []*url.URL) (err error) {
-	var wg *sync.WaitGroup
+	var wg sync.WaitGroup
 	for i, r := range recipients {
 		wg.Add(1)
 		go func(i int, r *url.URL) {
+			defer wg.Done()
 			err := t.Deliver(c, b, r)
 			if err != nil {
 				util.ErrorLogger.Errorf("BatchDeliver (%d of %d): %s", i, len(recipients), err)
@@ -314,20 +315,20 @@ func (t *transport) BatchDeliver(c context.Context, b []byte, recipients []*url.
 	return
 }
 
-func (t *transport) handleDereferenceResponse(r *http.Response) (err error) {
+func (t *transport) handleDereferenceResponse(r *http.Response, iri *url.URL) (err error) {
 	ok := r.StatusCode == http.StatusOK
 	if !ok {
-		err = fmt.Errorf("url IRI dereference failed with status (%d): %s", r.StatusCode, r.Status)
+		err = fmt.Errorf("url IRI dereference [%s] failed with status (%d): %s", iri, r.StatusCode, r.Status)
 	}
 	return
 }
 
-func (t *transport) handleDeliverResponse(r *http.Response) (err error) {
+func (t *transport) handleDeliverResponse(r *http.Response, iri *url.URL) (err error) {
 	ok := r.StatusCode == http.StatusOK ||
 		r.StatusCode == http.StatusCreated ||
 		r.StatusCode == http.StatusAccepted
 	if !ok {
-		err = fmt.Errorf("delivery failed with status (%d): %s", r.StatusCode, r.Status)
+		err = fmt.Errorf("delivery [%s] failed with status (%d): %s", iri, r.StatusCode, r.Status)
 	}
 	return
 }

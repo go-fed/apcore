@@ -101,7 +101,7 @@ func defaultHttpSignaturesConfig() config.HttpSignaturesConfig {
 	return config.HttpSignaturesConfig{
 		Algorithms:      []string{"sha256", "sha512"},
 		DigestAlgorithm: "SHA-256",
-		GetHeaders:      []string{"(request-target)", "Date", "Digest"},
+		GetHeaders:      []string{"(request-target)", "Date"},
 		PostHeaders:     []string{"(request-target)", "Date", "Digest"},
 	}
 }
