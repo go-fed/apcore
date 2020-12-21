@@ -44,7 +44,7 @@ const (
 	outboxTemplate        = "outbox.tmpl"
 	followersTemplate     = "followers.tmpl"
 	followingTemplate     = "following.tmpl"
-	usersTemplate         = "users.tmpl"
+	userTemplate          = "user.tmpl"
 	listUsersTemplate     = "list_users.tmpl"
 	homeTemplate          = "home.tmpl"
 	createNoteTemplate    = "create_note.tmpl"
@@ -223,7 +223,7 @@ func (a *App) GetLikedWebHandlerFunc(f app.Framework) (app.CollectionPageHandler
 
 func (a *App) GetUserWebHandlerFunc(f app.Framework) (app.VocabHandlerFunc, app.AuthorizeFunc) {
 	return func(w http.ResponseWriter, r *http.Request, user vocab.Type) {
-			a.getSessionWriteTemplateHelper(w, r, f, http.StatusOK, usersTemplate, user, "GetUserWebHandlerFunc")
+			a.getSessionWriteTemplateHelper(w, r, f, http.StatusOK, userTemplate, user, "GetUserWebHandlerFunc")
 		}, func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
 			return true, nil
 		}
