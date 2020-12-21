@@ -199,17 +199,7 @@ func (a *App) GetOutboxWebHandlerFunc(f app.Framework) func(w http.ResponseWrite
 
 func (a *App) GetFollowersWebHandlerFunc(f app.Framework) (app.CollectionPageHandlerFunc, app.AuthorizeFunc) {
 	return func(w http.ResponseWriter, r *http.Request, followers vocab.ActivityStreamsCollectionPage) {
-			s, err := f.Session(r)
-			if err != nil {
-				util.ErrorLogger.Errorf("Error getting session: %v", err)
-				a.InternalServerErrorHandler(f).ServeHTTP(w, r)
-				return
-			}
-			// TODO: Pass in followers
-			err = a.templates.ExecuteTemplate(w, followersTemplate, a.getTemplateData(s, nil))
-			if err != nil {
-				util.ErrorLogger.Errorf("Error serving GetFollowersWebHandlerFunc: %v", err)
-			}
+			a.getSessionWriteTemplateHelper(w, r, f, http.StatusOK, followersTemplate, followers, "GetFollowersWebHandlerFunc")
 		}, func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
 			return true, nil
 		}
@@ -217,17 +207,7 @@ func (a *App) GetFollowersWebHandlerFunc(f app.Framework) (app.CollectionPageHan
 
 func (a *App) GetFollowingWebHandlerFunc(f app.Framework) (app.CollectionPageHandlerFunc, app.AuthorizeFunc) {
 	return func(w http.ResponseWriter, r *http.Request, following vocab.ActivityStreamsCollectionPage) {
-			s, err := f.Session(r)
-			if err != nil {
-				util.ErrorLogger.Errorf("Error getting session: %v", err)
-				a.InternalServerErrorHandler(f).ServeHTTP(w, r)
-				return
-			}
-			// TODO: Pass in following
-			err = a.templates.ExecuteTemplate(w, followingTemplate, a.getTemplateData(s, nil))
-			if err != nil {
-				util.ErrorLogger.Errorf("Error serving GetFollowingWebHandlerFunc: %v", err)
-			}
+			a.getSessionWriteTemplateHelper(w, r, f, http.StatusOK, followingTemplate, following, "GetFollowingWebHandlerFunc")
 		}, func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
 			return true, nil
 		}
@@ -243,17 +223,7 @@ func (a *App) GetLikedWebHandlerFunc(f app.Framework) (app.CollectionPageHandler
 
 func (a *App) GetUserWebHandlerFunc(f app.Framework) (app.VocabHandlerFunc, app.AuthorizeFunc) {
 	return func(w http.ResponseWriter, r *http.Request, user vocab.Type) {
-			s, err := f.Session(r)
-			if err != nil {
-				util.ErrorLogger.Errorf("Error getting session: %v", err)
-				a.InternalServerErrorHandler(f).ServeHTTP(w, r)
-				return
-			}
-			// TODO: Pass in users
-			err = a.templates.ExecuteTemplate(w, usersTemplate, a.getTemplateData(s, nil))
-			if err != nil {
-				util.ErrorLogger.Errorf("Error serving GetUserWebHandlerFunc: %v", err)
-			}
+			a.getSessionWriteTemplateHelper(w, r, f, http.StatusOK, usersTemplate, user, "GetUserWebHandlerFunc")
 		}, func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
 			return true, nil
 		}
@@ -298,14 +268,19 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 	//
 	// It is sugar for Path(...).HandlerFunc(...)
 	r.WebOnlyHandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Latest public posts
 		s, err := f.Session(r)
 		if err != nil {
 			util.ErrorLogger.Errorf("Error getting session: %v", err)
 			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
 			return
 		}
-		err = a.templates.ExecuteTemplate(w, homeTemplate, a.getTemplateData(s, nil))
+		notes, err := getLatestPublicNotes(r.Context(), db)
+		if err != nil {
+			util.ErrorLogger.Errorf("Error getting latest notes: %v", err)
+			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
+			return
+		}
+		err = a.templates.ExecuteTemplate(w, homeTemplate, a.getTemplateData(s, notes))
 		if err != nil {
 			util.ErrorLogger.Errorf("Error serving home template: %v", err)
 		}
@@ -317,8 +292,13 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
 			return
 		}
-		// TODO: Fetch users
-		err = a.templates.ExecuteTemplate(w, listUsersTemplate, a.getTemplateData(s, nil))
+		users, err := getUsers(r.Context(), db)
+		if err != nil {
+			util.ErrorLogger.Errorf("Error getting latest notes: %v", err)
+			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
+			return
+		}
+		err = a.templates.ExecuteTemplate(w, listUsersTemplate, a.getTemplateData(s, users))
 		if err != nil {
 			util.ErrorLogger.Errorf("Error serving list users template: %v", err)
 		}

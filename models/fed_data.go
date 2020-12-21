@@ -70,7 +70,7 @@ func (f *FedData) Exists(c util.Context, tx *sql.Tx, id *url.URL) (exists bool, 
 		return
 	}
 	defer rows.Close()
-	err = enforceOneRow(rows, "FedData.Exists", func(r singleRow) error {
+	err = enforceOneRow(rows, "FedData.Exists", func(r SingleRow) error {
 		return r.Scan(&exists)
 	})
 	return
@@ -84,7 +84,7 @@ func (f *FedData) Get(c util.Context, tx *sql.Tx, id *url.URL) (v ActivityStream
 		return
 	}
 	defer rows.Close()
-	err = enforceOneRow(rows, "FedData.Get", func(r singleRow) error {
+	err = enforceOneRow(rows, "FedData.Get", func(r SingleRow) error {
 		return r.Scan(&v)
 	})
 	return

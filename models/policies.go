@@ -349,7 +349,7 @@ func (p *Policies) Create(c util.Context, tx *sql.Tx, cp CreatePolicy) (policyID
 		return
 	}
 	defer rows.Close()
-	return policyID, enforceOneRow(rows, "Policies.Create", func(r singleRow) error {
+	return policyID, enforceOneRow(rows, "Policies.Create", func(r SingleRow) error {
 		return r.Scan(&(policyID))
 	})
 }
@@ -362,7 +362,7 @@ func (p *Policies) GetForActor(c util.Context, tx *sql.Tx, actorID *url.URL) (po
 		return
 	}
 	defer rows.Close()
-	return po, doForRows(rows, "Policies.GetForActor", func(r singleRow) error {
+	return po, doForRows(rows, "Policies.GetForActor", func(r SingleRow) error {
 		var pp PolicyAndPurpose
 		if err := r.Scan(&(pp.ID), &(pp.Purpose), &(pp.Policy)); err != nil {
 			return err
@@ -380,7 +380,7 @@ func (p *Policies) GetForActorAndPurpose(c util.Context, tx *sql.Tx, actorID *ur
 		return
 	}
 	defer rows.Close()
-	return po, doForRows(rows, "Policies.GetForActorAndPurpose", func(r singleRow) error {
+	return po, doForRows(rows, "Policies.GetForActorAndPurpose", func(r SingleRow) error {
 		var pp PolicyAndID
 		if err := r.Scan(&(pp.ID), &(pp.Policy)); err != nil {
 			return err

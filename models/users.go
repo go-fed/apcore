@@ -121,7 +121,7 @@ func (u *Users) Create(c util.Context, tx *sql.Tx, r *CreateUser) (userID string
 		return
 	}
 	defer rows.Close()
-	return userID, enforceOneRow(rows, "Users.Create", func(r singleRow) error {
+	return userID, enforceOneRow(rows, "Users.Create", func(r SingleRow) error {
 		return r.Scan(&(userID))
 	})
 }
@@ -140,7 +140,7 @@ func (u *Users) SensitiveUserByEmail(c util.Context, tx *sql.Tx, email string) (
 		return
 	}
 	defer rows.Close()
-	return s, enforceOneRow(rows, "SensitiveUserByEmail", func(r singleRow) error {
+	return s, enforceOneRow(rows, "SensitiveUserByEmail", func(r SingleRow) error {
 		s = &SensitiveUser{}
 		return r.Scan(&(s.ID), &(s.Hashpass), &(s.Salt))
 	})
@@ -154,7 +154,7 @@ func (u *Users) UserByID(c util.Context, tx *sql.Tx, id string) (s *User, err er
 		return
 	}
 	defer rows.Close()
-	return s, enforceOneRow(rows, "UserByID", func(r singleRow) error {
+	return s, enforceOneRow(rows, "UserByID", func(r SingleRow) error {
 		s = &User{}
 		return r.Scan(&(s.ID), &(s.Email), &(s.Actor), &(s.Privileges), &(s.Preferences))
 	})
@@ -169,7 +169,7 @@ func (u *Users) UserByPreferredUsername(c util.Context, tx *sql.Tx, name string)
 		return
 	}
 	defer rows.Close()
-	return s, enforceOneRow(rows, "UserByID", func(r singleRow) error {
+	return s, enforceOneRow(rows, "UserByID", func(r SingleRow) error {
 		s = &User{}
 		return r.Scan(&(s.ID), &(s.Email), &(s.Actor), &(s.Privileges), &(s.Preferences))
 	})
@@ -183,7 +183,7 @@ func (u *Users) InstanceActorUser(c util.Context, tx *sql.Tx) (s *User, err erro
 		return
 	}
 	defer rows.Close()
-	return s, enforceOneRow(rows, "Users.InstanceActorUser", func(r singleRow) error {
+	return s, enforceOneRow(rows, "Users.InstanceActorUser", func(r SingleRow) error {
 		s = &User{}
 		return r.Scan(&(s.ID), &(s.Email), &(s.Actor), &(s.Privileges), &(s.Preferences))
 	})
@@ -197,7 +197,7 @@ func (u *Users) ActorIDForOutbox(c util.Context, tx *sql.Tx, outbox *url.URL) (a
 		return
 	}
 	defer rows.Close()
-	return actor, enforceOneRow(rows, "Users.ActorIDForOutbox", func(r singleRow) error {
+	return actor, enforceOneRow(rows, "Users.ActorIDForOutbox", func(r SingleRow) error {
 		return r.Scan(&actor)
 	})
 }
@@ -210,7 +210,7 @@ func (u *Users) ActorIDForInbox(c util.Context, tx *sql.Tx, inbox *url.URL) (act
 		return
 	}
 	defer rows.Close()
-	return actor, enforceOneRow(rows, "Users.ActorIDForInbox", func(r singleRow) error {
+	return actor, enforceOneRow(rows, "Users.ActorIDForInbox", func(r SingleRow) error {
 		return r.Scan(&actor)
 	})
 }
@@ -240,7 +240,7 @@ func (u *Users) InstanceActorPreferences(c util.Context, tx *sql.Tx) (iap Instan
 		return
 	}
 	defer rows.Close()
-	return iap, enforceOneRow(rows, "Users.InstanceActorPreferences", func(r singleRow) error {
+	return iap, enforceOneRow(rows, "Users.InstanceActorPreferences", func(r SingleRow) error {
 		return r.Scan(&iap)
 	})
 }
@@ -267,7 +267,7 @@ func (u *Users) ActivityStats(c util.Context, tx *sql.Tx) (uas UserActivityStats
 		return
 	}
 	defer rows.Close()
-	return uas, enforceOneRow(rows, "Users.ActivityStats", func(r singleRow) error {
+	return uas, enforceOneRow(rows, "Users.ActivityStats", func(r SingleRow) error {
 		return r.Scan(&(uas.TotalUsers),
 			&(uas.ActiveHalfYear),
 			&(uas.ActiveMonth),

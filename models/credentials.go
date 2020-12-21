@@ -69,7 +69,7 @@ func (c *Credentials) Create(ctx util.Context, tx *sql.Tx, userID, tokenID strin
 		return
 	}
 	defer rows.Close()
-	return id, enforceOneRow(rows, "Credentials.Create", func(r singleRow) error {
+	return id, enforceOneRow(rows, "Credentials.Create", func(r SingleRow) error {
 		return r.Scan(&(id))
 	})
 }
@@ -113,7 +113,7 @@ func (c *Credentials) GetTokenInfo(ctx util.Context, tx *sql.Tx, id string) (oau
 	}
 	defer rows.Close()
 	ti := &TokenInfo{}
-	return ti, enforceOneRow(rows, "Credentials.GetTokenInfo", func(r singleRow) error {
+	return ti, enforceOneRow(rows, "Credentials.GetTokenInfo", func(r SingleRow) error {
 		return ti.scanFromSingleRow(r)
 	})
 }

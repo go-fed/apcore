@@ -86,7 +86,7 @@ func (i *Liked) ContainsForActor(c util.Context, tx *sql.Tx, actor, item *url.UR
 		return
 	}
 	defer rows.Close()
-	return b, enforceOneRow(rows, "Liked.ContainsForActor", func(r singleRow) error {
+	return b, enforceOneRow(rows, "Liked.ContainsForActor", func(r SingleRow) error {
 		return r.Scan(&b)
 	})
 }
@@ -99,7 +99,7 @@ func (i *Liked) Contains(c util.Context, tx *sql.Tx, liked, item *url.URL) (b bo
 		return
 	}
 	defer rows.Close()
-	return b, enforceOneRow(rows, "Liked.Contains", func(r singleRow) error {
+	return b, enforceOneRow(rows, "Liked.Contains", func(r SingleRow) error {
 		return r.Scan(&b)
 	})
 }
@@ -114,7 +114,7 @@ func (i *Liked) GetPage(c util.Context, tx *sql.Tx, liked *url.URL, min, max int
 		return
 	}
 	defer rows.Close()
-	return page, isEnd, enforceOneRow(rows, "Liked.GetPage", func(r singleRow) error {
+	return page, isEnd, enforceOneRow(rows, "Liked.GetPage", func(r SingleRow) error {
 		return r.Scan(&page, &isEnd)
 	})
 }
@@ -127,7 +127,7 @@ func (i *Liked) GetLastPage(c util.Context, tx *sql.Tx, liked *url.URL, n int) (
 		return
 	}
 	defer rows.Close()
-	return page, startIdx, enforceOneRow(rows, "Liked.GetLastPage", func(r singleRow) error {
+	return page, startIdx, enforceOneRow(rows, "Liked.GetLastPage", func(r SingleRow) error {
 		return r.Scan(&page, &startIdx)
 	})
 }
@@ -152,7 +152,7 @@ func (i *Liked) GetAllForActor(c util.Context, tx *sql.Tx, liked *url.URL) (col 
 		return
 	}
 	defer rows.Close()
-	return col, enforceOneRow(rows, "Liked.GetAllForActor", func(r singleRow) error {
+	return col, enforceOneRow(rows, "Liked.GetAllForActor", func(r SingleRow) error {
 		return r.Scan(&col)
 	})
 }

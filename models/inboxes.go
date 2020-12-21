@@ -89,7 +89,7 @@ func (i *Inboxes) ContainsForActor(c util.Context, tx *sql.Tx, actor, item *url.
 		return
 	}
 	defer rows.Close()
-	return b, enforceOneRow(rows, "Inboxes.ContainsForActor", func(r singleRow) error {
+	return b, enforceOneRow(rows, "Inboxes.ContainsForActor", func(r SingleRow) error {
 		return r.Scan(&b)
 	})
 }
@@ -102,7 +102,7 @@ func (i *Inboxes) Contains(c util.Context, tx *sql.Tx, inbox, item *url.URL) (b 
 		return
 	}
 	defer rows.Close()
-	return b, enforceOneRow(rows, "Inboxes.Contains", func(r singleRow) error {
+	return b, enforceOneRow(rows, "Inboxes.Contains", func(r SingleRow) error {
 		return r.Scan(&b)
 	})
 }
@@ -117,7 +117,7 @@ func (i *Inboxes) GetPage(c util.Context, tx *sql.Tx, inbox *url.URL, min, max i
 		return
 	}
 	defer rows.Close()
-	return page, isEnd, enforceOneRow(rows, "Inboxes.GetPage", func(r singleRow) error {
+	return page, isEnd, enforceOneRow(rows, "Inboxes.GetPage", func(r SingleRow) error {
 		return r.Scan(&page, &isEnd)
 	})
 }
@@ -133,7 +133,7 @@ func (i *Inboxes) GetPublicPage(c util.Context, tx *sql.Tx, inbox *url.URL, min,
 		return
 	}
 	defer rows.Close()
-	return page, isEnd, enforceOneRow(rows, "Inboxes.GetPublicPage", func(r singleRow) error {
+	return page, isEnd, enforceOneRow(rows, "Inboxes.GetPublicPage", func(r SingleRow) error {
 		return r.Scan(&page, &isEnd)
 	})
 }
@@ -146,7 +146,7 @@ func (i *Inboxes) GetLastPage(c util.Context, tx *sql.Tx, inbox *url.URL, n int)
 		return
 	}
 	defer rows.Close()
-	return page, startIdx, enforceOneRow(rows, "Inboxes.GetLastPage", func(r singleRow) error {
+	return page, startIdx, enforceOneRow(rows, "Inboxes.GetLastPage", func(r SingleRow) error {
 		return r.Scan(&page, &startIdx)
 	})
 }
@@ -160,7 +160,7 @@ func (i *Inboxes) GetPublicLastPage(c util.Context, tx *sql.Tx, inbox *url.URL, 
 		return
 	}
 	defer rows.Close()
-	return page, startIdx, enforceOneRow(rows, "Inboxes.GetPublicLastPage", func(r singleRow) error {
+	return page, startIdx, enforceOneRow(rows, "Inboxes.GetPublicLastPage", func(r SingleRow) error {
 		return r.Scan(&page, &startIdx)
 	})
 }

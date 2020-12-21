@@ -1,3 +1,17 @@
 {{template "header.tmpl" .}}
 <h1>All Users</h1>
+<table>
+	<tr>
+		<th>Name</th>
+		<th>Preferred Username</th>
+		<th>Actor IRI</th>
+	</tr>
+{{range $i, $u := .Other}}
+	<tr>
+		<td>{{$u.GetActivityStreamsName.Begin.GetXMLSchemaString}}</td>
+		<td>{{$u.GetActivityStreamsPreferredUsername.GetXMLSchemaString}}</td>
+		<td><a href="{{$u.GetJSONLDId.Get}}">{{$u.GetJSONLDId.Get}}</a></td>
+	</tr>
+{{end}}
+</table>
 {{template "footer.tmpl" .}}

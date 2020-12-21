@@ -88,7 +88,7 @@ func (c *ClientInfos) Create(ctx util.Context, tx *sql.Tx, info oauth2.ClientInf
 		return
 	}
 	defer rows.Close()
-	return id, enforceOneRow(rows, "ClientInfos.Create", func(r singleRow) error {
+	return id, enforceOneRow(rows, "ClientInfos.Create", func(r SingleRow) error {
 		return r.Scan(&(id))
 	})
 }
@@ -101,7 +101,7 @@ func (c *ClientInfos) GetByID(ctx util.Context, tx *sql.Tx, id string) (oauth2.C
 	}
 	defer rows.Close()
 	ci := &ClientInfo{}
-	return ci, enforceOneRow(rows, "ClientInfos.GetByID", func(r singleRow) error {
+	return ci, enforceOneRow(rows, "ClientInfos.GetByID", func(r SingleRow) error {
 		return r.Scan(&(ci.ID), &(ci.Secret), &(ci.Domain), &(ci.UserID))
 	})
 }

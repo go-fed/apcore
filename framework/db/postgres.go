@@ -17,6 +17,8 @@
 package db
 
 import (
+	"fmt"
+
 	"github.com/go-fed/apcore/models"
 )
 
@@ -53,6 +55,10 @@ func (p *pgV0) indexTokenRefresh() string {
 }
 
 /* SqlDialect */
+
+func (p *pgV0) Apply(s string) string {
+	return fmt.Sprintf(s, p.schema)
+}
 
 func (p *pgV0) CreateUsersTable() string {
 	return `

@@ -33,6 +33,7 @@ import (
 var _ app.Router = &Router{}
 
 type RoutingDatabase interface {
+	app.Database
 	pub.Database
 	GetPublicInbox(c context.Context, inboxIRI *url.URL) (inbox vocab.ActivityStreamsOrderedCollectionPage, err error)
 	GetPublicOutbox(c context.Context, outboxIRI *url.URL) (outbox vocab.ActivityStreamsOrderedCollectionPage, err error)

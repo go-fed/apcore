@@ -92,7 +92,7 @@ func (i *Outboxes) ContainsForActor(c util.Context, tx *sql.Tx, actor, item *url
 		return
 	}
 	defer rows.Close()
-	return b, enforceOneRow(rows, "Outboxes.ContainsForActor", func(r singleRow) error {
+	return b, enforceOneRow(rows, "Outboxes.ContainsForActor", func(r SingleRow) error {
 		return r.Scan(&b)
 	})
 }
@@ -105,7 +105,7 @@ func (i *Outboxes) Contains(c util.Context, tx *sql.Tx, inbox, item *url.URL) (b
 		return
 	}
 	defer rows.Close()
-	return b, enforceOneRow(rows, "Outboxes.Contains", func(r singleRow) error {
+	return b, enforceOneRow(rows, "Outboxes.Contains", func(r SingleRow) error {
 		return r.Scan(&b)
 	})
 }
@@ -120,7 +120,7 @@ func (i *Outboxes) GetPage(c util.Context, tx *sql.Tx, outbox *url.URL, min, max
 		return
 	}
 	defer rows.Close()
-	return page, isEnd, enforceOneRow(rows, "Outboxes.GetPage", func(r singleRow) error {
+	return page, isEnd, enforceOneRow(rows, "Outboxes.GetPage", func(r SingleRow) error {
 		return r.Scan(&page, &isEnd)
 	})
 }
@@ -136,7 +136,7 @@ func (i *Outboxes) GetPublicPage(c util.Context, tx *sql.Tx, outbox *url.URL, mi
 		return
 	}
 	defer rows.Close()
-	return page, isEnd, enforceOneRow(rows, "Outboxes.GetPublicPage", func(r singleRow) error {
+	return page, isEnd, enforceOneRow(rows, "Outboxes.GetPublicPage", func(r SingleRow) error {
 		return r.Scan(&page, &isEnd)
 	})
 }
@@ -149,7 +149,7 @@ func (i *Outboxes) GetLastPage(c util.Context, tx *sql.Tx, outbox *url.URL, n in
 		return
 	}
 	defer rows.Close()
-	return page, startIdx, enforceOneRow(rows, "Outboxes.GetPage", func(r singleRow) error {
+	return page, startIdx, enforceOneRow(rows, "Outboxes.GetPage", func(r SingleRow) error {
 		return r.Scan(&page, &startIdx)
 	})
 }
@@ -163,7 +163,7 @@ func (i *Outboxes) GetPublicLastPage(c util.Context, tx *sql.Tx, outbox *url.URL
 		return
 	}
 	defer rows.Close()
-	return page, startIdx, enforceOneRow(rows, "Outboxes.GetPublicPage", func(r singleRow) error {
+	return page, startIdx, enforceOneRow(rows, "Outboxes.GetPublicPage", func(r SingleRow) error {
 		return r.Scan(&page, &startIdx)
 	})
 }
@@ -188,7 +188,7 @@ func (i *Outboxes) OutboxForInbox(c util.Context, tx *sql.Tx, inbox *url.URL) (o
 		return
 	}
 	defer rows.Close()
-	return outbox, enforceOneRow(rows, "Outboxes.OutboxForInbox", func(r singleRow) error {
+	return outbox, enforceOneRow(rows, "Outboxes.OutboxForInbox", func(r SingleRow) error {
 		return r.Scan(&outbox)
 	})
 }

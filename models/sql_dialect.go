@@ -20,6 +20,13 @@ package models
 //
 // Note that the order for inputs and outputs listed matter.
 type SqlDialect interface {
+	/* service.Any support for arbitrary sql queries */
+
+	// Apply is database specific, and modifies a SQL query.
+	//   postgres:
+	//     %[1]s      schema name
+	Apply(string) string
+
 	/* Table Creation Statements */
 
 	// CreateUsersTable for the User model.

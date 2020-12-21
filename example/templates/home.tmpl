@@ -1,4 +1,18 @@
 {{template "header.tmpl" .}}
 <h1>BLand Home Page</h1>
 <p>Welcome to the <pre>apcore</pre> example application, BLand!</p>
+{{if gt (len .Other) 0}}
+	<p>Here are the latest public notes:</p>
+	<div>
+		<table>
+	{{range $i, $n := .Other}}
+		<tr><td>{{$i}} {{$n.GetActivityStreamsAttributedTo.GetActivityStreamsPerson.GetActivityStreamsPreferredUsername.GetXMLSchemaString}}</td></tr>
+		<tr><td>{{$n.GetActivityStreamsContent.GetXMLSchemaString}}</td></tr>
+		<tr><td></td></tr>
+	{{end}}
+		</table>
+	</div>
+{{else}}
+	<p>There are no public notes to see</p>
+{{end}}
 {{template "footer.tmpl" .}}

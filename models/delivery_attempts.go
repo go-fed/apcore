@@ -80,7 +80,7 @@ func (d *DeliveryAttempts) Create(c util.Context, tx *sql.Tx, from string, toAct
 		return
 	}
 	defer rows.Close()
-	return id, enforceOneRow(rows, "DeliveryAttempts.Create", func(r singleRow) error {
+	return id, enforceOneRow(rows, "DeliveryAttempts.Create", func(r SingleRow) error {
 		return r.Scan(&(id))
 	})
 }
@@ -126,7 +126,7 @@ func (d *DeliveryAttempts) FirstPageFailures(c util.Context, tx *sql.Tx, fetchTi
 		return
 	}
 	defer rows.Close()
-	return rf, doForRows(rows, "DeliveryAttempts.FirstPageFailures", func(r singleRow) error {
+	return rf, doForRows(rows, "DeliveryAttempts.FirstPageFailures", func(r SingleRow) error {
 		var rt RetryableFailure
 		if err := r.Scan(&(rt.ID), &(rt.UserID), &(rt.DeliverTo), &(rt.Payload), &(rt.NAttempts), &(rt.LastAttempt)); err != nil {
 			return err
@@ -144,7 +144,7 @@ func (d *DeliveryAttempts) NextPageFailures(c util.Context, tx *sql.Tx, prevID s
 		return
 	}
 	defer rows.Close()
-	return rf, doForRows(rows, "DeliveryAttempts.NextPageFailures", func(r singleRow) error {
+	return rf, doForRows(rows, "DeliveryAttempts.NextPageFailures", func(r SingleRow) error {
 		var rt RetryableFailure
 		if err := r.Scan(&(rt.ID), &(rt.UserID), &(rt.DeliverTo), &(rt.Payload), &(rt.NAttempts), &(rt.LastAttempt)); err != nil {
 			return err

@@ -86,7 +86,7 @@ func (i *Followers) ContainsForActor(c util.Context, tx *sql.Tx, actor, item *ur
 		return
 	}
 	defer rows.Close()
-	return b, enforceOneRow(rows, "Followers.ContainsForActor", func(r singleRow) error {
+	return b, enforceOneRow(rows, "Followers.ContainsForActor", func(r SingleRow) error {
 		return r.Scan(&b)
 	})
 }
@@ -99,7 +99,7 @@ func (i *Followers) Contains(c util.Context, tx *sql.Tx, followers, item *url.UR
 		return
 	}
 	defer rows.Close()
-	return b, enforceOneRow(rows, "Followers.Contains", func(r singleRow) error {
+	return b, enforceOneRow(rows, "Followers.Contains", func(r SingleRow) error {
 		return r.Scan(&b)
 	})
 }
@@ -114,7 +114,7 @@ func (i *Followers) GetPage(c util.Context, tx *sql.Tx, followers *url.URL, min,
 		return
 	}
 	defer rows.Close()
-	return page, isEnd, enforceOneRow(rows, "Followers.GetPage", func(r singleRow) error {
+	return page, isEnd, enforceOneRow(rows, "Followers.GetPage", func(r SingleRow) error {
 		return r.Scan(&page, &isEnd)
 	})
 }
@@ -127,7 +127,7 @@ func (i *Followers) GetLastPage(c util.Context, tx *sql.Tx, followers *url.URL, 
 		return
 	}
 	defer rows.Close()
-	return page, startIdx, enforceOneRow(rows, "Followers.GetLastPage", func(r singleRow) error {
+	return page, startIdx, enforceOneRow(rows, "Followers.GetLastPage", func(r SingleRow) error {
 		return r.Scan(&page, &startIdx)
 	})
 }
@@ -152,7 +152,7 @@ func (i *Followers) GetAllForActor(c util.Context, tx *sql.Tx, followers *url.UR
 		return
 	}
 	defer rows.Close()
-	return col, enforceOneRow(rows, "Followers.GetAllForActor", func(r singleRow) error {
+	return col, enforceOneRow(rows, "Followers.GetAllForActor", func(r SingleRow) error {
 		return r.Scan(&col)
 	})
 }

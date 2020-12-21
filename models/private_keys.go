@@ -66,7 +66,7 @@ func (p *PrivateKeys) GetByUserID(c util.Context, tx *sql.Tx, userID, purpose st
 		return
 	}
 	defer rows.Close()
-	return b, enforceOneRow(rows, "PrivateKeys.GetByUserID", func(r singleRow) error {
+	return b, enforceOneRow(rows, "PrivateKeys.GetByUserID", func(r SingleRow) error {
 		return r.Scan(&(b))
 	})
 }
@@ -79,7 +79,7 @@ func (p *PrivateKeys) GetInstanceActor(c util.Context, tx *sql.Tx, purpose strin
 		return
 	}
 	defer rows.Close()
-	return b, enforceOneRow(rows, "PrivateKeys.GetInstanceActor", func(r singleRow) error {
+	return b, enforceOneRow(rows, "PrivateKeys.GetInstanceActor", func(r SingleRow) error {
 		return r.Scan(&(b))
 	})
 }

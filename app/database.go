@@ -16,4 +16,22 @@
 
 package app
 
-type Database interface{}
+import (
+	"github.com/go-fed/apcore/util"
+)
+
+type Database interface {
+	Begin() TxBuilder
+}
+
+type TxBuilder interface {
+	QueryOneRow(sql string, cb func(r SingleRow) error, args ...interface{})
+	Query(sql string, cb func(r SingleRow) error, args ...interface{})
+	ExecOneRow(sql string, args ...interface{})
+	Exec(sql string, args ...interface{})
+	Do(c util.Context) error
+}
+
+type SingleRow interface {
+	Scan(dest ...interface{}) error
+}

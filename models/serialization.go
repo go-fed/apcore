@@ -29,6 +29,7 @@ import (
 	"github.com/go-fed/activity/pub"
 	"github.com/go-fed/activity/streams"
 	"github.com/go-fed/activity/streams/vocab"
+	"github.com/go-fed/apcore/app"
 )
 
 // Marshal takes any ActivityStreams type and serializes it to JSON.
@@ -54,9 +55,13 @@ func unmarshal(maybeByte, v interface{}) error {
 	return json.Unmarshal(b, v)
 }
 
-// singleRow allows *sql.Rows to be treated as *sql.Row
-type singleRow interface {
-	Scan(dest ...interface{}) error
+// SingleRow allows *sql.Rows to be treated as *sql.Row
+type SingleRow interface {
+	app.SingleRow
+}
+
+func MustQueryOneRow(r *sql.Rows, fn func(r SingleRow) error) error {
+	return enforceOneRow(r, "", fn)
 }
 
 // enforceOneRow ensures that there is only one row in the *sql.Rows
@@ -67,13 +72,13 @@ type singleRow interface {
 // when the database constraints do not match the expected application logic,
 // than silently retrieve an arbitrarily row (since the first one grabbed is
 // returned arbitrarily, database-and-driver-dependent).
-func enforceOneRow(r *sql.Rows, debugname string, fn func(r singleRow) error) error {
+func enforceOneRow(r *sql.Rows, debugname string, fn func(r SingleRow) error) error {
 	var n int
 	for r.Next() {
 		if n > 0 {
 			return fmt.Errorf("%s: multiple database rows retrieved when enforcing one row", debugname)
 		}
-		err := fn(singleRow(r))
+		err := fn(SingleRow(r))
 		if err != nil {
 			return err
 		}
@@ -82,15 +87,23 @@ func enforceOneRow(r *sql.Rows, debugname string, fn func(r singleRow) error) er
 	return r.Err()
 }
 
+func QueryRows(r *sql.Rows, fn func(r SingleRow) error) error {
+	return doForRows(r, "", fn)
+}
+
 // doForRows iterates over all rows and inspects for any errors.
-func doForRows(r *sql.Rows, debugname string, fn func(r singleRow) error) error {
+func doForRows(r *sql.Rows, debugname string, fn func(r SingleRow) error) error {
 	for r.Next() {
-		err := fn(singleRow(r))
+		err := fn(SingleRow(r))
 		if err != nil {
 			return err
 		}
 	}
 	return r.Err()
+}
+
+func MustChangeOneRow(r sql.Result) error {
+	return mustChangeOneRow(r, nil, "")
 }
 
 // mustChangeOneRow ensures an Exec SQL statement changes exactly one row, or

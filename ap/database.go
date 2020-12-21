@@ -41,6 +41,7 @@ type Database struct {
 	followers             *services.Followers
 	following             *services.Following
 	liked                 *services.Liked
+	any                   *services.Any
 	defaultCollectionSize int
 	maxCollectionPageSize int
 }
@@ -53,7 +54,8 @@ func NewDatabase(scheme string,
 	data *services.Data,
 	followers *services.Followers,
 	following *services.Following,
-	liked *services.Liked) *Database {
+	liked *services.Liked,
+	any *services.Any) *Database {
 	return &Database{
 		scheme:                scheme,
 		host:                  c.ServerConfig.Host,
@@ -64,6 +66,7 @@ func NewDatabase(scheme string,
 		followers:             followers,
 		following:             following,
 		liked:                 liked,
+		any:                   any,
 		defaultCollectionSize: c.DatabaseConfig.DefaultCollectionPageSize,
 		maxCollectionPageSize: c.DatabaseConfig.MaxCollectionPageSize,
 	}
@@ -198,4 +201,8 @@ func (d *Database) Following(c context.Context, actorIRI *url.URL) (followers vo
 
 func (d *Database) Liked(c context.Context, actorIRI *url.URL) (followers vocab.ActivityStreamsCollection, err error) {
 	return d.liked.GetAllForActor(util.Context{c}, actorIRI)
+}
+
+func (d *Database) Begin() app.TxBuilder {
+	return d.any.Begin()
 }

@@ -60,7 +60,7 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 	}
 
 	// Create the models & services for higher-level transformations
-	cryp, data, dAttempts, followers, following, inboxes, liked, oauthSrv, outboxes, policies, pkeys, users, nodeinfo, models := createModelsAndServices(c, sqldb, appl, host, scheme, clock)
+	cryp, data, dAttempts, followers, following, inboxes, liked, oauthSrv, outboxes, policies, pkeys, users, nodeinfo, any, models := createModelsAndServices(c, sqldb, dialect, appl, host, scheme, clock)
 
 	// Ensure the SQL statements are prepared
 	err = prepare(models, sqldb, dialect)
@@ -103,7 +103,8 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 		data,
 		followers,
 		following,
-		liked)
+		liked,
+		any)
 
 	// Create a pub.Database
 	apdb := ap.NewAPDB(db, appl)
@@ -227,7 +228,7 @@ func newModels(configFileName string, appl app.Application, debug bool, scheme s
 		return
 	}
 
-	_, _, _, _, _, _, _, _, _, _, _, _, _, m = createModelsAndServices(c, sqldb, appl, host, scheme, clock)
+	_, _, _, _, _, _, _, _, _, _, _, _, _, _, m = createModelsAndServices(c, sqldb, dialect, appl, host, scheme, clock)
 	return
 }
 
@@ -254,12 +255,12 @@ func newUserService(configFileName string, appl app.Application, debug bool, sch
 	}
 
 	var ml []models.Model
-	_, _, _, _, _, _, _, _, _, _, _, users, _, ml = createModelsAndServices(c, sqldb, appl, host, scheme, clock)
+	_, _, _, _, _, _, _, _, _, _, _, users, _, _, ml = createModelsAndServices(c, sqldb, dialect, appl, host, scheme, clock)
 	err = prepare(ml, sqldb, dialect)
 	return
 }
 
-func createModelsAndServices(c *config.Config, sqldb *sql.DB, appl app.Application, host, scheme string, clock pub.Clock) (cryp *services.Crypto,
+func createModelsAndServices(c *config.Config, sqldb *sql.DB, d models.SqlDialect, appl app.Application, host, scheme string, clock pub.Clock) (cryp *services.Crypto,
 	data *services.Data,
 	dAttempts *services.DeliveryAttempts,
 	followers *services.Followers,
@@ -272,6 +273,7 @@ func createModelsAndServices(c *config.Config, sqldb *sql.DB, appl app.Applicati
 	pkeys *services.PrivateKeys,
 	users *services.Users,
 	nodeinfo *services.NodeInfo,
+	any *services.Any,
 	m []models.Model) {
 	us := &models.Users{}
 	fd := &models.FedData{}
@@ -380,6 +382,10 @@ func createModelsAndServices(c *config.Config, sqldb *sql.DB, appl app.Applicati
 		LocalData:        ld,
 		Rand:             rand.New(rand.NewSource(time.Now().UnixNano())),
 		CacheInvalidated: time.Second * time.Duration(c.NodeInfoConfig.AnonymizedStatsCacheInvalidatedSeconds),
+	}
+	any = &services.Any{
+		DB:      sqldb,
+		Dialect: d,
 	}
 	return
 }

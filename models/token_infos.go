@@ -212,7 +212,7 @@ func (t *TokenInfo) SetRefreshExpiresIn(s time.Duration) {
 	t.RefreshExpires.Valid = true
 }
 
-func (t *TokenInfo) scanFromSingleRow(r singleRow) error {
+func (t *TokenInfo) scanFromSingleRow(r SingleRow) error {
 	return r.Scan(&(t.ClientID),
 		&(t.UserID),
 		&(t.RedirectURI),
@@ -294,7 +294,7 @@ func (t *TokenInfos) Create(c util.Context, tx *sql.Tx, info oauth2.TokenInfo) (
 		return
 	}
 	defer rows.Close()
-	return id, enforceOneRow(rows, "TokenInfos.Create", func(r singleRow) error {
+	return id, enforceOneRow(rows, "TokenInfos.Create", func(r SingleRow) error {
 		return r.Scan(&(id))
 	})
 }
@@ -325,7 +325,7 @@ func (t *TokenInfos) GetByCode(c util.Context, tx *sql.Tx, code string) (oauth2.
 	}
 	defer rows.Close()
 	ti := &TokenInfo{}
-	return ti, enforceOneRow(rows, "TokenInfos.GetByCode", func(r singleRow) error {
+	return ti, enforceOneRow(rows, "TokenInfos.GetByCode", func(r SingleRow) error {
 		return ti.scanFromSingleRow(r)
 	})
 }
@@ -338,7 +338,7 @@ func (t *TokenInfos) GetByAccess(c util.Context, tx *sql.Tx, access string) (oau
 	}
 	defer rows.Close()
 	ti := &TokenInfo{}
-	return ti, enforceOneRow(rows, "TokenInfos.GetByAccess", func(r singleRow) error {
+	return ti, enforceOneRow(rows, "TokenInfos.GetByAccess", func(r SingleRow) error {
 		return ti.scanFromSingleRow(r)
 	})
 }
@@ -351,7 +351,7 @@ func (t *TokenInfos) GetByRefresh(c util.Context, tx *sql.Tx, refresh string) (o
 	}
 	defer rows.Close()
 	ti := &TokenInfo{}
-	return ti, enforceOneRow(rows, "TokenInfos.GetByRefresh", func(r singleRow) error {
+	return ti, enforceOneRow(rows, "TokenInfos.GetByRefresh", func(r SingleRow) error {
 		return ti.scanFromSingleRow(r)
 	})
 }

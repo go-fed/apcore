@@ -73,7 +73,7 @@ func (f *LocalData) Exists(c util.Context, tx *sql.Tx, id *url.URL) (exists bool
 		return
 	}
 	defer rows.Close()
-	err = enforceOneRow(rows, "LocalData.Exists", func(r singleRow) error {
+	err = enforceOneRow(rows, "LocalData.Exists", func(r SingleRow) error {
 		return r.Scan(&exists)
 	})
 	return
@@ -87,7 +87,7 @@ func (f *LocalData) Get(c util.Context, tx *sql.Tx, id *url.URL) (v ActivityStre
 		return
 	}
 	defer rows.Close()
-	err = enforceOneRow(rows, "LocalData.Get", func(r singleRow) error {
+	err = enforceOneRow(rows, "LocalData.Get", func(r SingleRow) error {
 		return r.Scan(&v)
 	})
 	return
@@ -123,7 +123,7 @@ func (f *LocalData) Stats(c util.Context, tx *sql.Tx) (la LocalDataActivity, err
 		return
 	}
 	defer rows.Close()
-	return la, enforceOneRow(rows, "LocalData.Stats", func(r singleRow) error {
+	return la, enforceOneRow(rows, "LocalData.Stats", func(r SingleRow) error {
 		return r.Scan(&(la.NLocalPosts), &(la.NLocalComments))
 	})
 }
