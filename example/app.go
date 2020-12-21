@@ -54,6 +54,16 @@ var _ app.Application = &App{}
 var _ app.S2SApplication = &App{}
 var _ app.C2SApplication = &App{}
 
+var fm template.FuncMap = map[string]interface{}{
+	"seq": func(n int) []int {
+		v := make([]int, n)
+		for i := 1; i <= n; i++ {
+			v[i-1] = i
+		}
+		return v
+	},
+}
+
 // App is an example application that minimally implements the
 // app.Application interface.
 type App struct {
@@ -64,7 +74,7 @@ type App struct {
 
 // newApplication creates a new App for the framework to use.
 func newApplication(glob string) (*App, error) {
-	t, err := template.ParseGlob(glob)
+	t, err := template.New("").Funcs(fm).ParseGlob(glob)
 	if err != nil {
 		return nil, err
 	}
