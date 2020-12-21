@@ -133,7 +133,7 @@ var knownUserPathQuery map[PathKey]string = map[PathKey]string{
 }
 
 var knownUserPathFragment map[PathKey]string = map[PathKey]string{
-	HttpSigPubKeyKey:      "public-httpsig",
+	HttpSigPubKeyKey: "public-httpsig",
 }
 
 type UUID string

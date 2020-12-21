@@ -41,11 +41,11 @@ type Framework struct {
 }
 
 func BuildFramework(fw *Framework,
-		o *oauth2.Server,
-		s *web.Sessions,
-		data *services.Data,
-		actor pub.Actor,
-		a app.Application) *Framework {
+	o *oauth2.Server,
+	s *web.Sessions,
+	data *services.Data,
+	actor pub.Actor,
+	a app.Application) *Framework {
 	_, isS2S := a.(app.S2SApplication)
 	fw.o = o
 	fw.s = s
