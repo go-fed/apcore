@@ -27,7 +27,6 @@ import (
 	"github.com/go-fed/apcore/app"
 	"github.com/go-fed/apcore/framework/oauth2"
 	"github.com/go-fed/apcore/framework/web"
-	oa2 "github.com/go-fed/oauth2"
 )
 
 var _ app.Framework = &Framework{}
@@ -48,8 +47,8 @@ func BuildFramework(fw *Framework, o *oauth2.Server, s *web.Sessions, actor pub.
 	return fw
 }
 
-func (f *Framework) ValidateOAuth2AccessToken(w http.ResponseWriter, r *http.Request) (token oa2.TokenInfo, authenticated bool, err error) {
-	return f.o.ValidateOAuth2AccessToken(w, r)
+func (f *Framework) Validate(w http.ResponseWriter, r *http.Request) (userID string, authenticated bool, err error) {
+	return f.o.Validate(w, r)
 }
 
 func (f *Framework) Send(c context.Context, outbox *url.URL, t vocab.Type) error {

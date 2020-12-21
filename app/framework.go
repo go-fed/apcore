@@ -22,24 +22,19 @@ import (
 	"net/url"
 
 	"github.com/go-fed/activity/streams/vocab"
-	"github.com/go-fed/oauth2"
 )
 
 // Framework provides request-time hooks for use in handlers.
 type Framework interface {
-	// ValidateOAuth2AccessToken attempts to obtain and validate the OAuth
-	// token presented in the request. This can be called in your handlers
+	// Validate attempts to obtain and validate the OAuth token or first
+	// party credential in the request. This can be called in your handlers
 	// at request-handing time.
 	//
 	// If an error is returned, both the token and authentication values
 	// should be ignored.
 	//
-	// It is possible a token is returned when the user has not passed
-	// authentication.
-	//
-	// You may use the token to further enforce the scope, depending on the
-	// application and handler's use case.
-	ValidateOAuth2AccessToken(w http.ResponseWriter, r *http.Request) (token oauth2.TokenInfo, authenticated bool, err error)
+	// TODO: Scopes
+	Validate(w http.ResponseWriter, r *http.Request) (userID string, authenticated bool, err error)
 
 	// Send will send an Activity or Object on behalf of the user
 	// represented by the outbox IRI.
