@@ -17,7 +17,6 @@
 package framework
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -27,6 +26,8 @@ import (
 	"github.com/go-fed/apcore/app"
 	"github.com/go-fed/apcore/framework/oauth2"
 	"github.com/go-fed/apcore/framework/web"
+	"github.com/go-fed/apcore/services"
+	"github.com/go-fed/apcore/util"
 )
 
 var _ app.Framework = &Framework{}
@@ -34,34 +35,46 @@ var _ app.Framework = &Framework{}
 type Framework struct {
 	o                 *oauth2.Server
 	s                 *web.Sessions
+	data              *services.Data
 	actor             pub.Actor
 	federationEnabled bool
 }
 
-func BuildFramework(fw *Framework, o *oauth2.Server, s *web.Sessions, actor pub.Actor, a app.Application) *Framework {
+func BuildFramework(fw *Framework,
+		o *oauth2.Server,
+		s *web.Sessions,
+		data *services.Data,
+		actor pub.Actor,
+		a app.Application) *Framework {
 	_, isS2S := a.(app.S2SApplication)
 	fw.o = o
 	fw.s = s
+	fw.data = data
 	fw.actor = actor
 	fw.federationEnabled = isS2S
 	return fw
 }
 
+// TODO: Validate returns an error when it is expired, so clear session.
 func (f *Framework) Validate(w http.ResponseWriter, r *http.Request) (userID string, authenticated bool, err error) {
 	return f.o.Validate(w, r)
 }
 
-func (f *Framework) Send(c context.Context, outbox *url.URL, t vocab.Type) error {
+func (f *Framework) Send(c util.Context, outbox *url.URL, t vocab.Type) error {
 	if !f.federationEnabled {
 		return fmt.Errorf("cannot Send: Framework.Send called when federation is not enabled")
 	} else if fa, ok := f.actor.(pub.FederatingActor); !ok {
 		return fmt.Errorf("cannot Send: pub.Actor is not a pub.FederatingActor with federation enabled")
 	} else {
-		_, err := fa.Send(c, outbox, t)
+		_, err := fa.Send(c.Context, outbox, t)
 		return err
 	}
 }
 
 func (f *Framework) Session(r *http.Request) (app.Session, error) {
 	return f.s.Get(r)
+}
+
+func (f *Framework) GetByIRI(c util.Context, id *url.URL) (vocab.Type, error) {
+	return f.data.Get(c, id)
 }

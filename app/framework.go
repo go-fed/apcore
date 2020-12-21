@@ -17,11 +17,11 @@
 package app
 
 import (
-	"context"
 	"net/http"
 	"net/url"
 
 	"github.com/go-fed/activity/streams/vocab"
+	"github.com/go-fed/apcore/util"
 )
 
 // Framework provides request-time hooks for use in handlers.
@@ -41,9 +41,12 @@ type Framework interface {
 	//
 	// Note that a new ID is not needed on the activity and/or objects that
 	// are being sent; they will be generated as needed.
-	Send(c context.Context, outbox *url.URL, toSend vocab.Type) error
+	Send(c util.Context, outbox *url.URL, toSend vocab.Type) error
 
 	Session(r *http.Request) (Session, error)
+
+	// TODO: Determine if we need this.
+	GetByIRI(c util.Context, id *url.URL) (vocab.Type, error)
 }
 
 type Session interface {
