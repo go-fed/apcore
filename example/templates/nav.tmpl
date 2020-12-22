@@ -5,8 +5,8 @@
 		<li><a href="{{.Href}}">{{.Name}}</a></li>
 		{{end}}
 		{{if .User}}
-		<li><a href="/logout">logout</a></li>
 		<li><a href="/notes/create">create</a></li>
+		<li><a href="/logout">logout</a></li>
 		<p>Hi, {{.User}}!</p>
 		{{else}}
 		<li><a href="/login">login</a></li>
