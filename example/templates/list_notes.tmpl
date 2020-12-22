@@ -9,7 +9,7 @@
 	</tr>
 	{{range $i, $n := .Other}}
 		<tr>
-			<td>{{$i}} {{$n.id}}</td>
+			<td>{{$i}} <a href="{{$n.id}}">{{$n.id}}</a></td>
 			<td>{{$n.summary}}</td>
 			<td>{{$n.content}}</td>
 		</tr>

@@ -1,0 +1,41 @@
+{{template "header.tmpl" .}}
+<h1>Note</h1>
+<table>
+	<tr>
+		<td>From:</td>
+		<td><a href="{{.Other.attributedTo}}">{{.Other.attributedTo}}</a></td>
+	</tr>
+	<tr>
+		<td>To:</td>
+		<td>
+		{{if isString .Other.to}}
+			<a href="{{.Other.to}}">{{.Other.to}}</a>
+		{{else}}
+			{{range $i, $v := .Other.to}}
+			<a href="{{$v}}">{{$v}}</a>
+			{{end}}
+		{{end}}
+		</td>
+	</tr>
+	<tr>
+		<td>CC:</td>
+		<td>
+		{{if isString .Other.cc}}
+			<a href="{{.Other.cc}}">{{.Other.cc}}</a>
+		{{else}}
+			{{range $i, $v := .Other.cc}}
+			<a href="{{$v}}">{{$v}}</a>
+			{{end}}
+		{{end}}
+		</td>
+	</tr>
+	<tr>
+		<td>Summary:</td>
+		<td>{{.Other.summary}}</td>
+	</tr>
+	<tr>
+		<td>Content:</td>
+		<td>{{.Other.content}}</td>
+	</tr>
+</table>
+{{template "footer.tmpl" .}}

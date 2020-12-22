@@ -50,6 +50,7 @@ const (
 	homeTemplate          = "home.tmpl"
 	createNoteTemplate    = "create_note.tmpl"
 	listNotesTemplate     = "list_notes.tmpl"
+	noteTemplate          = "note.tmpl"
 )
 
 var _ app.Application = &App{}
@@ -479,11 +480,58 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 	// the ActivityStreams data has proper credentials to view the web or
 	// ActivityStreams data.
 	authFn := func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
-		return true, nil
+		// Determine who, if any, is logged-in.
+		userID, authd, err := f.Validate(w, r)
+		if err != nil {
+			util.ErrorLogger.Errorf("error validating token/creds in GET /notes: %s", err)
+			// continue processing request as unauthenticated.
+		}
+		// TODO: Somehow not hardcode this
+		ctx := util.WithAPHTTPContext("http", "localhost", r)
+		noteID, err := ctx.CompleteRequestURL()
+		if err != nil {
+			util.ErrorLogger.Errorf("error sending when creating note: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		if err == nil && authd {
+			// TODO: fix this to not need scheme nor host
+			userIRI := paths.UUIDIRIFor("http", "localhost", paths.UserPathKey, paths.UUID(userID))
+			// Authenticated request
+			permit, err = getNoteIsReadable(ctx, db, noteID.String(), userIRI.String())
+		} else {
+			// Unauthenticated request
+			permit, err = getNoteIsPublic(ctx, db, noteID.String())
+		}
+		return
 	}
 	// Next, we use the auth function to protect the note.
 	r.ActivityPubAndWebHandleFunc("/notes/{note}", authFn, func(w http.ResponseWriter, r *http.Request) {
-		// TODO: View note in web page, if authorized.
+		// View note in web page.
+		s, err := f.Session(r)
+		if err != nil {
+			util.ErrorLogger.Errorf("Error getting session: %v", err)
+			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
+			return
+		}
+		// TODO: Somehow not hardcode this
+		ctx := util.WithAPHTTPContext("http", "localhost", r)
+		noteID, err := ctx.CompleteRequestURL()
+		if err != nil {
+			util.ErrorLogger.Errorf("error sending when creating note: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		vt, err := f.GetByIRI(ctx, noteID)
+		if err != nil {
+			util.ErrorLogger.Errorf("error fetching note: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		err = a.templates.ExecuteTemplate(w, noteTemplate, a.getTemplateData(s, vt))
+		if err != nil {
+			util.ErrorLogger.Errorf("Error serving note template: %v", err)
+		}
 	})
 	return nil
 }

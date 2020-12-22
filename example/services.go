@@ -136,3 +136,38 @@ ORDER BY create_time DESC`,
 	err = txb.Do(c)
 	return
 }
+
+func getNoteIsReadable(ctx util.Context, db app.Database, noteID, userID string) (legible /*lol*/ bool, err error) {
+	txb := db.Begin()
+	txb.Query(`SELECT EXISTS (
+SELECT create_time FROM %[1]slocal_data
+WHERE payload->>'type' = 'Note' AND (
+  payload->'to' ? 'https://www.w3.org/ns/activitystreams#Public'
+  OR payload->'cc' ? 'https://www.w3.org/ns/activitystreams#Public'
+  OR payload->>'attributedTo' = $2
+  OR payload->'to' ? $2
+  OR payload->'cc' ? $2)
+  AND payload->>'id' = $1)`,
+		func(r app.SingleRow) error {
+			return r.Scan(&legible)
+		},
+		noteID, userID)
+	err = txb.Do(ctx)
+	return
+}
+
+func getNoteIsPublic(ctx util.Context, db app.Database, noteID string) (pub bool, err error) {
+	txb := db.Begin()
+	txb.Query(`SELECT EXISTS (
+SELECT create_time FROM %[1]slocal_data
+WHERE payload->>'type' = 'Note' AND (
+  payload->'to' ? 'https://www.w3.org/ns/activitystreams#Public'
+  OR payload->'cc' ? 'https://www.w3.org/ns/activitystreams#Public')
+  AND payload->>'id' = $1)`,
+		func(r app.SingleRow) error {
+			return r.Scan(&pub)
+		},
+		noteID)
+	err = txb.Do(ctx)
+	return
+}
