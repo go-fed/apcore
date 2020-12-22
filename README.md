@@ -4,7 +4,7 @@
 
 *Under Construction*
 
-[![Build Status][Build-Status-Image]][Build-Status-Url] [![License][License-Image]][License-Url]
+[![Build Status][Build-Status-Image]][Build-Status-Url] [![License][License-Image]][License-Url] [![OpenCollective][OpenCollective-Image]][OpenCollective-Url]
 
 `go get github.com/go-fed/apcore`
 
@@ -69,3 +69,5 @@ See the documentation on the `Application` interface for specific details.
 [Build-Status-Url]: https://travis-ci.org/go-fed/apcore
 [License-Image]: https://img.shields.io/github/license/go-fed/apcore?color=blue
 [License-Url]: https://www.gnu.org/licenses/agpl-3.0.en.html
+[OpenCollective-Image]: https://img.shields.io/opencollective/backers/go-fed-activitypub-labs
+[OpenCollective-Url]: https://opencollective.com/go-fed-activitypub-labs
