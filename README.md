@@ -68,8 +68,8 @@ See the documentation on the `Application` interface for specific details.
 
 [Build-Status-Image]: https://travis-ci.org/go-fed/apcore.svg?branch=master
 [Build-Status-Url]: https://travis-ci.org/go-fed/apcore
-[Go-Reference-Image]: https://pkg.go.dev/badge/go-fed/apcore.svg
-[Go-Reference-Url]: https://pkg.go.dev/go-fed/apcore
+[Go-Reference-Image]: https://pkg.go.dev/badge/github.com/go-fed/apcore.svg
+[Go-Reference-Url]: https://pkg.go.dev/github.com/go-fed/apcore
 [License-Image]: https://img.shields.io/github/license/go-fed/apcore?color=blue
 [License-Url]: https://www.gnu.org/licenses/agpl-3.0.en.html
 [OpenCollective-Image]: https://img.shields.io/opencollective/backers/go-fed-activitypub-labs
