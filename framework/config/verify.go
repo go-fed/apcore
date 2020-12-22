@@ -90,7 +90,7 @@ func (c *DatabaseConfig) Verify() error {
 
 func (c *ActivityPubConfig) Verify() error {
 	if c.OutboundRateLimitQPS <= 0 {
-		return fmt.Errorf("ap_outbound_rate_limit_qps is zero or negative, which is forbidden: %d", c.OutboundRateLimitQPS)
+		return fmt.Errorf("ap_outbound_rate_limit_qps is zero or negative, which is forbidden: %g", c.OutboundRateLimitQPS)
 	}
 	if c.OutboundRateLimitBurst <= 0 {
 		return fmt.Errorf("ap_outbound_rate_limit_burst is zero or negative, which is forbidden: %d", c.OutboundRateLimitBurst)

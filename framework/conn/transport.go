@@ -285,12 +285,12 @@ func (t *transport) Deliver(c context.Context, b []byte, to *url.URL) (err error
 	if err = t.handleDeliverResponse(resp, to); err != nil {
 		err2 := t.tc.markFailure(uc, attemptId)
 		if err2 != nil {
-			err = fmt.Errorf("failed delivery and failed to mark as failure (%d): [%s, %s]", attemptId, err, err2)
+			err = fmt.Errorf("failed delivery and failed to mark as failure (%s): [%s, %s]", attemptId, err, err2)
 		}
 		return
 	}
 	if err = t.tc.markSuccess(uc, attemptId); err != nil {
-		err = fmt.Errorf("failed to mark delivery as successful (%d): %s", attemptId, err)
+		err = fmt.Errorf("failed to mark delivery as successful (%s): %s", attemptId, err)
 		return
 	}
 	return

@@ -2078,7 +2078,6 @@ func runUserModelUpdatePrivileges(ctx util.Context, db *sql.DB, id string) error
 }
 
 func runUserModelInstanceActor(ctx util.Context, db *sql.DB) (s *models.User, err error) {
-	var id string
 	err = doWithTx(ctx, db, func(tx *sql.Tx) error {
 		cu := &models.CreateUser{
 			Email:       "",
@@ -2088,7 +2087,7 @@ func runUserModelInstanceActor(ctx util.Context, db *sql.DB) (s *models.User, er
 			Privileges:  models.Privileges{InstanceActor: true},
 			Preferences: models.Preferences{},
 		}
-		id, err = users.Create(ctx, tx, cu)
+		_, err = users.Create(ctx, tx, cu)
 		return err
 	})
 	if err != nil {
