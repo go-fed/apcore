@@ -1,6 +1,10 @@
 # apcore
 
+> Server framework for quickly building ActivityPub applications
+
 *Under Construction*
+
+[![Build Status][Build-Status-Image]][Build-Status-Url]
 
 `go get github.com/go-fed/apcore`
 
@@ -60,3 +64,6 @@ reduces the cost of building a *federated* application:
 The most work is in the first step, as your application logic is able to live as
 functional closures as the `Application` is used within the `apcore` framework.
 See the documentation on the `Application` interface for specific details.
+
+[Build-Status-Image]: https://travis-ci.org/go-fed/apcore.svg?branch=master
+[Build-Status-Url]: https://travis-ci.org/go-fed/apcore
