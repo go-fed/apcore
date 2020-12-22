@@ -4,8 +4,9 @@
 
 *Under Construction*
 
-[![Build Status][Build-Status-Image]][Build-Status-Url] [![Go-Reference][Go-Reference-Image]][Go-Reference-Url]
-[![License][License-Image]][License-Url] [![OpenCollective][OpenCollective-Image]][OpenCollective-Url]
+[![Build Status][Build-Status-Image]][Build-Status-Url] [![Go Reference][Go-Reference-Image]][Go-Reference-Url]
+[![Go Report Card][Go-Report-Card-Image]][Go-Report-Card-Url] [![License][License-Image]][License-Url]
+[![OpenCollective][OpenCollective-Image]][OpenCollective-Url]
 
 `go get github.com/go-fed/apcore`
 
@@ -70,6 +71,8 @@ See the documentation on the `Application` interface for specific details.
 [Build-Status-Url]: https://travis-ci.org/go-fed/apcore
 [Go-Reference-Image]: https://pkg.go.dev/badge/github.com/go-fed/apcore.svg
 [Go-Reference-Url]: https://pkg.go.dev/github.com/go-fed/apcore
+[Go-Report-Card-Image]: https://goreportcard.com/badge/github.com/go-fed/apcore
+[Go-Report-Card-Url]: https://goreportcard.com/report/github.com/go-fed/apcore
 [License-Image]: https://img.shields.io/github/license/go-fed/apcore?color=blue
 [License-Url]: https://www.gnu.org/licenses/agpl-3.0.en.html
 [OpenCollective-Image]: https://img.shields.io/opencollective/backers/go-fed-activitypub-labs
