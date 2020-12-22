@@ -150,6 +150,12 @@ func (d *Data) Create(c util.Context, v vocab.Type) (err error) {
 	if err != nil {
 		return
 	}
+	// Prevent multiple delivery of the same data from creating
+	// multiple copies of the same data.
+	exists, err := d.Exists(c, iri)
+	if err != nil || exists {
+		return
+	}
 	if d.Owns(iri) {
 		err = doInTx(c, d.DB, func(tx *sql.Tx) error {
 			return d.LocalData.Create(c, tx, models.ActivityStreams{v})
