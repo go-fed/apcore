@@ -1,5 +1,14 @@
 {{template "header.tmpl" .}}
 <h1>Inbox</h1>
+<p>These activity links should 404 because they are accessible as
+ActivityStreams content but not as web page content. This is to
+showcase this framework feature. It is not a limitation, as a
+developer could instead decide to support rendering it as a webpage.
+I just choose not to do so for activities in this demo app.
+For example, to verify the data is available to federated peers, you
+can run:
+<pre>curl $ID -H "Accept: application/activity+json"</pre>
+Which will fetch the content as ActivityStreams data.</p>
 <table>
 	<tr>
 		<th>Activity</th>
@@ -19,4 +28,14 @@
 	{{end}}
 {{end}}
 </table>
+{{if .Other.prev}}
+<p><a href="{{.Other.prev}}">Prev</a></p>
+{{else}}
+<p>Prev</p>
+{{end}}
+{{if .Other.next}}
+<p><a href="{{.Other.next}}">Next</a></p>
+{{else}}
+<p>Next</p>
+{{end}}
 {{template "footer.tmpl" .}}
