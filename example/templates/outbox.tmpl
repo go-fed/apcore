@@ -5,11 +5,17 @@
 		<th>Activity</th>
 	</tr>
 {{$root := .}}
-{{range $i, $_ := (seq .Other.ActivityStreamsOrderedItems.Len)}}
-	{{with ($root.Other.ActivityStreamsOrderedItems.At $i)}}
+{{if isString .Other.orderedItems}}
 	<tr>
-		<td><a href="{{.GetIRI}}">{{.GetIRI}}</a></td>
+		<td><a href="{{.Other.orderedItems}}">{{.Other.orderedItems}}</a></td>
 	</tr>
+{{else}}
+	{{range $i, $_ := seq (len .Other.orderedItems)}}
+		{{with (index $root.Other.orderedItems $i)}}
+		<tr>
+			<td><a href="{{.}}">{{.}}</a></td>
+		</tr>
+		{{end}}
 	{{end}}
 {{end}}
 </table>

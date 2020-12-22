@@ -49,6 +49,7 @@ const (
 	listUsersTemplate     = "list_users.tmpl"
 	homeTemplate          = "home.tmpl"
 	createNoteTemplate    = "create_note.tmpl"
+	listNotesTemplate     = "list_notes.tmpl"
 )
 
 var _ app.Application = &App{}
@@ -62,6 +63,10 @@ var fm template.FuncMap = map[string]interface{}{
 			v[i-1] = i
 		}
 		return v
+	},
+	"isString": func(i interface{}) bool {
+		_, ok := i.(string)
+		return ok
 	},
 }
 
@@ -322,11 +327,41 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 	})
 	// You can use familiar mux methods to route requests appropriately.
 	//
-	// Finally, add a handler for the new ActivityStream Notes we will
-	// be creating.
+	// Add a handler listing the latest notes we are allowed to see:
+	// 1) Local public.
+	// 2) Ones we have published.
+	// 3) Ones with us in the 'to' or 'cc'.
 	r.NewRoute().Path("/notes").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// TODO: View list of existing public (and maybe private) notes
-		// with pagination.
+		s, err := f.Session(r)
+		if err != nil {
+			util.ErrorLogger.Errorf("Error getting session: %v", err)
+			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
+			return
+		}
+		// View list of existing public (and maybe private) notes with
+		// pagination.
+		userID, authd, err := f.Validate(w, r)
+		if err != nil {
+			util.ErrorLogger.Errorf("error validating token/creds in GET /notes: %s", err)
+			// continue processing request as unauthenticated.
+		}
+		var notes []vocab.Type
+		if err != nil || !authd {
+			notes, err = getLatestPublicNotes(r.Context(), db)
+		} else {
+			// TODO: fix this to not need scheme nor host
+			userIRI := paths.UUIDIRIFor("http", "localhost", paths.UserPathKey, paths.UUID(userID))
+			notes, err = getLatestNotesAndMyPrivateNotes(r.Context(), db, userIRI.String())
+		}
+		if err != nil {
+			util.ErrorLogger.Errorf("error getting notes: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		err = a.templates.ExecuteTemplate(w, listNotesTemplate, a.getTemplateData(s, notes))
+		if err != nil {
+			util.ErrorLogger.Errorf("Error serving list notes template: %v", err)
+		}
 	})
 	// Next, a webpage to handle creating, updating, and deleting notes.
 	// This is NOT via C2S, but is done natively in our application.
@@ -547,7 +582,27 @@ func (a *App) DefaultAdminPrivileges() interface{} {
 // This is a helper function to generate common data needed in the web
 // templates.
 func (a *App) getTemplateData(s app.Session, other interface{}) map[string]interface{} {
-	// TODO: serialize other if it is vocab.Type into JSON
+	if vt, ok := other.(vocab.Type); ok {
+		svt, err := streams.Serialize(vt)
+		if err == nil {
+			other = svt
+		} else {
+			util.ErrorLogger.Errorf("error serializing ActivityStreams for rendering: %s", err)
+		}
+	}
+	if vts, ok := other.([]vocab.Type); ok {
+		var svts []map[string]interface{}
+		for _, vt := range vts {
+			svt, err := streams.Serialize(vt)
+			if err == nil {
+				svts = append(svts, svt)
+			} else {
+				util.ErrorLogger.Errorf("error serializing ActivityStreams for rendering: %s", err)
+			}
+		}
+		other = svts
+	}
+
 	m := map[string]interface{}{
 		"Other": other,
 		"Nav": []struct {
@@ -561,6 +616,10 @@ func (a *App) getTemplateData(s app.Session, other interface{}) map[string]inter
 			{
 				Href: "/users",
 				Name: "users",
+			},
+			{
+				Href: "/notes",
+				Name: "notes",
 			},
 		},
 	}

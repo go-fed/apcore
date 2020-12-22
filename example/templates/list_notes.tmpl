@@ -1,0 +1,21 @@
+{{template "header.tmpl" .}}
+<h1>Notes</h1>
+{{if gt (len .Other) 0}}
+<table>
+	<tr>
+		<th>ID</th>
+		<th>Summary</th>
+		<th>Content</th>
+	</tr>
+	{{range $i, $n := .Other}}
+		<tr>
+			<td>{{$i}} {{$n.id}}</td>
+			<td>{{$n.summary}}</td>
+			<td>{{$n.content}}</td>
+		</tr>
+	{{end}}
+</table>
+{{else}}
+<p>No notes to see</p>
+{{end}}
+{{template "footer.tmpl" .}}

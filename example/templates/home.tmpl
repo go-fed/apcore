@@ -12,9 +12,9 @@
 		</tr>
 	{{range $i, $n := .Other}}
 		<tr>
-			<td>{{$i}} {{($n.GetActivityStreamsAttributedTo.At 0).GetIRI}}</td>
-			<td>{{($n.GetActivityStreamsSummary.At 0).GetXMLSchemaString}}</td>
-			<td>{{($n.GetActivityStreamsContent.At 0).GetXMLSchemaString}}</td>
+			<td>{{$i}} {{$n.id}}</td>
+			<td>{{$n.summary}}</td>
+			<td>{{$n.content}}</td>
 		</tr>
 	{{end}}
 		</table>

@@ -8,9 +8,9 @@
 	</tr>
 {{range $i, $u := .Other}}
 	<tr>
-		<td>{{$u.GetActivityStreamsName.Begin.GetXMLSchemaString}}</td>
-		<td>{{$u.GetActivityStreamsPreferredUsername.GetXMLSchemaString}}</td>
-		<td><a href="{{$u.GetJSONLDId.Get}}">{{$u.GetJSONLDId.Get}}</a></td>
+		<td>{{$u.name}}</td>
+		<td>{{$u.preferredUsername}}</td>
+		<td><a href="{{$u.id}}">{{$u.id}}</a></td>
 	</tr>
 {{end}}
 </table>

@@ -26,7 +26,69 @@ import (
 	"github.com/go-fed/apcore/util"
 )
 
-func getLatestPublicNotes(ctx context.Context, db app.Database) (notes []vocab.ActivityStreamsNote, err error) {
+func getLatestPublicNotes(ctx context.Context, db app.Database) (notes []vocab.Type, err error) {
+	return getNotes(ctx, db, `WITH local_notes AS(
+  SELECT payload, create_time FROM %[1]slocal_data
+  WHERE payload->>'type' = 'Note' AND (
+    payload->'to' ? 'https://www.w3.org/ns/activitystreams#Public'
+    OR payload->'cc' ? 'https://www.w3.org/ns/activitystreams#Public')
+), fed_notes AS (
+  SELECT payload, create_time FROM %[1]sfed_data
+  WHERE payload->>'type' = 'Note' AND (
+    payload->'to' ? 'https://www.w3.org/ns/activitystreams#Public'
+    OR payload->'cc' ? 'https://www.w3.org/ns/activitystreams#Public')
+), unioned AS (
+SELECT payload, create_time FROM local_notes
+UNION
+SELECT payload, create_time FROM fed_notes
+), deduped AS (
+  SELECT
+    DISTINCT ON (payload->'id') payload,
+    create_time
+  FROM unioned
+  ORDER BY payload->'id'
+)
+SELECT payload FROM deduped
+ORDER BY create_time DESC
+LIMIT 10`)
+}
+
+func getLatestNotesAndMyPrivateNotes(ctx context.Context, db app.Database, userIRI string) (notes []vocab.Type, err error) {
+	return getNotes(ctx, db, `WITH local_notes AS(
+  SELECT payload, create_time FROM %[1]slocal_data
+  WHERE payload->>'type' = 'Note' AND (
+    payload->'to' ? 'https://www.w3.org/ns/activitystreams#Public'
+    OR payload->'cc' ? 'https://www.w3.org/ns/activitystreams#Public'
+    OR payload->>'attributedTo' = $1
+    OR payload->'to' ? $1
+    OR payload->'cc' ? $1)
+), fed_notes AS (
+  SELECT payload, create_time FROM %[1]sfed_data
+  WHERE payload->>'type' = 'Note' AND (
+    payload->'to' ? 'https://www.w3.org/ns/activitystreams#Public'
+    OR payload->'cc' ? 'https://www.w3.org/ns/activitystreams#Public'
+    OR payload->>'attributedTo' = $1
+    OR payload->'to' ? $1
+    OR payload->'cc' ? $1)
+), unioned AS (
+SELECT payload, create_time FROM local_notes
+UNION
+SELECT payload, create_time FROM fed_notes
+), deduped AS (
+  SELECT
+    DISTINCT ON (payload->'id') payload,
+    create_time
+  FROM unioned
+  ORDER BY payload->'id'
+)
+SELECT payload
+FROM deduped
+ORDER BY create_time DESC
+LIMIT 10`,
+		userIRI)
+}
+
+func getNotes(ctx context.Context, db app.Database, sql string, data ...interface{}) (notes []vocab.Type, err error) {
 	c := util.Context{ctx}
 	var rz *streams.TypeResolver
 	rz, err = streams.NewTypeResolver(func(c context.Context, note vocab.ActivityStreamsNote) error {
@@ -37,23 +99,20 @@ func getLatestPublicNotes(ctx context.Context, db app.Database) (notes []vocab.A
 		return
 	}
 	txb := db.Begin()
-	txb.Query(`SELECT payload FROM %[1]slocal_data
-WHERE payload->>'type' = 'Note' AND (
-  payload->'to' ? 'https://www.w3.org/ns/activitystreams#Public'
-  OR payload->'cc' ? 'https://www.w3.org/ns/activitystreams#Public')
-ORDER BY create_time DESC LIMIT 10`,
+	txb.Query(sql,
 		func(r app.SingleRow) error {
 			var v models.ActivityStreams
 			if err := r.Scan(&v); err != nil {
 				return err
 			}
 			return rz.Resolve(c.Context, v.Type)
-		})
+		},
+		data...)
 	err = txb.Do(c)
 	return
 }
 
-func getUsers(ctx context.Context, db app.Database) (ppl []vocab.ActivityStreamsPerson, err error) {
+func getUsers(ctx context.Context, db app.Database) (ppl []vocab.Type, err error) {
 	c := util.Context{ctx}
 	var rz *streams.TypeResolver
 	rz, err = streams.NewTypeResolver(func(c context.Context, pn vocab.ActivityStreamsPerson) error {

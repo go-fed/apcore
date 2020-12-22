@@ -1,9 +1,15 @@
 {{template "header.tmpl" .}}
 <h1>Followers</h1>
 <ul>
-{{range $i := (seq .Other.ActivityStreamsItems.Len)}}
-	{{with (.Other.ActivityStreamsItems.At $i)}}
-	<li>{{.GetIRI}}</li>
+{{if isString .Other.items}}
+	<tr>
+		<td><a href="{{.Other.items}}">{{.Other.items}}</a></td>
+	</tr>
+{{else}}
+	{{range $i := seq (len .Other.items)}}
+		{{with (index .Other.items $i)}}
+		<li>{{.}}</li>
+		{{end}}
 	{{end}}
 {{end}}
 </ul>
