@@ -4,7 +4,7 @@
 
 *Under Construction*
 
-[![Build Status][Build-Status-Image]][Build-Status-Url]
+[![Build Status][Build-Status-Image]][Build-Status-Url] [![License][License-Image]][License-Url]
 
 `go get github.com/go-fed/apcore`
 
@@ -67,3 +67,5 @@ See the documentation on the `Application` interface for specific details.
 
 [Build-Status-Image]: https://travis-ci.org/go-fed/apcore.svg?branch=master
 [Build-Status-Url]: https://travis-ci.org/go-fed/apcore
+[License-Image]: https://img.shields.io/github/license/go-fed/apcore?color=blue
+[License-Url]: https://www.gnu.org/licenses/agpl-3.0.en.html
