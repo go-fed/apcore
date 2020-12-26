@@ -203,16 +203,25 @@ func (o *Server) Validate(w http.ResponseWriter, r *http.Request) (userID string
 	}
 	var uid string
 	_, uid, auth, err = o.ValidateFirstPartyProxyAccessToken(util.Context{r.Context()}, sn)
-	if err != nil {
-		return
-	} else if auth {
+	if err == nil && auth {
 		userID = uid
+		return
+	} else if err != nil {
+		sn.Clear()
+		if err2 := sn.Save(r, w); err2 != nil {
+			err = fmt.Errorf("error: %s; while handing validation error: %w", err2, err)
+		}
 		return
 	}
 	var ti oauth2.TokenInfo
 	ti, auth, err = o.ValidateOAuth2AccessToken(w, r)
 	if err == nil && auth {
 		userID = ti.GetUserID()
+	} else {
+		sn.Clear()
+		if err2 := sn.Save(r, w); err2 != nil {
+			err = fmt.Errorf("error: %s; while handing validation error: %w", err2, err)
+		}
 	}
 	return
 }
@@ -332,8 +341,7 @@ func (o *Server) RemoveFirstPartyProxyAccessToken(w http.ResponseWriter, r *http
 		return err
 	}
 	if auth {
-		sn.DeleteFirstPartyCredentialID()
-		sn.DeleteUserID()
+		sn.Clear()
 		if err = sn.Save(r, w); err != nil {
 			return err
 		}

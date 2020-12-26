@@ -135,6 +135,11 @@ func (s *Session) DeleteFirstPartyCredentialID() {
 	delete(s.gs.Values, firstPartyCredentialKey)
 }
 
+func (s *Session) Clear() {
+	s.DeleteUserID()
+	s.DeleteFirstPartyCredentialID()
+}
+
 func (s *Session) Save(r *http.Request, w http.ResponseWriter) error {
 	return s.gs.Save(r, w)
 }

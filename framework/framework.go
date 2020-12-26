@@ -70,7 +70,6 @@ func (f *Framework) UserIRI(userUUID paths.UUID) *url.URL {
 	return paths.UUIDIRIFor(f.scheme, f.host, paths.UserPathKey, userUUID)
 }
 
-// TODO: Validate returns an error when it is expired, so clear session.
 func (f *Framework) Validate(w http.ResponseWriter, r *http.Request) (userID paths.UUID, authenticated bool, err error) {
 	var suID string
 	suID, authenticated, err = f.o.Validate(w, r)
