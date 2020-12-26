@@ -350,8 +350,7 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 		if err != nil || !authd {
 			notes, err = getLatestPublicNotes(r.Context(), db)
 		} else {
-			// TODO: fix this to not need scheme nor host
-			userIRI := paths.UUIDIRIFor("http", "localhost", paths.UserPathKey, paths.UUID(userID))
+			userIRI := f.UserIRI(userID)
 			notes, err = getLatestNotesAndMyPrivateNotes(r.Context(), db, userIRI.String())
 		}
 		if err != nil {
@@ -402,8 +401,6 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			http.Redirect(w, r, "/login", http.StatusFound)
 			return
 		}
-		// TODO: fix this to not need scheme nor host
-		outboxURI := paths.UUIDIRIFor("http", "localhost", paths.OutboxPathKey, paths.UUID(userID))
 		if r.Form == nil {
 			err = r.ParseForm()
 			if err != nil {
@@ -464,11 +461,9 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 		contentProp := streams.NewActivityStreamsContentProperty()
 		contentProp.AppendXMLSchemaString(content)
 		note.SetActivityStreamsContent(contentProp)
-		// TODO: Document that we MUST set the UserPath in the context.
 		ctx := util.Context{r.Context()}
-		ctx.WithUserPathUUID(paths.UUID(userID))
 		// Send the note -- a Create will automatically be created
-		if err := f.Send(ctx, outboxURI, note); err != nil {
+		if err := f.Send(ctx, paths.UUID(userID), note); err != nil {
 			util.ErrorLogger.Errorf("error sending when creating note: %s", err)
 			internalErrorHandler.ServeHTTP(w, r)
 			return
@@ -486,8 +481,7 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			util.ErrorLogger.Errorf("error validating token/creds in GET /notes: %s", err)
 			// continue processing request as unauthenticated.
 		}
-		// TODO: Somehow not hardcode this
-		ctx := util.WithAPHTTPContext("http", "localhost", r)
+		ctx := f.Context(r)
 		noteID, err := ctx.CompleteRequestURL()
 		if err != nil {
 			util.ErrorLogger.Errorf("error sending when creating note: %s", err)
@@ -495,13 +489,12 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			return
 		}
 		if err == nil && authd {
-			// TODO: fix this to not need scheme nor host
-			userIRI := paths.UUIDIRIFor("http", "localhost", paths.UserPathKey, paths.UUID(userID))
+			userIRI := f.UserIRI(userID)
 			// Authenticated request
-			permit, err = getNoteIsReadable(ctx, db, noteID.String(), userIRI.String())
+			permit, err = getNoteIsReadable(ctx, db, noteID, userIRI)
 		} else {
 			// Unauthenticated request
-			permit, err = getNoteIsPublic(ctx, db, noteID.String())
+			permit, err = getNoteIsPublic(ctx, db, noteID)
 		}
 		return
 	}
@@ -514,8 +507,7 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
 			return
 		}
-		// TODO: Somehow not hardcode this
-		ctx := util.WithAPHTTPContext("http", "localhost", r)
+		ctx := f.Context(r)
 		noteID, err := ctx.CompleteRequestURL()
 		if err != nil {
 			util.ErrorLogger.Errorf("error sending when creating note: %s", err)

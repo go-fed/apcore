@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"net/url"
 
 	"github.com/go-fed/activity/streams"
 	"github.com/go-fed/activity/streams/vocab"
@@ -137,7 +138,7 @@ ORDER BY create_time DESC`,
 	return
 }
 
-func getNoteIsReadable(ctx util.Context, db app.Database, noteID, userID string) (legible /*lol*/ bool, err error) {
+func getNoteIsReadable(ctx util.Context, db app.Database, noteID, userID *url.URL) (legible /*lol*/ bool, err error) {
 	txb := db.Begin()
 	txb.Query(`SELECT EXISTS (
 SELECT create_time FROM %[1]slocal_data
@@ -151,12 +152,12 @@ WHERE payload->>'type' = 'Note' AND (
 		func(r app.SingleRow) error {
 			return r.Scan(&legible)
 		},
-		noteID, userID)
+		noteID.String(), userID.String())
 	err = txb.Do(ctx)
 	return
 }
 
-func getNoteIsPublic(ctx util.Context, db app.Database, noteID string) (pub bool, err error) {
+func getNoteIsPublic(ctx util.Context, db app.Database, noteID *url.URL) (pub bool, err error) {
 	txb := db.Begin()
 	txb.Query(`SELECT EXISTS (
 SELECT create_time FROM %[1]slocal_data
@@ -167,7 +168,7 @@ WHERE payload->>'type' = 'Note' AND (
 		func(r app.SingleRow) error {
 			return r.Scan(&pub)
 		},
-		noteID)
+		noteID.String())
 	err = txb.Do(ctx)
 	return
 }

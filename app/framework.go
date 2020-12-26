@@ -21,11 +21,16 @@ import (
 	"net/url"
 
 	"github.com/go-fed/activity/streams/vocab"
+	"github.com/go-fed/apcore/paths"
 	"github.com/go-fed/apcore/util"
 )
 
 // Framework provides request-time hooks for use in handlers.
 type Framework interface {
+	Context(r *http.Request) util.Context
+
+	UserIRI(userUUID paths.UUID) *url.URL
+
 	// Validate attempts to obtain and validate the OAuth token or first
 	// party credential in the request. This can be called in your handlers
 	// at request-handing time.
@@ -34,14 +39,13 @@ type Framework interface {
 	// should be ignored.
 	//
 	// TODO: Scopes
-	Validate(w http.ResponseWriter, r *http.Request) (userID string, authenticated bool, err error)
+	Validate(w http.ResponseWriter, r *http.Request) (userID paths.UUID, authenticated bool, err error)
 
-	// Send will send an Activity or Object on behalf of the user
-	// represented by the outbox IRI.
+	// Send will send an Activity or Object on behalf of the user.
 	//
 	// Note that a new ID is not needed on the activity and/or objects that
 	// are being sent; they will be generated as needed.
-	Send(c util.Context, outbox *url.URL, toSend vocab.Type) error
+	Send(c util.Context, userID paths.UUID, toSend vocab.Type) error
 
 	Session(r *http.Request) (Session, error)
 
