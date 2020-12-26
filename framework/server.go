@@ -46,7 +46,6 @@ type Server struct {
 	httpServer  *http.Server
 	httpsServer *http.Server
 	ss          []StartStopper
-	debug       bool // TODO: http only, no https
 }
 
 func NewInsecureServer(c *config.Config, h http.Handler, a app.Application, sqldb *sql.DB, d models.SqlDialect, models []models.Model, ss []StartStopper) (s *Server, err error) {
