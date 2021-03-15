@@ -18,11 +18,20 @@ package config
 
 // Overall configuration file structure
 type Config struct {
+	UnmappdConfig     UnmappdConfig     `ini:"unmappd" comment:"Unmappd server configuration"`
 	ServerConfig      ServerConfig      `ini:"server" comment:"HTTP server configuration"`
 	OAuthConfig       OAuth2Config      `ini:"oauth" comment:"OAuth 2 configuration"`
 	DatabaseConfig    DatabaseConfig    `ini:"database" comment:"Database configuration"`
 	ActivityPubConfig ActivityPubConfig `ini:"activitypub" comment:"ActivityPub configuration"`
 	NodeInfoConfig    NodeInfoConfig    `ini:"nodeinfo" comment:"NodeInfo configuration"`
+}
+
+type UnmappdConfig struct {
+	RedirectURL  string `ini:"redirect_url" comment:"To which endpoint should untappd redirect for authentication?"`
+	ClientID     string `ini:"client_id" comment:"The client ID of the untappd API"`
+	ClientSecret string `ini:"client_secret" comment:"The client secret of the untappd API"`
+	Debug        bool   `ini:"debug" comment:"Set debugging mode for the unmappd application server"`
+	Worker       bool   `ini:"worker" comment:"Enable or disable unmappd background worker"`
 }
 
 // Configuration section specifically for the HTTP server.
