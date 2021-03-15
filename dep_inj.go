@@ -198,7 +198,7 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 	ss := []framework.StartStopper{tc, oauth}
 
 	// Build web server to control server behavior
-	if debug {
+	if debug || c.ServerConfig.Proxy {
 		s, err = framework.NewInsecureServer(c, h, appl, sqldb, dialect, models, ss)
 	} else {
 		s, err = framework.NewHTTPSServer(c, h, appl, sqldb, dialect, models, ss)

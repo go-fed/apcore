@@ -54,15 +54,21 @@ Let's go!`)))
 	if err != nil {
 		return
 	}
-	c.ServerConfig.CertFile, err = promptString(
-		"Enter the path to the file containing the certificate used in HTTPS connections")
+	c.ServerConfig.Proxy, err = promptYN("Will the application server run behind a proxy?")
 	if err != nil {
 		return
 	}
-	c.ServerConfig.KeyFile, err = promptString(
-		"Enter the path to the file containing the private key for the certificate used in HTTPS connections")
-	if err != nil {
-		return
+	if !c.ServerConfig.Proxy {
+		c.ServerConfig.CertFile, err = promptString(
+			"Enter the path to the file containing the certificate used in HTTPS connections")
+		if err != nil {
+			return
+		}
+		c.ServerConfig.KeyFile, err = promptString(
+			"Enter the path to the file containing the private key for the certificate used in HTTPS connections")
+		if err != nil {
+			return
+		}
 	}
 	c.ServerConfig.StaticRootDirectory, err = promptStringWithDefault(
 		"Enter the directory for serving static content (WARNING: Everything in it will be served)?",

@@ -44,10 +44,10 @@ func (c *ServerConfig) Verify() error {
 	if len(c.Host) == 0 {
 		return errors.New("sr_host is empty, but it is required")
 	}
-	if len(c.CertFile) == 0 {
+	if len(c.CertFile) == 0 && !c.Proxy {
 		return errors.New("sr_cert_file is empty, but it is required")
 	}
-	if len(c.KeyFile) == 0 {
+	if len(c.KeyFile) == 0 && !c.Proxy {
 		return errors.New("sr_key_file is empty, but it is required")
 	}
 	if len(c.CookieAuthKeyFile) == 0 {
