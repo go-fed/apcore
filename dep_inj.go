@@ -92,10 +92,15 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 	// Create an HTTP client for this server.
 	httpClient := framework.NewHTTPClient(c)
 
+	proxyScheme := scheme
+	if c.ServerConfig.Proxy {
+		proxyScheme = "http"
+	}
+
 	// ** Initialize the ActivityPub behavior **
 
 	// Create a RoutingDatabase
-	db := ap.NewDatabase(scheme,
+	db := ap.NewDatabase(proxyScheme,
 		c,
 		inboxes,
 		outboxes,
@@ -152,11 +157,6 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 	getAuthWebHandler := appl.GetAuthWebHandlerFunc(fw)
 	getLoginWebHandler := appl.GetLoginWebHandlerFunc(fw)
 
-	routerScheme := scheme
-	if c.ServerConfig.Proxy {
-		routerScheme = "http"
-	}
-
 	// Build a specialized AP-aware router for managing and routing HTTP requests.
 	r := framework.NewRouter(
 		mr,
@@ -166,7 +166,7 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 		clock,
 		apdb,
 		host,
-		routerScheme,
+		proxyScheme,
 		internalErrorHandler,
 		badRequestHandler)
 
