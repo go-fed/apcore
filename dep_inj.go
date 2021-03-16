@@ -44,6 +44,10 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 
 	host := c.ServerConfig.Host
 	scheme := schemeFromFlags()
+	proxyScheme := scheme
+	if c.ServerConfig.Proxy {
+		proxyScheme = "http"
+	}
 
 	// Create a server clock, a pub.Clock
 	clock, err := ap.NewClock(c.ActivityPubConfig.ClockTimezone)
@@ -78,7 +82,7 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 	internalErrorHandler := appl.InternalServerErrorHandler(fw)
 
 	// Prepare web sessions behavior
-	sess, err := web.NewSessions(c, scheme)
+	sess, err := web.NewSessions(c, proxyScheme)
 	if err != nil {
 		return
 	}
@@ -92,15 +96,10 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 	// Create an HTTP client for this server.
 	httpClient := framework.NewHTTPClient(c)
 
-	proxyScheme := scheme
-	if c.ServerConfig.Proxy {
-		proxyScheme = "http"
-	}
-
 	// ** Initialize the ActivityPub behavior **
 
 	// Create a RoutingDatabase
-	db := ap.NewDatabase(proxyScheme,
+	db := ap.NewDatabase(scheme,
 		c,
 		inboxes,
 		outboxes,
