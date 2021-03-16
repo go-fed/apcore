@@ -152,6 +152,11 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 	getAuthWebHandler := appl.GetAuthWebHandlerFunc(fw)
 	getLoginWebHandler := appl.GetLoginWebHandlerFunc(fw)
 
+	routerScheme := scheme
+	if c.ServerConfig.Proxy {
+		routerScheme = "http"
+	}
+
 	// Build a specialized AP-aware router for managing and routing HTTP requests.
 	r := framework.NewRouter(
 		mr,
@@ -161,7 +166,7 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 		clock,
 		apdb,
 		host,
-		scheme,
+		routerScheme,
 		internalErrorHandler,
 		badRequestHandler)
 
