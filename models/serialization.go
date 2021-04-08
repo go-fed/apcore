@@ -84,6 +84,9 @@ func enforceOneRow(r *sql.Rows, debugname string, fn func(r SingleRow) error) er
 		}
 		n++
 	}
+	if n == 0 {
+		return fmt.Errorf("%s: zero database rows retrieved when enforcing one row", debugname)
+	}
 	return r.Err()
 }
 
