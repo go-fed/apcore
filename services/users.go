@@ -188,7 +188,7 @@ func (u *Users) createUser(c util.Context,
 	u.muCheck.Lock()
 	defer u.muCheck.Unlock()
 	return userID, doInTx(c, u.DB, func(tx *sql.Tx) error {
-		err = u.checkUserConstraints(c, tx, prefUsername, roles)
+		err = u.checkUserConstraints(c, tx, email, prefUsername, roles)
 		if err != nil {
 			return err
 		}
@@ -265,11 +265,28 @@ func (u *Users) createUser(c util.Context,
 //
 // WARNING: Requires muCheck to be maintained throughout the life of the
 // transaction.
-func (u *Users) checkUserConstraints(c util.Context, tx *sql.Tx, prefUsername string, priv models.Privileges) error {
-	if err := u.checkPreferredUsernameUnique(c, tx, prefUsername); err != nil {
+func (u *Users) checkUserConstraints(c util.Context, tx *sql.Tx, email, prefUsername string, priv models.Privileges) error {
+	if err := u.checkEmailAddressUnique(c, tx, email); err != nil {
+		return err
+	} else if err := u.checkPreferredUsernameUnique(c, tx, prefUsername); err != nil {
 		return err
 	} else if err = u.checkNotDuplicateInstanceUser(c, tx, priv); err != nil {
 		return err
+	}
+	return nil
+}
+
+// checkEmailAddressUnique ensures the email address is unique for
+// authentication purposes.
+//
+// WARNING: Requires muCheck to be maintained throughout the life of the
+// transaction.
+func (u *Users) checkEmailAddressUnique(c util.Context, tx *sql.Tx, email string) error {
+	user, err := u.Users.SensitiveUserByEmail(c, tx, email)
+	if err != nil {
+		return err
+	} else if user != nil {
+		return errors.New("user does not have a unique email address")
 	}
 	return nil
 }
