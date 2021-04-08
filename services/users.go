@@ -340,10 +340,12 @@ func (u *Users) UserByUsername(c util.Context, name string) (s *User, err error)
 		if err != nil {
 			return err
 		}
-		s = &User{
-			ID:    a.ID,
-			Email: a.Email,
-			Actor: vocab.Type(a.Actor),
+		if a != nil {
+			s = &User{
+				ID:    a.ID,
+				Email: a.Email,
+				Actor: vocab.Type(a.Actor),
+			}
 		}
 		return nil
 	})
@@ -356,10 +358,12 @@ func (u *Users) UserByID(c util.Context, id paths.UUID) (s *User, err error) {
 		if err != nil {
 			return err
 		}
-		s = &User{
-			ID:    a.ID,
-			Email: a.Email,
-			Actor: a.Actor.Type,
+		if a != nil {
+			s = &User{
+				ID:    a.ID,
+				Email: a.Email,
+				Actor: a.Actor.Type,
+			}
 		}
 		return nil
 	})
