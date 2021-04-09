@@ -41,6 +41,9 @@ func (c *Crypto) Valid(ctx util.Context, email, pass string) (uuid string, valid
 		su, err = c.Users.SensitiveUserByEmail(ctx, tx, email)
 		return err
 	})
+	if su == nil && err == nil {
+		err = fmt.Errorf("crypto valid: no records found for given mail address: %s", email)
+	}
 	if err != nil {
 		return
 	}
