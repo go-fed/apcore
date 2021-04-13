@@ -267,15 +267,19 @@ func (a ActivityStreams) SanitizeContentSummaryHTML() {
 	if ct, ok := a.Type.(unsafeContent); ok {
 		p := bluemonday.UGCPolicy()
 		summary := ct.GetActivityStreamsSummary()
-		for iter := summary.Begin(); iter != summary.End(); iter = iter.Next() {
-			if iter.IsXMLSchemaString() {
-				iter.SetXMLSchemaString(p.Sanitize(iter.GetXMLSchemaString()))
+		if summary != nil && !summary.Empty() {
+			for iter := summary.Begin(); iter != summary.End(); iter = iter.Next() {
+				if iter.IsXMLSchemaString() {
+					iter.SetXMLSchemaString(p.Sanitize(iter.GetXMLSchemaString()))
+				}
 			}
 		}
 		content := ct.GetActivityStreamsContent()
-		for iter := content.Begin(); iter != content.End(); iter = iter.Next() {
-			if iter.IsXMLSchemaString() {
-				iter.SetXMLSchemaString(p.Sanitize(iter.GetXMLSchemaString()))
+		if content != nil && !content.Empty() {
+			for iter := content.Begin(); iter != content.End(); iter = iter.Next() {
+				if iter.IsXMLSchemaString() {
+					iter.SetXMLSchemaString(p.Sanitize(iter.GetXMLSchemaString()))
+				}
 			}
 		}
 	}
