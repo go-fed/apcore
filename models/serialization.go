@@ -30,6 +30,7 @@ import (
 	"github.com/go-fed/activity/streams"
 	"github.com/go-fed/activity/streams/vocab"
 	"github.com/go-fed/apcore/app"
+	"github.com/microcosm-cc/bluemonday"
 )
 
 // Marshal takes any ActivityStreams type and serializes it to JSON.
@@ -254,6 +255,30 @@ var _ sql.Scanner = &ActivityStreams{nil}
 // knows how to serialize and deserialize itself for SQL database drivers.
 type ActivityStreams struct {
 	vocab.Type
+}
+
+func (a ActivityStreams) SanitizeContentSummaryHTML() {
+	type unsafeContent interface{
+		GetActivityStreamsSummary() vocab.ActivityStreamsSummaryProperty
+		GetActivityStreamsContent() vocab.ActivityStreamsContentProperty
+		SetActivityStreamsSummary(vocab.ActivityStreamsSummaryProperty)
+		SetActivityStreamsContent(vocab.ActivityStreamsContentProperty)
+	}
+	if ct, ok := a.Type.(unsafeContent); ok {
+		p := bluemonday.UGCPolicy()
+		summary := ct.GetActivityStreamsSummary()
+		for iter := summary.Begin(); iter != summary.End(); iter = iter.Next() {
+			if iter.IsXMLSchemaString() {
+				iter.SetXMLSchemaString(p.Sanitize(iter.GetXMLSchemaString()))
+			}
+		}
+		content := ct.GetActivityStreamsContent()
+		for iter := content.Begin(); iter != content.End(); iter = iter.Next() {
+			if iter.IsXMLSchemaString() {
+				iter.SetXMLSchemaString(p.Sanitize(iter.GetXMLSchemaString()))
+			}
+		}
+	}
 }
 
 func (a ActivityStreams) Value() (driver.Value, error) {

@@ -92,12 +92,14 @@ func (f *FedData) Get(c util.Context, tx *sql.Tx, id *url.URL) (v ActivityStream
 
 // Create inserts the federated data into the table.
 func (f *FedData) Create(c util.Context, tx *sql.Tx, v ActivityStreams) error {
+	v.SanitizeContentSummaryHTML()
 	r, err := tx.Stmt(f.fedCreate).ExecContext(c, v)
 	return mustChangeOneRow(r, err, "FedData.Create")
 }
 
 // Update replaces the federated data for the specified IRI.
 func (f *FedData) Update(c util.Context, tx *sql.Tx, fedIDIRI *url.URL, v ActivityStreams) error {
+	v.SanitizeContentSummaryHTML()
 	r, err := tx.Stmt(f.fedUpdate).ExecContext(c, fedIDIRI.String(), v)
 	return mustChangeOneRow(r, err, "FedData.Update")
 }
