@@ -44,6 +44,9 @@ func (c *ServerConfig) Verify() error {
 	if len(c.Host) == 0 {
 		return errors.New("sr_host is empty, but it is required")
 	}
+	if c.HttpsPort == 0 {
+		return errors.New("sr_https_port is empty, but it is required")
+	}
 	if len(c.CertFile) == 0 {
 		return errors.New("sr_cert_file is empty, but it is required")
 	}

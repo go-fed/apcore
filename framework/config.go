@@ -48,6 +48,7 @@ func defaultConfig(dbkind string) (c *config.Config, err error) {
 
 func defaultServerConfig() config.ServerConfig {
 	return config.ServerConfig{
+		HttpsPort:      443,
 		CookieMaxAge:   86400,
 		SaltSize:       32,
 		BCryptStrength: bcrypt.DefaultCost,

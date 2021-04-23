@@ -28,6 +28,7 @@ type Config struct {
 // Configuration section specifically for the HTTP server.
 type ServerConfig struct {
 	Host                        string `ini:"sr_host" comment:"(required) Host with TLD for this instance (basically, the fully qualified domain or subdomain); ignored in debug mode"`
+	HttpsPort                   int    `ini:"sr_https_port" comment:"(default: 443) Port to serve HTTPS requests on"`
 	CertFile                    string `ini:"sr_cert_file" comment:"(required) Path to the certificate file used to establish TLS connections for HTTPS"`
 	KeyFile                     string `ini:"sr_key_file" comment:"(required) Path to the private key file used to establish TLS connections for HTTPS"`
 	CookieAuthKeyFile           string `ini:"sr_cookie_auth_key_file" comment:"(required) Path to private key file used for cookie authentication"`

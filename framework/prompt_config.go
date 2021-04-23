@@ -54,6 +54,11 @@ Let's go!`)))
 	if err != nil {
 		return
 	}
+	c.ServerConfig.HttpsPort, err = promptIntWithDefault(
+		"Enter the port to serve HTTPS requests on", 443)
+	if err != nil {
+		return
+	}
 	c.ServerConfig.CertFile, err = promptString(
 		"Enter the path to the file containing the certificate used in HTTPS connections")
 	if err != nil {
