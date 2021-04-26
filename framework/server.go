@@ -74,7 +74,7 @@ func NewHTTPSServer(c *config.Config, h http.Handler, a app.Application, sqldb *
 	// Prepare HTTPS server. No option to run the server as HTTP in prod,
 	// because we're living in the future.
 	httpsServer := &http.Server{
-		Addr:         ":https",
+		Addr:         fmt.Sprintf(":%d", c.ServerConfig.HttpsPort),
 		Handler:      h,
 		ReadTimeout:  time.Duration(c.ServerConfig.HttpsReadTimeoutSeconds) * time.Second,
 		WriteTimeout: time.Duration(c.ServerConfig.HttpsWriteTimeoutSeconds) * time.Second,
