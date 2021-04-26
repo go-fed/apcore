@@ -218,12 +218,12 @@ func PromptServerProfile(scheme, host string) (sp services.ServerPreferences, er
 		return
 	}
 	sp.OrgContact, err = promptString(
-		"Please enter the name of the organization's contact for this server. This may be made avialable to the public")
+		"Please enter the name of the organization's contact for this server. This may be made available to the public")
 	if err != nil {
 		return
 	}
 	sp.OrgAccount, err = promptString(
-		"Please enter an account contact information (username, webfinger address, email address, etc) for the organization's contact for this server. This may be made avialable to the public")
+		"Please enter an account contact information (username, webfinger address, email address, etc) for the organization's contact for this server. This may be made available to the public")
 	if err != nil {
 		return
 	}

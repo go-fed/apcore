@@ -42,7 +42,7 @@ If you have a domain name and certificate for that domain name, you can run this
 example application using that domain name to test federation with other
 instances.
 
-This application is meant to be a proof-of-concept, exmaple, or a base for other
+This application is meant to be a proof-of-concept, example, or a base for other
 applications, and *not* a permanent production server. **To enforce this, it will
 terminate itself after being up for one hour.**
 
