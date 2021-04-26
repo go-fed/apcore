@@ -95,12 +95,14 @@ func (f *LocalData) Get(c util.Context, tx *sql.Tx, id *url.URL) (v ActivityStre
 
 // Create inserts the local data into the table.
 func (f *LocalData) Create(c util.Context, tx *sql.Tx, v ActivityStreams) error {
+	v.SanitizeContentSummaryHTML()
 	r, err := tx.Stmt(f.localCreate).ExecContext(c, v)
 	return mustChangeOneRow(r, err, "LocalData.Create")
 }
 
 // Update replaces the local data for the specified IRI.
 func (f *LocalData) Update(c util.Context, tx *sql.Tx, localIDIRI *url.URL, v ActivityStreams) error {
+	v.SanitizeContentSummaryHTML()
 	r, err := tx.Stmt(f.localUpdate).ExecContext(c, localIDIRI.String(), v)
 	return mustChangeOneRow(r, err, "LocalData.Update")
 }
