@@ -45,7 +45,21 @@ type Framework interface {
 	//
 	// Note that a new ID is not needed on the activity and/or objects that
 	// are being sent; they will be generated as needed.
+	//
+	// Calling Send when federation is disabled results in an error.
 	Send(c util.Context, userID paths.UUID, toSend vocab.Type) error
+
+	// SendAcceptFollow accepts the provided Follow on behalf of the user.
+	//
+	// Calling SendAcceptFollow when federation is disabled results in an
+	// error.
+	SendAcceptFollow(c util.Context, userID paths.UUID, followIRI *url.URL) error
+
+	// SendRejectFollow rejects the provided Follow on behalf of the user.
+	//
+	// Calling SendRejectFollow when federation is disabled results in an
+	// error.
+	SendRejectFollow(c util.Context, userID paths.UUID, followIRI *url.URL) error
 
 	Session(r *http.Request) (Session, error)
 

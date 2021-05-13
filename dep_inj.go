@@ -142,7 +142,15 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 	// ** Initialize the Web Server **
 
 	// Build framework for auxiliary behaviors
-	fw = framework.BuildFramework(scheme, host, fw, oauth, sess, data, actor, appl)
+	fw = framework.BuildFramework(scheme,
+		host,
+		fw,
+		oauth,
+		sess,
+		data,
+		followers,
+		actor,
+		appl)
 
 	// Obtain a normal router and fallback web handlers.
 	mr := mux.NewRouter()

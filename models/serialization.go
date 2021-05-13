@@ -258,7 +258,7 @@ type ActivityStreams struct {
 }
 
 func (a ActivityStreams) SanitizeContentSummaryHTML() {
-	type unsafeContent interface{
+	type unsafeContent interface {
 		GetActivityStreamsSummary() vocab.ActivityStreamsSummaryProperty
 		GetActivityStreamsContent() vocab.ActivityStreamsContentProperty
 		SetActivityStreamsSummary(vocab.ActivityStreamsSummaryProperty)

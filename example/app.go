@@ -35,22 +35,24 @@ import (
 )
 
 const (
-	notFoundTemplate      = "not_found.tmpl"
-	notAllowedTemplate    = "not_allowed.tmpl"
-	internalErrorTemplate = "internal_error.tmpl"
-	badRequestTemplate    = "bad_request.tmpl"
-	loginTemplate         = "login.tmpl"
-	authTemplate          = "auth.tmpl"
-	inboxTemplate         = "inbox.tmpl"
-	outboxTemplate        = "outbox.tmpl"
-	followersTemplate     = "followers.tmpl"
-	followingTemplate     = "following.tmpl"
-	userTemplate          = "user.tmpl"
-	listUsersTemplate     = "list_users.tmpl"
-	homeTemplate          = "home.tmpl"
-	createNoteTemplate    = "create_note.tmpl"
-	listNotesTemplate     = "list_notes.tmpl"
-	noteTemplate          = "note.tmpl"
+	notFoundTemplate         = "not_found.tmpl"
+	notAllowedTemplate       = "not_allowed.tmpl"
+	internalErrorTemplate    = "internal_error.tmpl"
+	badRequestTemplate       = "bad_request.tmpl"
+	loginTemplate            = "login.tmpl"
+	authTemplate             = "auth.tmpl"
+	inboxTemplate            = "inbox.tmpl"
+	outboxTemplate           = "outbox.tmpl"
+	followersTemplate        = "followers.tmpl"
+	followingTemplate        = "following.tmpl"
+	userTemplate             = "user.tmpl"
+	listUsersTemplate        = "list_users.tmpl"
+	homeTemplate             = "home.tmpl"
+	createNoteTemplate       = "create_note.tmpl"
+	listNotesTemplate        = "list_notes.tmpl"
+	noteTemplate             = "note.tmpl"
+	followersRequestTemplate = "followers_request.tmpl"
+	followingCreateTemplate  = "following_create.tmpl"
 )
 
 var _ app.Application = &App{}
@@ -284,11 +286,12 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 	// web content available; no ActivityStreams content exists at this
 	// endpoint.
 	//
-	// It is sugar for Path(...).HandlerFunc(...)
+	// It is syntactic sugar for Path(...).HandlerFunc(...)
 	r.WebOnlyHandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		s, err := f.Session(r)
 		if err != nil {
 			util.ErrorLogger.Errorf("Error getting session: %v", err)
+			// TODO: Use internalErrorHandler instead
 			a.InternalServerErrorHandler(f).ServeHTTP(w, r)
 			return
 		}
@@ -326,12 +329,15 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 	r.ActivityPubOnlyHandleFunc("/activities/{activity}", func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
 		return true, nil
 	})
+
+	/* Additional web handlers for Note ActivityStreams types */
+
 	// You can use familiar mux methods to route requests appropriately.
 	//
 	// Add a handler listing the latest notes we are allowed to see:
-	// 1) Local public.
-	// 2) Ones we have published.
-	// 3) Ones with us in the 'to' or 'cc'.
+	// 1) Public notes.
+	// 2) Ones a user has published themselves.
+	// 3) Ones a user is in the 'to' or 'cc' of.
 	r.NewRoute().Path("/notes").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s, err := f.Session(r)
 		if err != nil {
@@ -363,7 +369,7 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			util.ErrorLogger.Errorf("Error serving list notes template: %v", err)
 		}
 	})
-	// Next, a webpage to handle creating, updating, and deleting notes.
+	// Next, a webpage to handle creating notes.
 	// This is NOT via C2S, but is done natively in our application.
 	r.NewRoute().Path("/notes/create").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s, err := f.Session(r)
@@ -525,6 +531,117 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			util.ErrorLogger.Errorf("Error serving note template: %v", err)
 		}
 	})
+
+	/* Followers */
+
+	// These are pages that require a user to be signed-in to manage their
+	// followers.
+	r.NewRoute().Path("/followers/requests").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, authd, err := f.Validate(w, r)
+		if err != nil {
+			util.ErrorLogger.Errorf("error validating oauth2 token in GET /followers/requests: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		if !authd {
+			// TODO: Better redirection.
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+		s, err := f.Session(r)
+		if err != nil {
+			util.ErrorLogger.Errorf("Error getting session: %v", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		// TODO: Get all follower requests.
+		err = a.templates.ExecuteTemplate(w, followersRequestTemplate, a.getTemplateData(s, nil))
+		if err != nil {
+			util.ErrorLogger.Errorf("Error serving follower request template: %v", err)
+		}
+	})
+	r.NewRoute().Path("/followers/requests").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userID, authd, err := f.Validate(w, r)
+		if err != nil {
+			util.ErrorLogger.Errorf("error validating oauth2 token in POST /followers/requests: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		if !authd {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+		err = r.ParseForm()
+		if err != nil {
+			badRequestHandler.ServeHTTP(w, r)
+			return
+		}
+		ctx := util.Context{r.Context()}
+		var followID *url.URL // TODO
+		action := r.Form.Get("action")
+		if action == "accept" {
+			err = f.SendAcceptFollow(ctx, userID, followID)
+		} else if action == "reject" {
+			err = f.SendRejectFollow(ctx, userID, followID)
+		} else {
+			util.ErrorLogger.Errorf("missing accept/reject follow parameter")
+			badRequestHandler.ServeHTTP(w, r)
+			return
+		}
+		if err != nil {
+			util.ErrorLogger.Errorf("error sending when sending accept/reject follow: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		http.Redirect(w, r, "/followers/requests", http.StatusFound)
+	})
+
+	/* Following */
+
+	// These are pages that require a user to be signed-in to manage who
+	// they wish to follow.
+	r.NewRoute().Path("/following/create").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, authd, err := f.Validate(w, r)
+		if err != nil {
+			util.ErrorLogger.Errorf("error validating oauth2 token in GET /following/create: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		if !authd {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+		s, err := f.Session(r)
+		if err != nil {
+			util.ErrorLogger.Errorf("Error getting session: %v", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		// TODO: Get any data
+		err = a.templates.ExecuteTemplate(w, followingCreateTemplate, a.getTemplateData(s, nil))
+		if err != nil {
+			util.ErrorLogger.Errorf("Error serving follower request template: %v", err)
+		}
+	})
+	r.NewRoute().Path("/following/create").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, authd, err := f.Validate(w, r)
+		if err != nil {
+			util.ErrorLogger.Errorf("error validating oauth2 token in POST /following/create: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		if !authd {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+		// TODO: Implement
+	})
+
+	/* We could do something similar for "liked" as we did above for
+	"following" or "followers", but we made the choice not to expose the
+	"liked" collection at all, so we will just not introduce thtat concept
+	at all. */
+
 	return nil
 }
 
