@@ -836,4 +836,11 @@ type SqlDialect interface {
 	//   RefrCreated time.Time
 	//   RefrExpires time.Duration
 	GetTokenInfoForCredentialID() string
+
+	// GetOpenFollowRequests
+	//  Params
+	//   ID          string
+	//  Returns (Multiple)
+	//   Payload     []byte
+	GetOpenFollowRequests() string
 }

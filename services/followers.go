@@ -96,3 +96,18 @@ func (f *Followers) GetAllForActor(c util.Context, actor *url.URL) (col vocab.Ac
 	})
 	return
 }
+
+func (f *Followers) OpenFollowRequests(c util.Context, actorIRI *url.URL) (r []vocab.ActivityStreamsFollow, err error) {
+	err = doInTx(c, f.DB, func(tx *sql.Tx) error {
+		var fs []models.ActivityStreamsFollow
+		fs, err = f.Followers.OpenFollowRequests(c, tx, actorIRI)
+		if err != nil {
+			return err
+		}
+		for _, v := range fs {
+			r = append(r, v.ActivityStreamsFollow)
+		}
+		return err
+	})
+	return
+}

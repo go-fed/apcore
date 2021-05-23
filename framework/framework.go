@@ -101,6 +101,10 @@ func (f *Framework) GetByIRI(c util.Context, id *url.URL) (vocab.Type, error) {
 	return f.data.Get(c, id)
 }
 
+func (f *Framework) OpenFollowRequests(c util.Context, userID paths.UUID) ([]vocab.ActivityStreamsFollow, error) {
+	return f.followers.OpenFollowRequests(c, f.UserIRI(userID))
+}
+
 func (f *Framework) SendAcceptFollow(ctx util.Context, userID paths.UUID, followIRI *url.URL) error {
 	myIRI := f.UserIRI(userID)
 

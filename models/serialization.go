@@ -471,6 +471,35 @@ func (a *ActivityStreamsCollectionPage) Scan(src interface{}) error {
 	return res.Resolve(context.Background(), m)
 }
 
+var _ driver.Valuer = ActivityStreamsFollow{nil}
+var _ sql.Scanner = &ActivityStreamsFollow{nil}
+
+// ActivityStreamsFollow is a wrapper around the ActivityStreams
+// type that also knows how to serialize and deserialize itself for SQL database
+// drivers.
+type ActivityStreamsFollow struct {
+	vocab.ActivityStreamsFollow
+}
+
+func (a ActivityStreamsFollow) Value() (driver.Value, error) {
+	return Marshal(a)
+}
+
+func (a *ActivityStreamsFollow) Scan(src interface{}) error {
+	var m map[string]interface{}
+	if err := unmarshal(src, &m); err != nil {
+		return err
+	}
+	res, err := streams.NewJSONResolver(func(ctx context.Context, oc vocab.ActivityStreamsFollow) error {
+		a.ActivityStreamsFollow = oc
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return res.Resolve(context.Background(), m)
+}
+
 var _ driver.Valuer = NullDuration{}
 var _ sql.Scanner = &NullDuration{}
 

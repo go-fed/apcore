@@ -27,14 +27,15 @@ var _ Model = &Followers{}
 
 // Followers is a Model that provides additional database methods for Followers.
 type Followers struct {
-	insert           *sql.Stmt
-	containsForActor *sql.Stmt
-	contains         *sql.Stmt
-	get              *sql.Stmt
-	getLastPage      *sql.Stmt
-	prependItem      *sql.Stmt
-	deleteItem       *sql.Stmt
-	getAllForActor   *sql.Stmt
+	insert                *sql.Stmt
+	containsForActor      *sql.Stmt
+	contains              *sql.Stmt
+	get                   *sql.Stmt
+	getLastPage           *sql.Stmt
+	prependItem           *sql.Stmt
+	deleteItem            *sql.Stmt
+	getAllForActor        *sql.Stmt
+	getOpenFollowRequests *sql.Stmt
 }
 
 func (i *Followers) Prepare(db *sql.DB, s SqlDialect) error {
@@ -48,6 +49,7 @@ func (i *Followers) Prepare(db *sql.DB, s SqlDialect) error {
 			{&(i.prependItem), s.PrependFollowersItem()},
 			{&(i.deleteItem), s.DeleteFollowersItem()},
 			{&(i.getAllForActor), s.GetAllFollowersForActor()},
+			{&(i.getOpenFollowRequests), s.GetOpenFollowRequests()},
 		})
 }
 
@@ -154,5 +156,21 @@ func (i *Followers) GetAllForActor(c util.Context, tx *sql.Tx, followers *url.UR
 	defer rows.Close()
 	return col, enforceOneRow(rows, "Followers.GetAllForActor", func(r SingleRow) error {
 		return r.Scan(&col)
+	})
+}
+
+func (i *Followers) OpenFollowRequests(c util.Context, tx *sql.Tx, actorIRI *url.URL) (f []ActivityStreamsFollow, err error) {
+	var rows *sql.Rows
+	rows, err = tx.Stmt(i.getOpenFollowRequests).QueryContext(c, actorIRI.String())
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	return f, doForRows(rows, "Followers.OpenFollowRequests", func(r SingleRow) error {
+		var follow ActivityStreamsFollow
+		if err := r.Scan(&follow); err == nil {
+			f = append(f, follow)
+		}
+		return err
 	})
 }

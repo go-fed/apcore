@@ -1419,3 +1419,37 @@ INNER JOIN ` + p.schema + `oauth_tokens AS ti
 ON fpc.token_id = ti.id
 WHERE fpc.id = $1`
 }
+
+func (p *pgV0) GetOpenFollowRequests() string {
+	return `WITH follows_received AS (
+  SELECT payload
+  FROM ` + p.schema + `local_data
+  WHERE payload->'type' ? 'Follow'
+    AND payload->'object' ? $1
+  UNION
+  SELECT payload
+  FROM ` + p.schema + `fed_data
+  WHERE payload->'type' ? 'Follow'
+    AND payload->'object' ? $1
+),
+accept_reject_follows AS (
+  SELECT
+    payload,
+    COALESCE(payload->'object'->>'id', payload->>'object') AS ap_id
+  FROM ` + p.schema + `local_data
+  WHERE payload->'type' ? 'Accept'
+    AND payload->'actor' ? $1
+  UNION
+  SELECT
+    payload,
+    COALESCE(payload->'object'->>'id', payload->>'object') AS ap_id
+  FROM ` + p.schema + `local_data
+  WHERE payload->'type' ? 'Reject'
+    AND payload->'actor' ? $1
+)
+SELECT fr.payload
+FROM follows_received AS fr
+LEFT JOIN accept_reject_follows AS arf
+ON arf.ap_id = fr.payload->>'id'
+WHERE arf IS NULL`
+}

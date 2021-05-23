@@ -537,7 +537,7 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 	// These are pages that require a user to be signed-in to manage their
 	// followers.
 	r.NewRoute().Path("/followers/requests").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, authd, err := f.Validate(w, r)
+		userID, authd, err := f.Validate(w, r)
 		if err != nil {
 			util.ErrorLogger.Errorf("error validating oauth2 token in GET /followers/requests: %s", err)
 			internalErrorHandler.ServeHTTP(w, r)
@@ -554,7 +554,14 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			internalErrorHandler.ServeHTTP(w, r)
 			return
 		}
-		// TODO: Get all follower requests.
+		ctx := f.Context(r)
+		// TODO: use follow requests
+		_, err = f.OpenFollowRequests(ctx, userID)
+		if err != nil {
+			util.ErrorLogger.Errorf("Error getting follow requests: %v", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
 		err = a.templates.ExecuteTemplate(w, followersRequestTemplate, a.getTemplateData(s, nil))
 		if err != nil {
 			util.ErrorLogger.Errorf("Error serving follower request template: %v", err)

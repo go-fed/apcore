@@ -606,6 +606,48 @@ func runFollowersCalls(ctx util.Context, db *sql.DB) error {
 	} else {
 		fmt.Printf("> JSON:\n%s\n", pb)
 	}
+	ofr, err := runOpenFollowRequestsNone(ctx, db)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("> OpenFollowRequests (None): %s\n", ofr)
+	if len(ofr) > 0 {
+		fmt.Println("FAIL: Expected none, got:")
+	}
+	for i, v := range ofr {
+		if pb, err := toJSON(v); err != nil {
+			return err
+		} else {
+			fmt.Printf("> JSON[%d]:\n%s\n", i, pb)
+		}
+	}
+	ofr, err = runOpenFollowRequestsAllAcceptedOrRejected(ctx, db)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("> OpenFollowRequests (Accepted/Rejected): %s\n", ofr)
+	if len(ofr) > 0 {
+		fmt.Println("FAIL: Expected none, got:")
+	}
+	for i, v := range ofr {
+		if pb, err := toJSON(v); err != nil {
+			return err
+		} else {
+			fmt.Printf("> JSON[%d]:\n%s\n", i, pb)
+		}
+	}
+	ofr, err = runOpenFollowRequests(ctx, db)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("> OpenFollowRequests: %s\n", ofr)
+	for i, v := range ofr {
+		if pb, err := toJSON(v); err != nil {
+			return err
+		} else {
+			fmt.Printf("> JSON[%d]:\n%s\n", i, pb)
+		}
+	}
 	return nil
 }
 
@@ -683,6 +725,62 @@ func runFollowersDeleteItem(ctx util.Context, db *sql.DB) error {
 func runFollowersGetAllForActor(ctx util.Context, db *sql.DB) (p models.ActivityStreamsCollection, err error) {
 	err = doWithTx(ctx, db, func(tx *sql.Tx) error {
 		p, err = followers.GetAllForActor(ctx, tx, mustParse(testActor2IRI))
+		return err
+	})
+	return
+}
+
+func runOpenFollowRequestsNone(ctx util.Context, db *sql.DB) (f []models.ActivityStreamsFollow, err error) {
+	err = doWithTx(ctx, db, func(tx *sql.Tx) error {
+		f, err = followers.OpenFollowRequests(ctx, tx, mustParse(testActor1IRI))
+		return err
+	})
+	return
+}
+
+func runOpenFollowRequestsAllAcceptedOrRejected(ctx util.Context, db *sql.DB) (f []models.ActivityStreamsFollow, err error) {
+	if err = doWithTx(ctx, db, func(tx *sql.Tx) error {
+		if err := fedData.Create(ctx, tx, models.ActivityStreams{testFollow1Actor2}); err != nil {
+			return err
+		} else if err := fedData.Create(ctx, tx, models.ActivityStreams{testFollow2Actor2}); err != nil {
+			return err
+		} else if err := localData.Create(ctx, tx, models.ActivityStreams{testFollow3Actor2}); err != nil {
+			return err
+		} else if err := localData.Create(ctx, tx, models.ActivityStreams{testFollow4Actor2}); err != nil {
+			return err
+		} else if err := localData.Create(ctx, tx, models.ActivityStreams{testAcceptFollowActor2}); err != nil {
+			return err
+		} else if err := localData.Create(ctx, tx, models.ActivityStreams{testRejectFollowActor2}); err != nil {
+			return err
+		} else if err := localData.Create(ctx, tx, models.ActivityStreams{testAcceptLocalFollowActor2}); err != nil {
+			return err
+		} else if err := localData.Create(ctx, tx, models.ActivityStreams{testRejectLocalFollowActor2}); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return
+	}
+	err = doWithTx(ctx, db, func(tx *sql.Tx) error {
+		f, err = followers.OpenFollowRequests(ctx, tx, mustParse(testActor2IRI))
+		return err
+	})
+	return
+}
+
+func runOpenFollowRequests(ctx util.Context, db *sql.DB) (f []models.ActivityStreamsFollow, err error) {
+	if err = doWithTx(ctx, db, func(tx *sql.Tx) error {
+		if err := fedData.Create(ctx, tx, models.ActivityStreams{testFollow5Actor2}); err != nil {
+			return err
+		} else if err := localData.Create(ctx, tx, models.ActivityStreams{testFollow6Actor2}); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return
+	}
+	err = doWithTx(ctx, db, func(tx *sql.Tx) error {
+		f, err = followers.OpenFollowRequests(ctx, tx, mustParse(testActor2IRI))
 		return err
 	})
 	return

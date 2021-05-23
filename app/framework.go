@@ -65,6 +65,10 @@ type Framework interface {
 
 	// TODO: Determine if we need this.
 	GetByIRI(c util.Context, id *url.URL) (vocab.Type, error)
+
+	// Given a user ID, retrieves all follow requests that have not yet been
+	// Accepted nor Rejected.
+	OpenFollowRequests(c util.Context, userID paths.UUID) ([]vocab.ActivityStreamsFollow, error)
 }
 
 type Session interface {

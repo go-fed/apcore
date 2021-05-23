@@ -26,30 +26,40 @@ import (
 )
 
 var (
-	testActor1          models.ActivityStreams
-	testActor1Inbox     models.ActivityStreamsOrderedCollection
-	testActor2Inbox     models.ActivityStreamsOrderedCollection
-	testActor3Inbox     models.ActivityStreamsOrderedCollection
-	testActor1Outbox    models.ActivityStreamsOrderedCollection
-	testActor2Outbox    models.ActivityStreamsOrderedCollection
-	testActor3Outbox    models.ActivityStreamsOrderedCollection
-	testActivity1       vocab.ActivityStreamsMove     // Federated
-	testActivity2       vocab.ActivityStreamsCreate   // Federated
-	testActivity3       vocab.ActivityStreamsListen   // Federated
-	testActivity4       vocab.ActivityStreamsActivity // Local
-	testActivity5       vocab.ActivityStreamsTravel   // Local
-	testActivity6       vocab.ActivityStreamsAccept   // Local
-	testActivity7       vocab.ActivityStreamsListen   // Federated, Public
-	testActivity8       vocab.ActivityStreamsAccept   // Local, Public
-	testActor1Followers models.ActivityStreamsCollection
-	testActor2Followers models.ActivityStreamsCollection
-	testActor3Followers models.ActivityStreamsCollection
-	testActor1Following models.ActivityStreamsCollection
-	testActor2Following models.ActivityStreamsCollection
-	testActor3Following models.ActivityStreamsCollection
-	testActor1Liked     models.ActivityStreamsCollection
-	testActor2Liked     models.ActivityStreamsCollection
-	testActor3Liked     models.ActivityStreamsCollection
+	testActor1                  models.ActivityStreams
+	testActor1Inbox             models.ActivityStreamsOrderedCollection
+	testActor2Inbox             models.ActivityStreamsOrderedCollection
+	testActor3Inbox             models.ActivityStreamsOrderedCollection
+	testActor1Outbox            models.ActivityStreamsOrderedCollection
+	testActor2Outbox            models.ActivityStreamsOrderedCollection
+	testActor3Outbox            models.ActivityStreamsOrderedCollection
+	testActivity1               vocab.ActivityStreamsMove     // Federated
+	testActivity2               vocab.ActivityStreamsCreate   // Federated
+	testActivity3               vocab.ActivityStreamsListen   // Federated
+	testActivity4               vocab.ActivityStreamsActivity // Local
+	testActivity5               vocab.ActivityStreamsTravel   // Local
+	testActivity6               vocab.ActivityStreamsAccept   // Local
+	testActivity7               vocab.ActivityStreamsListen   // Federated, Public
+	testActivity8               vocab.ActivityStreamsAccept   // Local, Public
+	testActor1Followers         models.ActivityStreamsCollection
+	testActor2Followers         models.ActivityStreamsCollection
+	testActor3Followers         models.ActivityStreamsCollection
+	testActor1Following         models.ActivityStreamsCollection
+	testActor2Following         models.ActivityStreamsCollection
+	testActor3Following         models.ActivityStreamsCollection
+	testActor1Liked             models.ActivityStreamsCollection
+	testActor2Liked             models.ActivityStreamsCollection
+	testActor3Liked             models.ActivityStreamsCollection
+	testFollow1Actor2           vocab.ActivityStreamsFollow // Federated
+	testFollow2Actor2           vocab.ActivityStreamsFollow // Federated
+	testFollow3Actor2           vocab.ActivityStreamsFollow // Local
+	testFollow4Actor2           vocab.ActivityStreamsFollow // Local
+	testFollow5Actor2           vocab.ActivityStreamsFollow // Federated
+	testFollow6Actor2           vocab.ActivityStreamsFollow // Local
+	testAcceptFollowActor2      vocab.ActivityStreamsAccept // Local
+	testRejectFollowActor2      vocab.ActivityStreamsReject // Local
+	testAcceptLocalFollowActor2 vocab.ActivityStreamsAccept // Local
+	testRejectLocalFollowActor2 vocab.ActivityStreamsReject // Local
 )
 
 const (
@@ -58,6 +68,8 @@ const (
 	testActor1IRI               = "https://example.com/actors/test1"
 	testActor2IRI               = "https://example.com/actors/test2"
 	testActor3IRI               = "https://example.com/actors/test3"
+	testPeerActor1IRI           = "https://fed.example.com/actors/test1"
+	testPeerActor2IRI           = "https://fed.example.com/actors/test2"
 	testPeerActor1InboxIRI      = "https://fed.example.com/actors/test1/inbox"
 	testPeerActor2InboxIRI      = "https://fed.example.com/actors/test2/inbox"
 	testActor1InboxIRI          = "https://example.com/actors/test1/inbox"
@@ -83,6 +95,16 @@ const (
 	testActor1LikedIRI          = "https://example.com/actors/test1/liked"
 	testActor2LikedIRI          = "https://example.com/actors/test2/liked"
 	testActor3LikedIRI          = "https://example.com/actors/test3/liked"
+	testFollow1IRI              = "https://fed.example.com/follows/test1"
+	testFollow2IRI              = "https://fed.example.com/follows/test2"
+	testFollow3IRI              = "https://example.com/follows/test3"
+	testFollow4IRI              = "https://example.com/follows/test4"
+	testFollow5IRI              = "https://fed.example.com/follows/test5"
+	testFollow6IRI              = "https://example.com/follows/test6"
+	testAccept1IRI              = "https://example.com/accepts/test1"
+	testAccept2IRI              = "https://example.com/accepts/test2"
+	testReject1IRI              = "https://example.com/rejects/test1"
+	testReject2IRI              = "https://example.com/rejects/test2"
 )
 
 func init() {
@@ -110,6 +132,16 @@ func init() {
 	initTestActor1Liked()
 	initTestActor2Liked()
 	initTestActor3Liked()
+	initTestFollow1Actor2()
+	initTestFollow2Actor2()
+	initTestFollow3Actor2()
+	initTestFollow4Actor2()
+	initTestFollow5Actor2()
+	initTestFollow6Actor2()
+	initTestAcceptFollowActor2()
+	initTestRejectFollowActor2()
+	initTestAcceptLocalFollowActor2()
+	initTestRejectLocalFollowActor2()
 }
 
 func initTestActor1() {
@@ -611,4 +643,134 @@ func initTestActor3Liked() {
 	totalItems := streams.NewActivityStreamsTotalItemsProperty()
 	totalItems.Set(0)
 	testActor3Liked.SetActivityStreamsTotalItems(totalItems)
+}
+
+func initTestFollow1Actor2() {
+	testFollow1Actor2 = streams.NewActivityStreamsFollow()
+	idP := streams.NewJSONLDIdProperty()
+	idP.SetIRI(mustParse(testFollow1IRI))
+	testFollow1Actor2.SetJSONLDId(idP)
+	actor := streams.NewActivityStreamsActorProperty()
+	actor.AppendIRI(mustParse(testPeerActor1IRI))
+	testFollow1Actor2.SetActivityStreamsActor(actor)
+	obj := streams.NewActivityStreamsObjectProperty()
+	obj.AppendIRI(mustParse(testActor2IRI))
+	testFollow1Actor2.SetActivityStreamsObject(obj)
+}
+
+func initTestFollow2Actor2() {
+	testFollow2Actor2 = streams.NewActivityStreamsFollow()
+	idP := streams.NewJSONLDIdProperty()
+	idP.SetIRI(mustParse(testFollow2IRI))
+	testFollow2Actor2.SetJSONLDId(idP)
+	actor := streams.NewActivityStreamsActorProperty()
+	actor.AppendIRI(mustParse(testPeerActor1IRI))
+	testFollow2Actor2.SetActivityStreamsActor(actor)
+	obj := streams.NewActivityStreamsObjectProperty()
+	obj.AppendIRI(mustParse(testActor2IRI))
+	testFollow2Actor2.SetActivityStreamsObject(obj)
+}
+
+func initTestFollow3Actor2() {
+	testFollow3Actor2 = streams.NewActivityStreamsFollow()
+	idP := streams.NewJSONLDIdProperty()
+	idP.SetIRI(mustParse(testFollow3IRI))
+	testFollow3Actor2.SetJSONLDId(idP)
+	actor := streams.NewActivityStreamsActorProperty()
+	actor.AppendIRI(mustParse(testPeerActor1IRI))
+	testFollow3Actor2.SetActivityStreamsActor(actor)
+	obj := streams.NewActivityStreamsObjectProperty()
+	obj.AppendIRI(mustParse(testActor2IRI))
+	testFollow3Actor2.SetActivityStreamsObject(obj)
+}
+
+func initTestFollow4Actor2() {
+	testFollow4Actor2 = streams.NewActivityStreamsFollow()
+	idP := streams.NewJSONLDIdProperty()
+	idP.SetIRI(mustParse(testFollow4IRI))
+	testFollow4Actor2.SetJSONLDId(idP)
+	actor := streams.NewActivityStreamsActorProperty()
+	actor.AppendIRI(mustParse(testPeerActor1IRI))
+	testFollow4Actor2.SetActivityStreamsActor(actor)
+	obj := streams.NewActivityStreamsObjectProperty()
+	obj.AppendIRI(mustParse(testActor2IRI))
+	testFollow4Actor2.SetActivityStreamsObject(obj)
+}
+
+func initTestFollow5Actor2() {
+	testFollow5Actor2 = streams.NewActivityStreamsFollow()
+	idP := streams.NewJSONLDIdProperty()
+	idP.SetIRI(mustParse(testFollow5IRI))
+	testFollow5Actor2.SetJSONLDId(idP)
+	actor := streams.NewActivityStreamsActorProperty()
+	actor.AppendIRI(mustParse(testPeerActor1IRI))
+	testFollow5Actor2.SetActivityStreamsActor(actor)
+	obj := streams.NewActivityStreamsObjectProperty()
+	obj.AppendIRI(mustParse(testActor2IRI))
+	testFollow5Actor2.SetActivityStreamsObject(obj)
+}
+
+func initTestFollow6Actor2() {
+	testFollow6Actor2 = streams.NewActivityStreamsFollow()
+	idP := streams.NewJSONLDIdProperty()
+	idP.SetIRI(mustParse(testFollow6IRI))
+	testFollow6Actor2.SetJSONLDId(idP)
+	actor := streams.NewActivityStreamsActorProperty()
+	actor.AppendIRI(mustParse(testPeerActor1IRI))
+	testFollow6Actor2.SetActivityStreamsActor(actor)
+	obj := streams.NewActivityStreamsObjectProperty()
+	obj.AppendIRI(mustParse(testActor2IRI))
+	testFollow6Actor2.SetActivityStreamsObject(obj)
+}
+
+func initTestAcceptFollowActor2() {
+	testAcceptFollowActor2 = streams.NewActivityStreamsAccept()
+	idP := streams.NewJSONLDIdProperty()
+	idP.SetIRI(mustParse(testAccept1IRI))
+	testAcceptFollowActor2.SetJSONLDId(idP)
+	actor := streams.NewActivityStreamsActorProperty()
+	actor.AppendIRI(mustParse(testActor2IRI))
+	testAcceptFollowActor2.SetActivityStreamsActor(actor)
+	obj := streams.NewActivityStreamsObjectProperty()
+	obj.AppendIRI(mustParse(testFollow1IRI))
+	testAcceptFollowActor2.SetActivityStreamsObject(obj)
+}
+
+func initTestRejectFollowActor2() {
+	testRejectFollowActor2 = streams.NewActivityStreamsReject()
+	idP := streams.NewJSONLDIdProperty()
+	idP.SetIRI(mustParse(testReject1IRI))
+	testRejectFollowActor2.SetJSONLDId(idP)
+	actor := streams.NewActivityStreamsActorProperty()
+	actor.AppendIRI(mustParse(testActor2IRI))
+	testRejectFollowActor2.SetActivityStreamsActor(actor)
+	obj := streams.NewActivityStreamsObjectProperty()
+	obj.AppendIRI(mustParse(testFollow2IRI))
+	testRejectFollowActor2.SetActivityStreamsObject(obj)
+}
+
+func initTestAcceptLocalFollowActor2() {
+	testAcceptLocalFollowActor2 = streams.NewActivityStreamsAccept()
+	idP := streams.NewJSONLDIdProperty()
+	idP.SetIRI(mustParse(testAccept2IRI))
+	testAcceptLocalFollowActor2.SetJSONLDId(idP)
+	actor := streams.NewActivityStreamsActorProperty()
+	actor.AppendIRI(mustParse(testActor2IRI))
+	testAcceptLocalFollowActor2.SetActivityStreamsActor(actor)
+	obj := streams.NewActivityStreamsObjectProperty()
+	obj.AppendIRI(mustParse(testFollow3IRI))
+	testAcceptLocalFollowActor2.SetActivityStreamsObject(obj)
+}
+
+func initTestRejectLocalFollowActor2() {
+	testRejectLocalFollowActor2 = streams.NewActivityStreamsReject()
+	idP := streams.NewJSONLDIdProperty()
+	idP.SetIRI(mustParse(testReject2IRI))
+	testRejectLocalFollowActor2.SetJSONLDId(idP)
+	actor := streams.NewActivityStreamsActorProperty()
+	actor.AppendIRI(mustParse(testActor2IRI))
+	testRejectLocalFollowActor2.SetActivityStreamsActor(actor)
+	obj := streams.NewActivityStreamsObjectProperty()
+	obj.AppendIRI(mustParse(testFollow4IRI))
+	testRejectLocalFollowActor2.SetActivityStreamsObject(obj)
 }
