@@ -555,14 +555,43 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			return
 		}
 		ctx := f.Context(r)
-		// TODO: use follow requests
-		_, err = f.OpenFollowRequests(ctx, userID)
+		frs, err := f.OpenFollowRequests(ctx, userID)
 		if err != nil {
 			util.ErrorLogger.Errorf("Error getting follow requests: %v", err)
 			internalErrorHandler.ServeHTTP(w, r)
 			return
 		}
-		err = a.templates.ExecuteTemplate(w, followersRequestTemplate, a.getTemplateData(s, nil))
+
+		// Build data for the template
+		type tmplData struct {
+			ID    string
+			Actor string
+		}
+		var d []tmplData
+		for _, v := range frs {
+			id, err := pub.GetId(v)
+			if err != nil {
+				util.ErrorLogger.Errorf("Error getting follow requests: %v", err)
+				internalErrorHandler.ServeHTTP(w, r)
+				return
+			}
+			var actor string
+			actorsProp := v.GetActivityStreamsActor()
+			if actorsProp == nil || actorsProp.Len() == 0 {
+				util.ErrorLogger.Errorf("Error getting follow requests: empty actor property")
+				internalErrorHandler.ServeHTTP(w, r)
+				return
+			} else {
+				actor = actorsProp.At(0).GetIRI().String()
+			}
+			t := tmplData{
+				ID:    id.String(),
+				Actor: actor,
+			}
+			d = append(d, t)
+		}
+
+		err = a.templates.ExecuteTemplate(w, followersRequestTemplate, a.getTemplateData(s, d))
 		if err != nil {
 			util.ErrorLogger.Errorf("Error serving follower request template: %v", err)
 		}
@@ -584,21 +613,35 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			return
 		}
 		ctx := util.Context{r.Context()}
-		var followID *url.URL // TODO
-		action := r.Form.Get("action")
-		if action == "accept" {
-			err = f.SendAcceptFollow(ctx, userID, followID)
-		} else if action == "reject" {
-			err = f.SendRejectFollow(ctx, userID, followID)
-		} else {
-			util.ErrorLogger.Errorf("missing accept/reject follow parameter")
-			badRequestHandler.ServeHTTP(w, r)
-			return
-		}
-		if err != nil {
-			util.ErrorLogger.Errorf("error sending when sending accept/reject follow: %s", err)
-			internalErrorHandler.ServeHTTP(w, r)
-			return
+		for k, v := range r.Form {
+			if len(v) == 0 {
+				continue
+			}
+			action := v[0]
+			if action != "accept" && action != "reject" {
+				continue
+			}
+			followID, err := url.Parse(k)
+			if err != nil {
+				badRequestHandler.ServeHTTP(w, r)
+				return
+			}
+			if action == "accept" {
+				err = f.SendAcceptFollow(ctx, userID, followID)
+			} else if action == "reject" {
+				err = f.SendRejectFollow(ctx, userID, followID)
+			} else {
+				// TODO: continue processing instead of failing the bulk processing
+				util.ErrorLogger.Errorf("missing accept/reject follow parameter")
+				badRequestHandler.ServeHTTP(w, r)
+				return
+			}
+			if err != nil {
+				// TODO: continue processing instead of failing the bulk processing
+				util.ErrorLogger.Errorf("error sending when sending %s follow: %s", action, err)
+				internalErrorHandler.ServeHTTP(w, r)
+				return
+			}
 		}
 		http.Redirect(w, r, "/followers/requests", http.StatusFound)
 	})

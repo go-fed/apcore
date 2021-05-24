@@ -1,0 +1,24 @@
+{{template "header.tmpl" .}}
+<h1>Follow Requests</h1>
+{{if eq (len .Other) 0}}
+	<p>There are no pending follow requests.</p>
+{{else}}
+<form method="post">
+	<table>
+		<tr><th>User</th><th>Accept?</th><th>Reject?</th><th>Do Nothing</th></tr>
+		{{range .Other}}
+		<tr>
+			<td><a href="{{.Actor}}">{{.Actor}}</a></td>
+			<td><input id="{{.ID}}_accept" type="radio" name="{{.ID}}" value="accept">
+				<label for="{{.ID}}_accept">Accept</label></td>
+			<td><input id="{{.ID}}_reject" type="radio" name="{{.ID}}" value="reject">
+				<label for="{{.ID}}_reject">Reject</label></td>
+			<td><input id="{{.ID}}_nothing" type="radio" name="{{.ID}}" value="nothing" checked>
+				<label for="{{.ID}}_nothing">Do Nothing</label></td>
+		</tr>
+		{{end}}
+		<tr><td colspan="4"><button type="submit">Submit</button></td></tr>
+	</table>
+</form>
+{{end}}
+{{template "footer.tmpl" .}}
