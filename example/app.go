@@ -667,14 +667,13 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			internalErrorHandler.ServeHTTP(w, r)
 			return
 		}
-		// TODO: Get any data
 		err = a.templates.ExecuteTemplate(w, followingCreateTemplate, a.getTemplateData(s, nil))
 		if err != nil {
 			util.ErrorLogger.Errorf("Error serving follower request template: %v", err)
 		}
 	})
 	r.NewRoute().Path("/following/create").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, authd, err := f.Validate(w, r)
+		userID, authd, err := f.Validate(w, r)
 		if err != nil {
 			util.ErrorLogger.Errorf("error validating oauth2 token in POST /following/create: %s", err)
 			internalErrorHandler.ServeHTTP(w, r)
@@ -684,13 +683,55 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			http.Redirect(w, r, "/login", http.StatusFound)
 			return
 		}
-		// TODO: Implement
+
+		// Parse the form
+		err = r.ParseForm()
+		if err != nil {
+			badRequestHandler.ServeHTTP(w, r)
+			return
+		}
+		toFollowV, ok := r.Form["actor"]
+		if !ok || len(toFollowV) != 1 {
+			util.ErrorLogger.Errorf("error validating follow form")
+			badRequestHandler.ServeHTTP(w, r)
+			return
+		}
+		toFollow, err := url.Parse(toFollowV[0])
+		if err != nil {
+			util.ErrorLogger.Errorf("error validating follow form: %s", err)
+			badRequestHandler.ServeHTTP(w, r)
+			return
+		}
+
+		// Create follow request
+		follow := streams.NewActivityStreamsFollow()
+
+		actorProp := streams.NewActivityStreamsActorProperty()
+		actorProp.AppendIRI(f.UserIRI(paths.UUID(userID)))
+		follow.SetActivityStreamsActor(actorProp)
+
+		toProp := streams.NewActivityStreamsToProperty()
+		toProp.AppendIRI(toFollow)
+		follow.SetActivityStreamsTo(toProp)
+
+		objProp := streams.NewActivityStreamsObjectProperty()
+		objProp.AppendIRI(toFollow)
+		follow.SetActivityStreamsObject(objProp)
+
+		// Send the follow request
+		ctx := util.Context{r.Context()}
+		if err := f.Send(ctx, paths.UUID(userID), follow); err != nil {
+			util.ErrorLogger.Errorf("error sending when sending follow request: %s", err)
+			internalErrorHandler.ServeHTTP(w, r)
+			return
+		}
+		iri := follow.GetJSONLDId().GetIRI()
+		http.Redirect(w, r, iri.String(), http.StatusFound)
 	})
 
-	/* We could do something similar for "liked" as we did above for
+	/*We could do something similar for "liked" as we did above for
 	"following" or "followers", but we made the choice not to expose the
-	"liked" collection at all, so we will just not introduce thtat concept
-	at all. */
+	"liked" collection at all, so we will just not introduce that concept.*/
 
 	return nil
 }
@@ -698,8 +739,16 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 func (a *App) NewIDPath(c context.Context, t vocab.Type) (path string, err error) {
 	switch t.GetTypeName() {
 	case "Note":
+		// This path matches the route created above to serve the data.
 		path = fmt.Sprintf("/notes/%s", uuid.New().String())
 	case "Create":
+		fallthrough
+	case "Accept":
+		fallthrough
+	case "Reject":
+		fallthrough
+	case "Follow":
+		// This path matches the route created above to serve the data.
 		path = fmt.Sprintf("/activities/%s", uuid.New().String())
 	default:
 		err = fmt.Errorf("NewID unhandled type name: %s", t.GetTypeName())
