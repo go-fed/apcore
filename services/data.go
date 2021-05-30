@@ -18,6 +18,7 @@ package services
 
 import (
 	"database/sql"
+	"fmt"
 	"net/url"
 
 	"github.com/go-fed/activity/pub"
@@ -175,10 +176,55 @@ func (d *Data) Update(c util.Context, v vocab.Type) (err error) {
 	if err != nil {
 		return
 	}
+	col, isCol := v.(vocab.ActivityStreamsCollection) // from go-fed/activity/pub
 	if d.Owns(iri) {
-		err = doInTx(c, d.DB, func(tx *sql.Tx) error {
-			return d.LocalData.Update(c, tx, iri, models.ActivityStreams{v})
-		})
+		// The "Update" calls to our well-known collections should only
+		// ever prepend additional items to the first page of a
+		// collection.
+		if paths.IsFollowersPath(iri) {
+			if !isCol {
+				return fmt.Errorf("Update followers is not a Collection")
+			}
+			err = doInTx(c, d.DB, func(tx *sql.Tx) error {
+				return UpdateCollectionToPrependCalls(
+					c,
+					col,
+					d.DefaultCollectionSize,
+					d.MaxCollectionPageSize,
+					d.Followers.GetPage,
+					d.Followers.PrependItem)
+			})
+		} else if paths.IsFollowingPath(iri) {
+			if !isCol {
+				return fmt.Errorf("Update following is not a Collection")
+			}
+			err = doInTx(c, d.DB, func(tx *sql.Tx) error {
+				return UpdateCollectionToPrependCalls(
+					c,
+					col,
+					d.DefaultCollectionSize,
+					d.MaxCollectionPageSize,
+					d.Following.GetPage,
+					d.Following.PrependItem)
+			})
+		} else if paths.IsLikedPath(iri) {
+			if !isCol {
+				return fmt.Errorf("Update liked is not a Collection")
+			}
+			err = doInTx(c, d.DB, func(tx *sql.Tx) error {
+				return UpdateCollectionToPrependCalls(
+					c,
+					col,
+					d.DefaultCollectionSize,
+					d.MaxCollectionPageSize,
+					d.Liked.GetPage,
+					d.Liked.PrependItem)
+			})
+		} else {
+			err = doInTx(c, d.DB, func(tx *sql.Tx) error {
+				return d.LocalData.Update(c, tx, iri, models.ActivityStreams{v})
+			})
+		}
 	} else {
 		err = doInTx(c, d.DB, func(tx *sql.Tx) error {
 			return d.FedData.Update(c, tx, iri, models.ActivityStreams{v})

@@ -638,7 +638,7 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			}
 			if err != nil {
 				// TODO: continue processing instead of failing the bulk processing
-				util.ErrorLogger.Errorf("error sending when sending %s follow: %s", action, err)
+				util.ErrorLogger.Errorf("error when sending %s follow: %s", action, err)
 				internalErrorHandler.ServeHTTP(w, r)
 				return
 			}
@@ -725,6 +725,9 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			internalErrorHandler.ServeHTTP(w, r)
 			return
 		}
+
+		// TODO: Add to following collection
+
 		iri := follow.GetJSONLDId().GetIRI()
 		http.Redirect(w, r, iri.String(), http.StatusFound)
 	})
@@ -783,8 +786,20 @@ func (a *App) ApplyFederatingCallbacks(fwc *pub.FederatingWrappedCallbacks) (oth
 // ApplySocialCallbacks lets us provide hooks for our application based on
 // incoming ActivityStreams data from a user's ActivityPub client.
 func (a *App) ApplySocialCallbacks(swc *pub.SocialWrappedCallbacks) (others []interface{}) {
-	// Here we add no new C2S Behavior. Doing nothing in this function will
-	// let the framework handle the suggested C2S side effects.
+	// Here we add new C2S Behavior to cover the Accepting and Rejecting of follow
+	// requests.
+	//
+	// The new behavior is to print out Accept & reject activities to Stdout.
+	others = []interface{}{
+		func(c context.Context, accept vocab.ActivityStreamsAccept) error {
+			fmt.Println(streams.Serialize(accept))
+			return nil
+		},
+		func(c context.Context, reject vocab.ActivityStreamsReject) error {
+			fmt.Println(streams.Serialize(reject))
+			return nil
+		},
+	}
 	return
 }
 

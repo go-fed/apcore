@@ -119,6 +119,21 @@ func ActorIRIFor(scheme, host string, k PathKey, c Actor) *url.URL {
 	return u
 }
 
+func UserPathFor(k PathKey, c Actor) string {
+	return strings.ReplaceAll(knownUserPaths(k), "{user}", string(c))
+}
+
+func UserIRIFor(scheme, host string, k PathKey, c Actor) *url.URL {
+	u := &url.URL{
+		Scheme:   scheme,
+		Host:     host,
+		Path:     UserPathFor(k, c),
+		RawQuery: uuidPathQueryFor(k),
+		Fragment: uuidPathFragmentFor(k),
+	}
+	return u
+}
+
 var knownUserPathQuery map[PathKey]string = map[PathKey]string{
 	InboxFirstPathKey:     fmt.Sprintf("%s=%s", queryCollectionPage, queryTrue),
 	InboxLastPathKey:      fmt.Sprintf("%s=%s&%s=%s", queryCollectionPage, queryTrue, queryCollectionEnd, queryTrue),

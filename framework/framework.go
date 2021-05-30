@@ -62,6 +62,7 @@ func BuildFramework(scheme string,
 	fw.data = data
 	fw.actor = actor
 	fw.federationEnabled = isS2S
+	fw.followers = followers
 	return fw
 }
 
@@ -139,7 +140,7 @@ func (f *Framework) SendAcceptFollow(ctx util.Context, userID paths.UUID, follow
 		return err
 	}
 	// Update the followers collection
-	followersIRI := paths.ActorIRIFor(f.scheme, f.host, paths.FollowersPathKey, paths.Actor(userID))
+	followersIRI := paths.UserIRIFor(f.scheme, f.host, paths.FollowersPathKey, paths.Actor(userID))
 	for iter := followActors.Begin(); iter != followActors.End(); iter = iter.Next() {
 		id, err := pub.ToId(iter)
 		if err != nil {
@@ -148,7 +149,7 @@ func (f *Framework) SendAcceptFollow(ctx util.Context, userID paths.UUID, follow
 		err = f.followers.PrependItem(ctx, followersIRI, id)
 		if err != nil {
 			// TODO: Soft fail instead?
-			return fmt.Errorf("accepted Follow but not all actors were added to followers collection")
+			return fmt.Errorf("accepted Follow but not all actors were added to followers collection(%s)[%s]: %w", followersIRI, id, err)
 		}
 	}
 	return nil
