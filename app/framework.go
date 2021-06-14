@@ -73,4 +73,9 @@ type Framework interface {
 
 type Session interface {
 	UserID() (string, error)
+	Set(string, interface{})
+	Get(string) (interface{}, bool)
+	Has(string) bool
+	Delete(string)
+	Save(*http.Request, http.ResponseWriter) error
 }

@@ -140,6 +140,24 @@ func (s *Session) Clear() {
 	s.DeleteFirstPartyCredentialID()
 }
 
+func (s *Session) Set(k string, i interface{}) {
+	s.gs.Values[k] = i
+}
+
+func (s *Session) Get(k string) (interface{}, bool) {
+	v, ok := s.gs.Values[k]
+	return v, ok
+}
+
+func (s *Session) Has(k string) bool {
+	_, ok := s.gs.Values[k]
+	return ok
+}
+
+func (s *Session) Delete(k string) {
+	delete(s.gs.Values, k)
+}
+
 func (s *Session) Save(r *http.Request, w http.ResponseWriter) error {
 	return s.gs.Save(r, w)
 }
