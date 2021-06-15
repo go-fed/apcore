@@ -118,7 +118,7 @@ func (a *App) NewConfiguration() interface{} {
 //
 // Note we don't do anything with the configuration values in this example
 // application. But don't let that stop your imagination from taking off!
-func (a *App) SetConfiguration(i interface{}) error {
+func (a *App) SetConfiguration(i interface{}, c app.APCoreConfig) error {
 	return nil
 }
 

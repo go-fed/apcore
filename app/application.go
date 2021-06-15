@@ -79,10 +79,12 @@ type Application interface {
 	// is returned by NewConfiguration. Return an error if the configuration
 	// is invalid.
 	//
+	// Provides a read-only interface for some of APCore's config fields.
+	//
 	// This configuration object is intended to be stable for the lifetime
 	// of a running application. When the command to serve, is given, this
 	// function is only called once during application initialization.
-	SetConfiguration(interface{}) error
+	SetConfiguration(interface{}, APCoreConfig) error
 
 	// The handler for the application's "404 Not Found" webpage.
 	NotFoundHandler(Framework) http.Handler
@@ -331,4 +333,12 @@ type S2SApplication interface {
 	// Note: The `OnFollow` value will already be populated by the user's
 	// preferred behavior upon receiving a Follow request.
 	ApplyFederatingCallbacks(fwc *pub.FederatingWrappedCallbacks) (others []interface{})
+}
+
+// APCoreConfig allows the application to reuse common fields set in apcore's config.
+type APCoreConfig interface {
+	// Hostname of the application set in the config
+	Host() string
+	// Clock timezone set in the config
+	ClockTimezone() string
 }
