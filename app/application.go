@@ -84,7 +84,9 @@ type Application interface {
 	// This configuration object is intended to be stable for the lifetime
 	// of a running application. When the command to serve, is given, this
 	// function is only called once during application initialization.
-	SetConfiguration(interface{}, APCoreConfig) error
+	//
+	// When debug is true, the binary was invoked with the dev flag.
+	SetConfiguration(config interface{}, apcc APCoreConfig, debug bool) error
 
 	// The handler for the application's "404 Not Found" webpage.
 	NotFoundHandler(Framework) http.Handler

@@ -143,7 +143,7 @@ func LoadConfigFile(filename string, a app.Application, debug bool) (c *config.C
 	if err != nil {
 		return
 	}
-	err = a.SetConfiguration(appCfg, c)
+	err = a.SetConfiguration(appCfg, c, debug)
 	if err != nil {
 		return
 	}
