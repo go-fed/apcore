@@ -62,4 +62,5 @@ type Route interface {
 	PathPrefix(tpl string) Route
 	Queries(pairs ...string) Route
 	Schemes(schemes ...string) Route
+	Subrouter() Router
 }

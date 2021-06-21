@@ -238,6 +238,21 @@ type Route struct {
 	notFoundHandler   http.Handler
 }
 
+func (r *Route) wrap(router *mux.Router) *Router {
+	return &Router{
+		router:            router,
+		oauth:             r.oauth,
+		userActor:         r.userActor,
+		actorMap:          r.actorMap,
+		clock:             r.clock,
+		db:                r.db,
+		host:              r.host,
+		scheme:            r.scheme,
+		errorHandler:      r.errorHandler,
+		badRequestHandler: r.badRequestHandler,
+	}
+}
+
 func (r *Route) knownActor(c paths.Actor) app.Route {
 	return r.ActivityPubOnlyHandleFunc(paths.ActorPathFor(paths.UserPathKey, c), nil)
 }
@@ -668,4 +683,8 @@ func (r *Route) Queries(pairs ...string) app.Route {
 func (r *Route) Schemes(schemes ...string) app.Route {
 	r.route = r.route.Schemes(schemes...)
 	return r
+}
+
+func (r *Route) Subrouter() app.Router {
+	return r.wrap(r.route.Subrouter())
 }
