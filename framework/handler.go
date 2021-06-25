@@ -173,29 +173,32 @@ func BuildHandler(r *Router,
 		r.knownActorGetOutbox(k, nil)
 	}
 
+	// Obtain the application's paths.
+	pt := a.Paths()
+
 	// POST/GET login, logout, and OAuth2 routes
 	r.NewRoute().
-		Path("/login").
+		Path(pt.GetLoginPath()).
 		Methods("GET").
 		HandlerFunc(
-			getLoginFn(oauth, sl, getLoginWebHandler))
+			getLoginFn(oauth, sl, pt, getLoginWebHandler)) // TODO: Localize
 	r.NewRoute().
-		Path("/login").
+		Path(pt.PostLoginPath()).
 		Methods("POST").
 		HandlerFunc(
-			postLoginFn(oauth, sl, db, badRequestHandler, internalErrorHandler, cy))
+			postLoginFn(oauth, sl, db, badRequestHandler, internalErrorHandler, cy, pt))
 	r.NewRoute().
-		Path("/logout").
+		Path(pt.GetLogoutPath()).
 		Methods("GET").
 		HandlerFunc(
-			getLogoutFn(oauth, sl, internalErrorHandler))
+			getLogoutFn(oauth, sl, pt, internalErrorHandler))
 	r.NewRoute().
-		Path("/oauth2/authorize").
+		Path(pt.GetOAuth2AuthorizePath()).
 		Methods("GET").
 		HandlerFunc(
-			getAuthFn(getAuthWebHandler))
+			getAuthFn(getAuthWebHandler)) // TODO: Localize
 	r.NewRoute().
-		Path("/oauth2/authorize").
+		Path(pt.PostOAuth2AuthorizePath()).
 		Methods("POST").
 		HandlerFunc(
 			postAuthFn(oauth, sl, db, badRequestHandler, internalErrorHandler, cy))
@@ -363,7 +366,7 @@ func webfingerHandler(scheme, host string, badRequestHandler, internalErrorHandl
 	}
 }
 
-func getLoginFn(oauth *oauth2.Server, sl *web.Sessions, getLoginWebHandler http.Handler) func(w http.ResponseWriter, r *http.Request) {
+func getLoginFn(oauth *oauth2.Server, sl *web.Sessions, pt app.Paths, getLoginWebHandler http.Handler) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		s, err := sl.Get(r)
 		if err != nil {
@@ -371,7 +374,7 @@ func getLoginFn(oauth *oauth2.Server, sl *web.Sessions, getLoginWebHandler http.
 		} else {
 			_, _, auth, err := oauth.ValidateFirstPartyProxyAccessToken(util.Context{r.Context()}, s)
 			if err == nil && auth {
-				http.Redirect(w, r, "/", http.StatusFound)
+				http.Redirect(w, r, pt.RedirectToHomepagePath(r.URL.Path), http.StatusFound)
 			} else if err != nil {
 				// Log but don't fail the request.
 				util.ErrorLogger.Errorf("error determining logged-in state in GET login: %s", err)
@@ -381,7 +384,7 @@ func getLoginFn(oauth *oauth2.Server, sl *web.Sessions, getLoginWebHandler http.
 	}
 }
 
-func postLoginFn(oauth *oauth2.Server, sl *web.Sessions, db pub.Database, badRequestHandler, internalErrorHandler http.Handler, cy *services.Crypto) func(w http.ResponseWriter, r *http.Request) {
+func postLoginFn(oauth *oauth2.Server, sl *web.Sessions, db pub.Database, badRequestHandler, internalErrorHandler http.Handler, cy *services.Crypto, pt app.Paths) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		s, err := sl.Get(r)
 		if err != nil {
@@ -395,7 +398,7 @@ func postLoginFn(oauth *oauth2.Server, sl *web.Sessions, db pub.Database, badReq
 			p, err := oauth2.FirstPartyOAuth2LoginRedirPath(r.URL)
 			if err != nil {
 				util.ErrorLogger.Errorf("error determining first party OAuth2 proxy redirection: %s", err)
-				p = "/" // Go to homepage instead of failing request
+				p = pt.RedirectToHomepagePath(r.URL.Path) // Go to homepage instead of failing request
 			}
 			http.Redirect(w, r, p, http.StatusFound)
 			return
@@ -449,13 +452,13 @@ func postLoginFn(oauth *oauth2.Server, sl *web.Sessions, db pub.Database, badReq
 		p, err := oauth2.FirstPartyOAuth2LoginRedirPath(r.URL)
 		if err != nil {
 			util.ErrorLogger.Errorf("error determining first party OAuth2 proxy redirection: %s", err)
-			p = "/" // Go to homepage instead of failing request
+			p = pt.RedirectToHomepagePath(r.URL.Path) // Go to homepage instead of failing request
 		}
 		http.Redirect(w, r, p, http.StatusFound)
 	}
 }
 
-func getLogoutFn(oauth *oauth2.Server, sl *web.Sessions, internalErrorHandler http.Handler) func(w http.ResponseWriter, r *http.Request) {
+func getLogoutFn(oauth *oauth2.Server, sl *web.Sessions, pt app.Paths, internalErrorHandler http.Handler) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := util.Context{r.Context()}
 		sn, err := sl.Get(r)
@@ -467,7 +470,7 @@ func getLogoutFn(oauth *oauth2.Server, sl *web.Sessions, internalErrorHandler ht
 		if err := oauth.RemoveFirstPartyProxyAccessToken(w, r, ctx, sn); err != nil {
 			util.ErrorLogger.Errorf("error removing proxy credential in GET logout: %s", err)
 		}
-		http.Redirect(w, r, "/login", http.StatusFound)
+		http.Redirect(w, r, pt.RedirectToLoginPath(r.URL.Path), http.StatusFound)
 	}
 }
 

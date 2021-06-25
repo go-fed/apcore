@@ -186,6 +186,11 @@ type Application interface {
 	// ActivityPub data itself is handled elsewhere in
 	// ApplyFederatingCallbacks and/or ApplySocialCallbacks.
 	BuildRoutes(r Router, db Database, f Framework) error
+	// Paths allows applications to customize endpoints supported by apcore.
+	//
+	// See the Paths object for the various custom paths and their defaults.
+	// Returning a zero-value struct is valid.
+	Paths() Paths
 
 	// CALLS MADE AT SERVING TIME
 	//

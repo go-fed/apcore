@@ -739,6 +739,11 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 	return nil
 }
 
+func (a *App) Paths() app.Paths {
+	// We accept apcore's defaults.
+	return app.Paths{}
+}
+
 func (a *App) NewIDPath(c context.Context, t vocab.Type) (path string, err error) {
 	switch t.GetTypeName() {
 	case "Note":
