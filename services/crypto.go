@@ -42,7 +42,10 @@ func (c *Crypto) Valid(ctx util.Context, email, pass string) (uuid string, valid
 		return err
 	})
 	if su == nil && err == nil {
-		err = fmt.Errorf("crypto valid: no records found for given mail address: %s", email)
+		// No email found -- do not return an error. Instead, simply
+		// ensure we're returning an invalid result.
+		valid = false
+		return
 	}
 	if err != nil {
 		return
