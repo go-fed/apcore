@@ -744,6 +744,12 @@ func (a *App) Paths() app.Paths {
 	return app.Paths{}
 }
 
+func (a *App) StaticServingEnabled() bool {
+	// We wish to serve files from the static directory. We could instead
+	// pack files into the binary for serving instead.
+	return true
+}
+
 func (a *App) NewIDPath(c context.Context, t vocab.Type) (path string, err error) {
 	switch t.GetTypeName() {
 	case "Note":

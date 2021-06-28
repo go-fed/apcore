@@ -191,6 +191,10 @@ type Application interface {
 	// See the Paths object for the various custom paths and their defaults.
 	// Returning a zero-value struct is valid.
 	Paths() Paths
+	// StaticServingEnabled indicates whether to enable static serving from
+	// a local folder. Only takes effect during server startup, dynamically
+	// changing the return value during runtime has no effect.
+	StaticServingEnabled() bool
 
 	// CALLS MADE AT SERVING TIME
 	//

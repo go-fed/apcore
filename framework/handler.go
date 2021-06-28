@@ -70,13 +70,15 @@ func BuildHandler(r *Router,
 	debug bool) (rt http.Handler, err error) {
 
 	// Static assets
-	if sd := c.ServerConfig.StaticRootDirectory; len(sd) == 0 {
-		err = fmt.Errorf("static_root_directory is empty")
-		return
-	} else {
-		util.InfoLogger.Infof("Serving static directory: %s", sd)
-		fs := http.FileServer(http.Dir(sd))
-		r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
+	if a.StaticServingEnabled() {
+		if sd := c.ServerConfig.StaticRootDirectory; len(sd) == 0 {
+			err = fmt.Errorf("static_root_directory is empty")
+			return
+		} else {
+			util.InfoLogger.Infof("Serving static directory: %s", sd)
+			fs := http.FileServer(http.Dir(sd))
+			r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
+		}
 	}
 
 	// Dynamic Routes
