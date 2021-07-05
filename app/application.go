@@ -352,4 +352,6 @@ type APCoreConfig interface {
 	Host() string
 	// Clock timezone set in the config
 	ClockTimezone() string
+	// Schema name of the database (ex: for Postgres)
+	Schema() string
 }

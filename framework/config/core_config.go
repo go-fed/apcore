@@ -23,3 +23,7 @@ func (c *Config) Host() string {
 func (c *Config) ClockTimezone() string {
 	return c.ActivityPubConfig.ClockTimezone
 }
+
+func (c *Config) Schema() string {
+	return c.DatabaseConfig.PostgresConfig.Schema
+}
