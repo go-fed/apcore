@@ -37,37 +37,64 @@ var _ app.Framework = &Framework{}
 type Framework struct {
 	scheme            string
 	host              string
+	rsaKeySize        int
+	saltSize          int
+	bCryptStrength    int
 	o                 *oauth2.Server
 	s                 *web.Sessions
 	data              *services.Data
 	followers         *services.Followers
+	users             *services.Users
 	actor             pub.Actor
 	federationEnabled bool
 }
 
 func BuildFramework(scheme string,
 	host string,
+	rsaKeySize int,
+	saltSize int,
+	bCryptStrength int,
 	fw *Framework,
 	o *oauth2.Server,
 	s *web.Sessions,
 	data *services.Data,
 	followers *services.Followers,
+	users *services.Users,
 	actor pub.Actor,
 	a app.Application) *Framework {
 	_, isS2S := a.(app.S2SApplication)
 	fw.scheme = scheme
 	fw.host = host
+	fw.rsaKeySize = rsaKeySize
+	fw.saltSize = saltSize
+	fw.bCryptStrength = bCryptStrength
 	fw.o = o
 	fw.s = s
 	fw.data = data
 	fw.actor = actor
 	fw.federationEnabled = isS2S
 	fw.followers = followers
+	fw.users = users
 	return fw
 }
 
 func (f *Framework) Context(r *http.Request) util.Context {
 	return util.WithAPHTTPContext(f.scheme, f.host, r)
+}
+
+func (f *Framework) CreateUser(c util.Context, username, email, password string) (userID string, err error) {
+	p := services.CreateUserParameters{
+		Scheme:     f.scheme,
+		Host:       f.host,
+		RSAKeySize: f.rsaKeySize,
+		HashParams: services.HashPasswordParameters{
+			SaltSize:       f.saltSize,
+			BCryptStrength: f.bCryptStrength,
+		},
+		Username: username,
+		Email:    email,
+	}
+	return f.users.CreateUser(c, p, password)
 }
 
 func (f *Framework) UserIRI(userUUID paths.UUID) *url.URL {

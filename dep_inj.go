@@ -144,11 +144,15 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 	// Build framework for auxiliary behaviors
 	fw = framework.BuildFramework(scheme,
 		host,
+		c.ServerConfig.RSAKeySize,
+		c.ServerConfig.SaltSize,
+		c.ServerConfig.BCryptStrength,
 		fw,
 		oauth,
 		sess,
 		data,
 		followers,
+		users,
 		actor,
 		appl)
 

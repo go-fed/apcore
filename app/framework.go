@@ -31,6 +31,10 @@ type Framework interface {
 
 	UserIRI(userUUID paths.UUID) *url.URL
 
+	// CreateUser creates a new unprivileged user with the given username,
+	// email, and password.
+	CreateUser(c util.Context, username, email, password string) (userID string, err error)
+
 	// Validate attempts to obtain and validate the OAuth token or first
 	// party credential in the request. This can be called in your handlers
 	// at request-handing time.
