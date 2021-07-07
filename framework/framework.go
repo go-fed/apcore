@@ -97,6 +97,14 @@ func (f *Framework) CreateUser(c util.Context, username, email, password string)
 	return f.users.CreateUser(c, p, password)
 }
 
+func (f *Framework) IsNotUniqueUsername(err error) bool {
+	return err == services.NotUniqueUsername
+}
+
+func (f *Framework) IsNotUniqueEmail(err error) bool {
+	return err == services.NotUniqueEmail
+}
+
 func (f *Framework) UserIRI(userUUID paths.UUID) *url.URL {
 	return paths.UUIDIRIFor(f.scheme, f.host, paths.UserPathKey, userUUID)
 }

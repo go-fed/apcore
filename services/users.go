@@ -32,6 +32,11 @@ import (
 	"github.com/go-fed/apcore/util"
 )
 
+var (
+	NotUniqueEmail    error = errors.New("user does not have a unique email address")
+	NotUniqueUsername error = errors.New("user does not have a unique preferredUsername")
+)
+
 // CreateUserParameters contains all parameters needed to create a user & Actor.
 type CreateUserParameters struct {
 	// Scheme is the server's scheme for serving the ActivityPub actor
@@ -286,7 +291,7 @@ func (u *Users) checkEmailAddressUnique(c util.Context, tx *sql.Tx, email string
 	if err != nil {
 		return err
 	} else if user != nil {
-		return errors.New("user does not have a unique email address")
+		return NotUniqueEmail
 	}
 	return nil
 }
@@ -301,7 +306,7 @@ func (u *Users) checkPreferredUsernameUnique(c util.Context, tx *sql.Tx, prefUse
 	if err != nil {
 		return err
 	} else if user != nil {
-		return errors.New("user does not have a unique preferredUsername")
+		return NotUniqueUsername
 	}
 	return nil
 }

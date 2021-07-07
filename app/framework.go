@@ -33,7 +33,18 @@ type Framework interface {
 
 	// CreateUser creates a new unprivileged user with the given username,
 	// email, and password.
+	//
+	// If an error is returned, it can be checked using IsNotUniqueUsername
+	// and IsNotUniqueEmail to show the error to the user.
 	CreateUser(c util.Context, username, email, password string) (userID string, err error)
+
+	// IsNotUniqueUsername returns true if the error returned from
+	// CreateUser is due to the username not being unique.
+	IsNotUniqueUsername(error) bool
+
+	// IsNotUniqueEmail returns true if the error returned from CreateUser
+	// is due to the email not being unique.
+	IsNotUniqueEmail(error) bool
 
 	// Validate attempts to obtain and validate the OAuth token or first
 	// party credential in the request. This can be called in your handlers
