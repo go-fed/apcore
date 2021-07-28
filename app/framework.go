@@ -84,6 +84,14 @@ type Framework interface {
 	// Given a user ID, retrieves all follow requests that have not yet been
 	// Accepted nor Rejected.
 	OpenFollowRequests(c util.Context, userID paths.UUID) ([]vocab.ActivityStreamsFollow, error)
+
+	// GetPrivileges accepts a pointer to an appPrivileges struct to read
+	// from the database for the given user, and also returns whether that
+	// user is an admin.
+	GetPrivileges(c util.Context, userID paths.UUID, appPrivileges interface{}) (admin bool, err error)
+	// SetPrivileges sets the given application privileges and admin status
+	// for the given user.
+	SetPrivileges(c util.Context, userID paths.UUID, admin bool, appPrivileges interface{}) error
 }
 
 type Session interface {

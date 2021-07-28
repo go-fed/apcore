@@ -129,6 +129,25 @@ func (f *Framework) Send(c util.Context, userID paths.UUID, t vocab.Type) error 
 	}
 }
 
+func (f *Framework) GetPrivileges(c util.Context, userID paths.UUID, appPrivileges interface{}) (admin bool, err error) {
+	var p *services.Privileges
+	p, err = f.users.Privileges(c, string(userID), appPrivileges)
+	if err != nil {
+		return
+	}
+	admin = p.Admin
+	return
+}
+
+func (f *Framework) SetPrivileges(c util.Context, userID paths.UUID, admin bool, appPrivileges interface{}) error {
+	p := &services.Privileges{
+		Admin:         admin,
+		InstanceActor: false,
+		AppPrivileges: appPrivileges,
+	}
+	return f.users.UpdatePrivileges(c, string(userID), p)
+}
+
 func (f *Framework) Session(r *http.Request) (app.Session, error) {
 	return f.s.Get(r)
 }
