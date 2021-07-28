@@ -15,7 +15,7 @@ require (
 	github.com/manifoldco/promptui v0.3.2
 	github.com/microcosm-cc/bluemonday v1.0.7
 	github.com/nicksnyder/go-i18n v1.10.1 // indirect
-	github.com/tidwall/gjson v1.6.0
+	github.com/tidwall/gjson v1.6.5
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 	golang.org/x/time v0.0.0-20180412165947-fbb02b2291d2
 	gopkg.in/alecthomas/kingpin.v3-unstable v3.0.0-20191105091915-95d230a53780 // indirect
