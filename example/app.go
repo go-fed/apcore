@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -94,6 +95,12 @@ func newApplication(glob string) (*App, error) {
 	return &App{
 		templates: t,
 	}, nil
+}
+
+// CreateTables is where we would create the additional database tables we need
+// for our application, if any. Here we don't need any, so we simply return.
+func (a *App) CreateTables(db *sql.DB, debug bool) error {
+	return nil
 }
 
 // Start marks when the uptime began for our application.

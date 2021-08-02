@@ -18,6 +18,7 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 
 	"github.com/go-fed/activity/pub"
@@ -29,6 +30,13 @@ import (
 // S2SApplication, or both interfaces in order to gain the benefits of
 // federating using ActivityPub's Social or Federating Protocols.
 type Application interface {
+	// CALLS MADE AT DATABASE INIT TIME
+	//
+	// These calls are made when invoking the "initialize database" command.
+	// They are orthogonal to all of the other calls during the life of
+	// program execution.
+	CreateTables(db *sql.DB, debug bool) error
+
 	// CALLS MADE AT SERVER STARTUP
 	//
 	// These calls are made at least once, during server initialization, but

@@ -41,7 +41,10 @@ func doCreateTables(configFilePath string, a app.Application, debug bool, scheme
 			return err
 		}
 	}
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	return a.CreateTables(db, debug)
 }
 
 func doInitAdmin(configFilePath string, a app.Application, debug bool, scheme string) error {
