@@ -26,7 +26,7 @@ import (
 )
 
 func doCreateTables(configFilePath string, a app.Application, debug bool, scheme string) error {
-	db, d, ms, err := newModels(configFilePath, a, debug, scheme)
+	db, d, ms, cfg, err := newModels(configFilePath, a, debug, scheme)
 	if err != nil {
 		return err
 	}
@@ -44,7 +44,7 @@ func doCreateTables(configFilePath string, a app.Application, debug bool, scheme
 	if err = tx.Commit(); err != nil {
 		return err
 	}
-	return a.CreateTables(db, debug)
+	return a.CreateTables(db, cfg, debug)
 }
 
 func doInitAdmin(configFilePath string, a app.Application, debug bool, scheme string) error {

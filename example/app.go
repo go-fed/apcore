@@ -99,7 +99,7 @@ func newApplication(glob string) (*App, error) {
 
 // CreateTables is where we would create the additional database tables we need
 // for our application, if any. Here we don't need any, so we simply return.
-func (a *App) CreateTables(db *sql.DB, debug bool) error {
+func (a *App) CreateTables(db *sql.DB, cfg app.APCoreConfig, debug bool) error {
 	return nil
 }
 

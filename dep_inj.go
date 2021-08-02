@@ -218,9 +218,8 @@ func newServer(configFileName string, appl app.Application, debug bool) (s *fram
 	return
 }
 
-func newModels(configFileName string, appl app.Application, debug bool, scheme string) (sqldb *sql.DB, dialect models.SqlDialect, m []models.Model, err error) {
+func newModels(configFileName string, appl app.Application, debug bool, scheme string) (sqldb *sql.DB, dialect models.SqlDialect, m []models.Model, c *config.Config, err error) {
 	// Load the configuration
-	var c *config.Config
 	c, err = framework.LoadConfigFile(configFileName, appl, debug)
 	if err != nil {
 		return
