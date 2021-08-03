@@ -25,23 +25,21 @@ import (
 )
 
 type Any struct {
-	DB      *sql.DB
-	Dialect models.SqlDialect
+	DB *sql.DB
 }
 
 func (a *Any) Begin() app.TxBuilder {
-	return &txBuilder{db: a.DB, dialect: a.Dialect}
+	return &txBuilder{db: a.DB}
 }
 
 type txBuilder struct {
-	db      *sql.DB
-	dialect models.SqlDialect
-	ops     []*anyOp
+	db  *sql.DB
+	ops []*anyOp
 }
 
 func (a *txBuilder) QueryOneRow(sql string, cb func(r app.SingleRow) error, args ...interface{}) {
 	a.addOp(&anyOp{
-		sql:      a.dialect.Apply(sql),
+		sql:      sql,
 		args:     args,
 		isExec:   false,
 		isOneRow: true,
@@ -51,7 +49,7 @@ func (a *txBuilder) QueryOneRow(sql string, cb func(r app.SingleRow) error, args
 
 func (a *txBuilder) Query(sql string, cb func(r app.SingleRow) error, args ...interface{}) {
 	a.addOp(&anyOp{
-		sql:      a.dialect.Apply(sql),
+		sql:      sql,
 		args:     args,
 		isExec:   false,
 		isOneRow: false,
@@ -61,7 +59,7 @@ func (a *txBuilder) Query(sql string, cb func(r app.SingleRow) error, args ...in
 
 func (a *txBuilder) ExecOneRow(sql string, args ...interface{}) {
 	a.addOp(&anyOp{
-		sql:      a.dialect.Apply(sql),
+		sql:      sql,
 		args:     args,
 		isExec:   true,
 		isOneRow: true,
@@ -70,7 +68,7 @@ func (a *txBuilder) ExecOneRow(sql string, args ...interface{}) {
 
 func (a *txBuilder) Exec(sql string, args ...interface{}) {
 	a.addOp(&anyOp{
-		sql:      a.dialect.Apply(sql),
+		sql:      sql,
 		args:     args,
 		isExec:   true,
 		isOneRow: false,

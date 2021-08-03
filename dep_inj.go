@@ -395,8 +395,7 @@ func createModelsAndServices(c *config.Config, sqldb *sql.DB, d models.SqlDialec
 		CacheInvalidated: time.Second * time.Duration(c.NodeInfoConfig.AnonymizedStatsCacheInvalidatedSeconds),
 	}
 	any = &services.Any{
-		DB:      sqldb,
-		Dialect: d,
+		DB: sqldb,
 	}
 	return
 }
