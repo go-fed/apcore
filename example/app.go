@@ -18,7 +18,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -99,7 +98,14 @@ func newApplication(glob string) (*App, error) {
 
 // CreateTables is where we would create the additional database tables we need
 // for our application, if any. Here we don't need any, so we simply return.
-func (a *App) CreateTables(db *sql.DB, cfg app.APCoreConfig, debug bool) error {
+func (a *App) CreateTables(c context.Context, db app.Database, cfg app.APCoreConfig, debug bool) error {
+	return nil
+}
+
+// OnCreateAdminUser is where we could do additional side effects of priming
+// user data for a new admin that was created with the command line too. Here we
+// don't need any so we simply return.
+func (a *App) OnCreateAdminUser(c context.Context, userID string, db app.Database, cfg app.APCoreConfig) error {
 	return nil
 }
 

@@ -18,7 +18,6 @@ package app
 
 import (
 	"context"
-	"database/sql"
 	"net/http"
 
 	"github.com/go-fed/activity/pub"
@@ -35,7 +34,14 @@ type Application interface {
 	// These calls are made when invoking the "initialize database" command.
 	// They are orthogonal to all of the other calls during the life of
 	// program execution.
-	CreateTables(db *sql.DB, apc APCoreConfig, debug bool) error
+	CreateTables(c context.Context, db Database, apc APCoreConfig, debug bool) error
+
+	// CALLS MADE AT INIT-ADMINISTRATOR TIME
+	//
+	// These calls are made when invoking the "initialize administrator"
+	// command-line command. They are orthogonal to all of the other calls
+	// during the life of program execution
+	OnCreateAdminUser(c context.Context, userID string, d Database, apc APCoreConfig) error
 
 	// CALLS MADE AT SERVER STARTUP
 	//

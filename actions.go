@@ -44,7 +44,7 @@ func doCreateTables(configFilePath string, a app.Application, debug bool, scheme
 	if err = tx.Commit(); err != nil {
 		return err
 	}
-	return a.CreateTables(db, cfg, debug)
+	return a.CreateTables(context.Background(), &services.Any{db}, cfg, debug)
 }
 
 func doInitAdmin(configFilePath string, a app.Application, debug bool, scheme string) error {
@@ -73,11 +73,14 @@ func doInitAdmin(configFilePath string, a app.Application, debug bool, scheme st
 		return err
 	}
 	defer tx.Rollback()
-	_, err = users.CreateAdminUser(util.Context{context.Background()}, p, password)
+	userID, err := users.CreateAdminUser(util.Context{context.Background()}, p, password)
 	if err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	return a.OnCreateAdminUser(context.Background(), userID, &services.Any{db}, c)
 }
 
 func doInitData(configFilePath string, a app.Application, debug bool, scheme string) error {
