@@ -17,6 +17,7 @@
 package framework
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -78,11 +79,11 @@ func BuildFramework(scheme string,
 	return fw
 }
 
-func (f *Framework) Context(r *http.Request) util.Context {
+func (f *Framework) Context(r *http.Request) context.Context {
 	return util.WithAPHTTPContext(f.scheme, f.host, r)
 }
 
-func (f *Framework) CreateUser(c util.Context, username, email, password string) (userID string, err error) {
+func (f *Framework) CreateUser(c context.Context, username, email, password string) (userID string, err error) {
 	p := services.CreateUserParameters{
 		Scheme:     f.scheme,
 		Host:       f.host,
@@ -94,7 +95,8 @@ func (f *Framework) CreateUser(c util.Context, username, email, password string)
 		Username: username,
 		Email:    email,
 	}
-	return f.users.CreateUser(c, p, password)
+	ctx := util.Context{c}
+	return f.users.CreateUser(ctx, p, password)
 }
 
 func (f *Framework) IsNotUniqueUsername(err error) bool {
@@ -116,22 +118,23 @@ func (f *Framework) Validate(w http.ResponseWriter, r *http.Request) (userID pat
 	return
 }
 
-func (f *Framework) Send(c util.Context, userID paths.UUID, t vocab.Type) error {
-	c.WithUserPathUUID(userID)
+func (f *Framework) Send(c context.Context, userID paths.UUID, t vocab.Type) error {
+	ctx := util.Context{c}
+	ctx.WithUserPathUUID(userID)
 	if !f.federationEnabled {
 		return fmt.Errorf("cannot Send: Framework.Send called when federation is not enabled")
 	} else if fa, ok := f.actor.(pub.FederatingActor); !ok {
 		return fmt.Errorf("cannot Send: pub.Actor is not a pub.FederatingActor with federation enabled")
 	} else {
 		outboxIRI := paths.UUIDIRIFor(f.scheme, f.host, paths.OutboxPathKey, userID)
-		_, err := fa.Send(c.Context, outboxIRI, t)
+		_, err := fa.Send(ctx.Context, outboxIRI, t)
 		return err
 	}
 }
 
-func (f *Framework) GetPrivileges(c util.Context, userID paths.UUID, appPrivileges interface{}) (admin bool, err error) {
+func (f *Framework) GetPrivileges(c context.Context, userID paths.UUID, appPrivileges interface{}) (admin bool, err error) {
 	var p *services.Privileges
-	p, err = f.users.Privileges(c, string(userID), appPrivileges)
+	p, err = f.users.Privileges(util.Context{c}, string(userID), appPrivileges)
 	if err != nil {
 		return
 	}
@@ -139,28 +142,28 @@ func (f *Framework) GetPrivileges(c util.Context, userID paths.UUID, appPrivileg
 	return
 }
 
-func (f *Framework) SetPrivileges(c util.Context, userID paths.UUID, admin bool, appPrivileges interface{}) error {
+func (f *Framework) SetPrivileges(c context.Context, userID paths.UUID, admin bool, appPrivileges interface{}) error {
 	p := &services.Privileges{
 		Admin:         admin,
 		InstanceActor: false,
 		AppPrivileges: appPrivileges,
 	}
-	return f.users.UpdatePrivileges(c, string(userID), p)
+	return f.users.UpdatePrivileges(util.Context{c}, string(userID), p)
 }
 
 func (f *Framework) Session(r *http.Request) (app.Session, error) {
 	return f.s.Get(r)
 }
 
-func (f *Framework) GetByIRI(c util.Context, id *url.URL) (vocab.Type, error) {
-	return f.data.Get(c, id)
+func (f *Framework) GetByIRI(c context.Context, id *url.URL) (vocab.Type, error) {
+	return f.data.Get(util.Context{c}, id)
 }
 
-func (f *Framework) OpenFollowRequests(c util.Context, userID paths.UUID) ([]vocab.ActivityStreamsFollow, error) {
-	return f.followers.OpenFollowRequests(c, f.UserIRI(userID))
+func (f *Framework) OpenFollowRequests(c context.Context, userID paths.UUID) ([]vocab.ActivityStreamsFollow, error) {
+	return f.followers.OpenFollowRequests(util.Context{c}, f.UserIRI(userID))
 }
 
-func (f *Framework) SendAcceptFollow(ctx util.Context, userID paths.UUID, followIRI *url.URL) error {
+func (f *Framework) SendAcceptFollow(ctx context.Context, userID paths.UUID, followIRI *url.URL) error {
 	myIRI := f.UserIRI(userID)
 
 	follow, err := f.getValidFollow(ctx, myIRI, followIRI)
@@ -200,7 +203,7 @@ func (f *Framework) SendAcceptFollow(ctx util.Context, userID paths.UUID, follow
 		if err != nil {
 			return err
 		}
-		err = f.followers.PrependItem(ctx, followersIRI, id)
+		err = f.followers.PrependItem(util.Context{ctx}, followersIRI, id)
 		if err != nil {
 			// TODO: Soft fail instead?
 			return fmt.Errorf("accepted Follow but not all actors were added to followers collection(%s)[%s]: %w", followersIRI, id, err)
@@ -209,7 +212,7 @@ func (f *Framework) SendAcceptFollow(ctx util.Context, userID paths.UUID, follow
 	return nil
 }
 
-func (f *Framework) SendRejectFollow(ctx util.Context, userID paths.UUID, followIRI *url.URL) error {
+func (f *Framework) SendRejectFollow(ctx context.Context, userID paths.UUID, followIRI *url.URL) error {
 	myIRI := f.UserIRI(userID)
 
 	follow, err := f.getValidFollow(ctx, myIRI, followIRI)
@@ -245,13 +248,13 @@ func (f *Framework) SendRejectFollow(ctx util.Context, userID paths.UUID, follow
 	return nil
 }
 
-func (f *Framework) getValidFollow(ctx util.Context, userIRI *url.URL, followIRI *url.URL) (vocab.ActivityStreamsFollow, error) {
+func (f *Framework) getValidFollow(ctx context.Context, userIRI *url.URL, followIRI *url.URL) (vocab.ActivityStreamsFollow, error) {
 	// Fetch the Follow from our database
 	tFollow, err := f.GetByIRI(ctx, followIRI)
 	if err != nil {
 		return nil, err
 	}
-	follow, err := util.ToActivityStreamsFollow(ctx, tFollow)
+	follow, err := util.ToActivityStreamsFollow(util.Context{ctx}, tFollow)
 	if err != nil {
 		return nil, err
 	}

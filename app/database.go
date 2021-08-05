@@ -17,7 +17,7 @@
 package app
 
 import (
-	"github.com/go-fed/apcore/util"
+	"context"
 )
 
 type Database interface {
@@ -29,7 +29,7 @@ type TxBuilder interface {
 	Query(sql string, cb func(r SingleRow) error, args ...interface{})
 	ExecOneRow(sql string, args ...interface{})
 	Exec(sql string, args ...interface{})
-	Do(c util.Context) error
+	Do(c context.Context) error
 }
 
 type SingleRow interface {

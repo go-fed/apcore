@@ -17,13 +17,13 @@
 package app
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/go-fed/activity/streams/vocab"
-	"github.com/go-fed/apcore/util"
 )
 
-type AuthorizeFunc func(c util.Context, w http.ResponseWriter, r *http.Request, db Database) (permit bool, err error)
+type AuthorizeFunc func(c context.Context, w http.ResponseWriter, r *http.Request, db Database) (permit bool, err error)
 
 type CollectionPageHandlerFunc func(http.ResponseWriter, *http.Request, vocab.ActivityStreamsCollectionPage)
 

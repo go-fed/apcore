@@ -232,7 +232,7 @@ func (a *App) GetOutboxWebHandlerFunc(f app.Framework) func(w http.ResponseWrite
 func (a *App) GetFollowersWebHandlerFunc(f app.Framework) (app.CollectionPageHandlerFunc, app.AuthorizeFunc) {
 	return func(w http.ResponseWriter, r *http.Request, followers vocab.ActivityStreamsCollectionPage) {
 			a.getSessionWriteTemplateHelper(w, r, f, http.StatusOK, followersTemplate, followers, "GetFollowersWebHandlerFunc")
-		}, func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
+		}, func(c context.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
 			return true, nil
 		}
 }
@@ -240,7 +240,7 @@ func (a *App) GetFollowersWebHandlerFunc(f app.Framework) (app.CollectionPageHan
 func (a *App) GetFollowingWebHandlerFunc(f app.Framework) (app.CollectionPageHandlerFunc, app.AuthorizeFunc) {
 	return func(w http.ResponseWriter, r *http.Request, following vocab.ActivityStreamsCollectionPage) {
 			a.getSessionWriteTemplateHelper(w, r, f, http.StatusOK, followingTemplate, following, "GetFollowingWebHandlerFunc")
-		}, func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
+		}, func(c context.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
 			return true, nil
 		}
 }
@@ -256,7 +256,7 @@ func (a *App) GetLikedWebHandlerFunc(f app.Framework) (app.CollectionPageHandler
 func (a *App) GetUserWebHandlerFunc(f app.Framework) (app.VocabHandlerFunc, app.AuthorizeFunc) {
 	return func(w http.ResponseWriter, r *http.Request, user vocab.Type) {
 			a.getSessionWriteTemplateHelper(w, r, f, http.StatusOK, userTemplate, user, "GetUserWebHandlerFunc")
-		}, func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
+		}, func(c context.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
 			return true, nil
 		}
 }
@@ -339,7 +339,7 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 	})
 	// ActivityPubHandleFunc is a convenience function for endpoints with
 	// only ActivityPub content; no web content exists at this endpoint.
-	r.ActivityPubOnlyHandleFunc("/activities/{activity}", func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
+	r.ActivityPubOnlyHandleFunc("/activities/{activity}", func(c context.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
 		return true, nil
 	})
 
@@ -480,7 +480,7 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 		contentProp := streams.NewActivityStreamsContentProperty()
 		contentProp.AppendXMLSchemaString(content)
 		note.SetActivityStreamsContent(contentProp)
-		ctx := util.Context{r.Context()}
+		ctx := f.Context(r)
 		// Send the note -- a Create will automatically be created
 		if err := f.Send(ctx, paths.UUID(userID), note); err != nil {
 			util.ErrorLogger.Errorf("error sending when creating note: %s", err)
@@ -493,7 +493,7 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 	// First, we need an authentication function to make sure whoever views
 	// the ActivityStreams data has proper credentials to view the web or
 	// ActivityStreams data.
-	authFn := func(c util.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
+	authFn := func(c context.Context, w http.ResponseWriter, r *http.Request, db app.Database) (permit bool, err error) {
 		// Determine who, if any, is logged-in.
 		userID, authd, err := f.Validate(w, r)
 		if err != nil {
@@ -501,7 +501,7 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			// continue processing request as unauthenticated.
 		}
 		ctx := f.Context(r)
-		noteID, err := ctx.CompleteRequestURL()
+		noteID, err := util.Context{ctx}.CompleteRequestURL()
 		if err != nil {
 			util.ErrorLogger.Errorf("error sending when creating note: %s", err)
 			internalErrorHandler.ServeHTTP(w, r)
@@ -527,7 +527,7 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			return
 		}
 		ctx := f.Context(r)
-		noteID, err := ctx.CompleteRequestURL()
+		noteID, err := util.Context{ctx}.CompleteRequestURL()
 		if err != nil {
 			util.ErrorLogger.Errorf("error sending when creating note: %s", err)
 			internalErrorHandler.ServeHTTP(w, r)
@@ -625,7 +625,7 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 			badRequestHandler.ServeHTTP(w, r)
 			return
 		}
-		ctx := util.Context{r.Context()}
+		ctx := f.Context(r)
 		for k, v := range r.Form {
 			if len(v) == 0 {
 				continue
@@ -732,7 +732,7 @@ func (a *App) BuildRoutes(r app.Router, db app.Database, f app.Framework) error 
 		follow.SetActivityStreamsObject(objProp)
 
 		// Send the follow request
-		ctx := util.Context{r.Context()}
+		ctx := f.Context(r)
 		if err := f.Send(ctx, paths.UUID(userID), follow); err != nil {
 			util.ErrorLogger.Errorf("error sending when sending follow request: %s", err)
 			internalErrorHandler.ServeHTTP(w, r)

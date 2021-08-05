@@ -17,6 +17,7 @@
 package services
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/go-fed/apcore/app"
@@ -79,8 +80,8 @@ func (a *txBuilder) addOp(op *anyOp) {
 	a.ops = append(a.ops, op)
 }
 
-func (a *txBuilder) Do(c util.Context) error {
-	return doInTx(c, a.db, func(tx *sql.Tx) error {
+func (a *txBuilder) Do(c context.Context) error {
+	return doInTx(util.Context{c}, a.db, func(tx *sql.Tx) error {
 		for _, op := range a.ops {
 			if err := op.Do(c, tx); err != nil {
 				return err
@@ -98,7 +99,7 @@ type anyOp struct {
 	cb       func(r app.SingleRow) error
 }
 
-func (a *anyOp) Do(c util.Context, tx *sql.Tx) (err error) {
+func (a *anyOp) Do(c context.Context, tx *sql.Tx) (err error) {
 	if a.isExec {
 		return a.doExec(c, tx)
 	} else {
@@ -106,7 +107,7 @@ func (a *anyOp) Do(c util.Context, tx *sql.Tx) (err error) {
 	}
 }
 
-func (a *anyOp) doQuery(c util.Context, tx *sql.Tx) error {
+func (a *anyOp) doQuery(c context.Context, tx *sql.Tx) error {
 	r, err := tx.QueryContext(c, a.sql, a.args...)
 	if err != nil {
 		return err
@@ -122,7 +123,7 @@ func (a *anyOp) doQuery(c util.Context, tx *sql.Tx) error {
 	}
 }
 
-func (a *anyOp) doExec(c util.Context, tx *sql.Tx) error {
+func (a *anyOp) doExec(c context.Context, tx *sql.Tx) error {
 	r, err := tx.ExecContext(c, a.sql, a.args...)
 	if err != nil {
 		return err

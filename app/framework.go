@@ -17,17 +17,17 @@
 package app
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 
 	"github.com/go-fed/activity/streams/vocab"
 	"github.com/go-fed/apcore/paths"
-	"github.com/go-fed/apcore/util"
 )
 
 // Framework provides request-time hooks for use in handlers.
 type Framework interface {
-	Context(r *http.Request) util.Context
+	Context(r *http.Request) context.Context
 
 	UserIRI(userUUID paths.UUID) *url.URL
 
@@ -36,7 +36,7 @@ type Framework interface {
 	//
 	// If an error is returned, it can be checked using IsNotUniqueUsername
 	// and IsNotUniqueEmail to show the error to the user.
-	CreateUser(c util.Context, username, email, password string) (userID string, err error)
+	CreateUser(c context.Context, username, email, password string) (userID string, err error)
 
 	// IsNotUniqueUsername returns true if the error returned from
 	// CreateUser is due to the username not being unique.
@@ -62,36 +62,36 @@ type Framework interface {
 	// are being sent; they will be generated as needed.
 	//
 	// Calling Send when federation is disabled results in an error.
-	Send(c util.Context, userID paths.UUID, toSend vocab.Type) error
+	Send(c context.Context, userID paths.UUID, toSend vocab.Type) error
 
 	// SendAcceptFollow accepts the provided Follow on behalf of the user.
 	//
 	// Calling SendAcceptFollow when federation is disabled results in an
 	// error.
-	SendAcceptFollow(c util.Context, userID paths.UUID, followIRI *url.URL) error
+	SendAcceptFollow(c context.Context, userID paths.UUID, followIRI *url.URL) error
 
 	// SendRejectFollow rejects the provided Follow on behalf of the user.
 	//
 	// Calling SendRejectFollow when federation is disabled results in an
 	// error.
-	SendRejectFollow(c util.Context, userID paths.UUID, followIRI *url.URL) error
+	SendRejectFollow(c context.Context, userID paths.UUID, followIRI *url.URL) error
 
 	Session(r *http.Request) (Session, error)
 
 	// TODO: Determine if we need this.
-	GetByIRI(c util.Context, id *url.URL) (vocab.Type, error)
+	GetByIRI(c context.Context, id *url.URL) (vocab.Type, error)
 
 	// Given a user ID, retrieves all follow requests that have not yet been
 	// Accepted nor Rejected.
-	OpenFollowRequests(c util.Context, userID paths.UUID) ([]vocab.ActivityStreamsFollow, error)
+	OpenFollowRequests(c context.Context, userID paths.UUID) ([]vocab.ActivityStreamsFollow, error)
 
 	// GetPrivileges accepts a pointer to an appPrivileges struct to read
 	// from the database for the given user, and also returns whether that
 	// user is an admin.
-	GetPrivileges(c util.Context, userID paths.UUID, appPrivileges interface{}) (admin bool, err error)
+	GetPrivileges(c context.Context, userID paths.UUID, appPrivileges interface{}) (admin bool, err error)
 	// SetPrivileges sets the given application privileges and admin status
 	// for the given user.
-	SetPrivileges(c util.Context, userID paths.UUID, admin bool, appPrivileges interface{}) error
+	SetPrivileges(c context.Context, userID paths.UUID, admin bool, appPrivileges interface{}) error
 }
 
 type Session interface {

@@ -138,7 +138,7 @@ ORDER BY create_time DESC`,
 	return
 }
 
-func getNoteIsReadable(ctx util.Context, db app.Database, noteID, userID *url.URL) (legible /*lol*/ bool, err error) {
+func getNoteIsReadable(ctx context.Context, db app.Database, noteID, userID *url.URL) (legible /*lol*/ bool, err error) {
 	txb := db.Begin()
 	txb.Query(`SELECT EXISTS (
 SELECT create_time FROM %[1]slocal_data
@@ -157,7 +157,7 @@ WHERE payload->>'type' = 'Note' AND (
 	return
 }
 
-func getNoteIsPublic(ctx util.Context, db app.Database, noteID *url.URL) (pub bool, err error) {
+func getNoteIsPublic(ctx context.Context, db app.Database, noteID *url.URL) (pub bool, err error) {
 	txb := db.Begin()
 	txb.Query(`SELECT EXISTS (
 SELECT create_time FROM %[1]slocal_data
