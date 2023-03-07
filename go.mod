@@ -13,9 +13,9 @@ require (
 	github.com/gorilla/sessions v1.2.0
 	github.com/jackc/pgx/v4 v4.9.0
 	github.com/manifoldco/promptui v0.3.2
-	github.com/microcosm-cc/bluemonday v1.0.7
+	github.com/microcosm-cc/bluemonday v1.0.20
 	github.com/nicksnyder/go-i18n v1.10.1 // indirect
-	github.com/tidwall/gjson v1.8.1 // indirect
+	github.com/tidwall/gjson v1.8.1
 	github.com/tidwall/pretty v1.2.0 // indirect
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 	golang.org/x/time v0.0.0-20180412165947-fbb02b2291d2
